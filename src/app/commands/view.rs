@@ -3,22 +3,6 @@ use super::*;
 impl OpenCADStudio {
     pub(crate) fn dispatch_view(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
-            "DONATE" => {
-                self.command_line.push_info(crate::t!("Opening Patreon page...").as_ref());
-                return Some(crate::sys::open_url(
-                    "https://patreon.com/HakanSeven12",
-                    self.main_window,
-                ));
-            }
-
-            "WEBVERSION" => {
-                self.command_line.push_info(crate::t!("Opening OCS Web...").as_ref());
-                return Some(crate::sys::open_url(
-                    "https://hakanseven12.github.io/OpenCADStudio/",
-                    self.main_window,
-                ));
-            }
-
             "HELP" => {
                 self.command_line
                     .push_info(crate::t!("Opening OCS Discussions for help and questions...").as_ref());
@@ -198,23 +182,6 @@ impl OpenCADStudio {
                         .command_line
                         .push_info(crate::t!("Usage: USERI <1-5> <int> | USERR <1-5> <real>").as_ref()),
                 }
-            }
-
-            "REPORT" => {
-                // Pre-fill the GitHub issue body with version + platform so
-                // reports arrive with the basics already filled in.
-                let body = format!(
-                    "<!-- Describe the issue and the steps to reproduce it. -->\n\n\n\
-                     ---\n- Open CAD Studio: v{}\n- Platform: {}\n",
-                    env!("OCS_APP_VERSION"),
-                    crate::sys::platform_info(),
-                );
-                let url = format!(
-                    "https://github.com/HakanSeven12/OpenCADStudio/issues/new?body={}",
-                    crate::sys::percent_encode(&body)
-                );
-                self.command_line.push_info(crate::t!("Opening feedback page...").as_ref());
-                return Some(crate::sys::open_url(&url, self.main_window));
             }
 
             "ABOUT" => {

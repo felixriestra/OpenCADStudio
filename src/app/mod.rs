@@ -321,17 +321,6 @@ struct AddSelectedRestore {
     ribbon_lineweight: LineWeight,
 }
 
-/// Which Start-page section a narrow (tabbed) Start page is showing.
-#[derive(Clone, Copy, PartialEq, Eq, Default, Debug, serde::Serialize, serde::Deserialize)]
-pub enum StartSection {
-    Recent,
-    Videos,
-    #[default]
-    Welcome,
-    Discussions,
-    Supporters,
-}
-
 /// What the Space / Enter keys currently mean at the command line. One
 /// decision point (`OpenCADStudio::text_entry_mode`) for every keyboard
 /// route that used to re-derive the answer from editor state.
@@ -372,21 +361,6 @@ pub(super) struct OpenCADStudio {
     /// mid-edit; applied on Enter). Kept in sync when the +/- buttons change it.
     recent_limit_input: String,
     command_line: CommandLine,
-    /// Recent Patreon supporters shown on the Start page (name, USD cents),
-    /// fetched once at boot, highest payment first.
-    patrons: Vec<(String, i64)>,
-    /// Tutorial-playlist videos for the Start page: seeded from the on-disk
-    /// cache at boot, refreshed by a live playlist fetch.
-    videos: Vec<crate::videos::VideoEntry>,
-    /// Decoded thumbnail handles keyed by video id — built once per video when
-    /// the list arrives, so the view never re-decodes JPEG bytes per frame.
-    video_thumbs: std::collections::HashMap<String, iced::widget::image::Handle>,
-    /// True while the boot-time playlist fetch is still in flight.
-    videos_loading: bool,
-    /// GitHub Discussions shown on the Start page, with pinned entries first.
-    discussions: Vec<crate::discussions::DiscussionEntry>,
-    /// True while the boot-time Discussions refresh is still in flight.
-    discussions_loading: bool,
     /// Block references whose properties panel shows per-axis Scale X/Y/Z even
     /// though the three factors are currently equal — the user unchecked the
     /// "Uniform scale" box for them (#427). Keyed by entity handle.
@@ -395,12 +369,6 @@ pub(super) struct OpenCADStudio {
     /// rather than an individual document tab, so the same view preference is
     /// used by every currently open drawing/project.
     collapsed_property_sections: rustc_hash::FxHashSet<String>,
-    /// Which Start-page section is shown when the page is too narrow for all
-    /// three side by side and falls back to a tab bar.
-    start_section: StartSection,
-    /// Widest natural single-row width of the Start-page action buttons,
-    /// measured by `WrapFlow` so side lists collapse before those buttons wrap.
-    start_action_w: std::sync::Arc<std::sync::atomic::AtomicU32>,
     /// Read-only editor buffer backing the command-line history dropdown, so
     /// the log can be drag-selected across lines and copied (issue #232).
     /// Rebuilt from the history each time the dropdown is opened.
@@ -853,7 +821,6 @@ pub(super) struct OpenCADStudio {
     point_size_relative: bool,
     /// Whether the default-association prompt has been answered.
     default_assoc_prompted: bool,
-    donation_prompt_version: String,
     /// Read-only session (`--read-only`): editing is allowed but every save
     /// path is refused. Set once at boot from the CLI config.
     read_only: bool,
@@ -1722,7 +1689,6 @@ pub enum ModalKind {
     Shortcuts,
     PluginManager,
     UpdateNotice,
-    DonationPrompt,
     Layers,
     LayerStateManager,
     LayerTranslator,
@@ -1943,10 +1909,8 @@ pub enum Message {
     /// A second launch handed us a drawing to open (single instance). Queued
     /// behind any open already in flight — see `pending_opens`.
     OpenExternal(PathBuf),
-    /// Open a URL in the system browser (start-page intro video, links).
+    /// Open a URL in the system browser.
     OpenUrl(String),
-    /// Select which section a narrow (tabbed) Start page shows.
-    StartSectionSelect(StartSection),
     /// Scroll the status-bar layout-tab strip horizontally by `delta` px
     /// (negative = left). Driven by the ‹ › arrows next to the tabs.
     ScrollLayoutTabs(f32),
@@ -2974,12 +2938,6 @@ pub enum Message {
     PluginRegistryErrorDetailsToggle,
     /// Copy registry URL, platform, version, and raw error details.
     PluginRegistryCopyDiagnostics,
-    /// Patreon supporters fetched at boot for the Start page (name, USD cents).
-    PatronsFetched(Result<Vec<(String, i64)>, String>),
-    /// Tutorial-playlist videos fetched at boot for the Start page.
-    VideosFetched(Result<Vec<crate::videos::VideoEntry>, String>),
-    /// GitHub Discussions fetched at boot for the Start page.
-    DiscussionsFetched(Result<Vec<crate::discussions::DiscussionEntry>, String>),
     /// Recent-file DWG preview thumbnails decoded on a background thread.
     RecentThumbsLoaded(Vec<(std::path::PathBuf, Option<iced::widget::image::Handle>)>),
     /// Installable releases and manifest API versions fetched for `owner/repo`.
@@ -3149,7 +3107,6 @@ pub enum Message {
     UpdateCheckResult(Option<crate::io::update_check::UpdateInfo>),
     /// User dismissed the update-notice window.
     UpdateNoticeClose,
-    DonationPromptDonate,
     /// First-launch default-association prompt: user accepted — register this
     /// app as the default handler for .dwg / .dxf.
     AssocPromptYes,
@@ -3484,23 +3441,6 @@ pub enum SystemClipboardText {
 }
 
 impl OpenCADStudio {
-    /// Install the Start-page video list, decoding each thumbnail's JPEG into
-    /// an image Handle exactly once (a fresh Handle per view frame would
-    /// re-upload the texture every frame).
-    fn set_videos(&mut self, videos: Vec<crate::videos::VideoEntry>) {
-        if videos.is_empty() {
-            return;
-        }
-        self.video_thumbs = videos
-            .iter()
-            .filter_map(|v| {
-                let bytes = v.thumb.clone()?;
-                Some((v.id.clone(), iced::widget::image::Handle::from_bytes(bytes)))
-            })
-            .collect();
-        self.videos = videos;
-    }
-
     fn new() -> Self {
         let config = config::AppConfig::load();
         if let Err(error) = crate::i18n::set_language(config.settings.language) {
@@ -3524,16 +3464,8 @@ impl OpenCADStudio {
             recent_limit: recent::RECENT_DEFAULT,
             recent_limit_input: recent::RECENT_DEFAULT.to_string(),
             command_line: CommandLine::new(),
-            patrons: Vec::new(),
-            videos: Vec::new(),
-            video_thumbs: std::collections::HashMap::new(),
-            videos_loading: false,
-            discussions: Vec::new(),
-            discussions_loading: false,
             props_asym_scale: std::collections::HashSet::new(),
             collapsed_property_sections: rustc_hash::FxHashSet::default(),
-            start_section: StartSection::default(),
-            start_action_w: std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)),
             history_content: iced::widget::text_editor::Content::new(),
             command_history_resizing: false,
             command_history_drag_last: None,
@@ -3706,7 +3638,6 @@ impl OpenCADStudio {
             point_size_buf: String::new(),
             point_size_relative: true,
             default_assoc_prompted: false,
-            donation_prompt_version: String::new(),
             read_only: false,
             update_notice_version: None,
             update_notice_body: None,
@@ -4087,57 +4018,6 @@ impl OpenCADStudio {
             )
         };
         s.queue_startup_prompts();
-        // Fetch the Patreon supporters list once at boot for the Start page.
-        #[cfg(not(target_arch = "wasm32"))]
-        let patrons_fetch = Task::perform(
-            async { crate::patreon::fetch_patrons() },
-            Message::PatronsFetched,
-        );
-        #[cfg(target_arch = "wasm32")]
-        let patrons_fetch = Task::none();
-        // Tutorial videos: show the on-disk cache instantly, refresh from the
-        // live playlist in the background. Nothing ships in the binary. The
-        // fetch runs on its own OS thread — its several sequential HTTP
-        // requests would otherwise sit on the async executor and hold up the
-        // rest of the boot tasks (the Start page waited on it).
-        #[cfg(not(target_arch = "wasm32"))]
-        let videos_fetch = {
-            s.set_videos(crate::videos::load_cached());
-            s.videos_loading = true;
-            let (tx, rx) = iced::futures::channel::oneshot::channel();
-            std::thread::spawn(move || {
-                let _ = tx.send(crate::videos::fetch_playlist());
-            });
-            Task::perform(
-                async move {
-                    rx.await
-                        .unwrap_or_else(|_| Err("video fetch thread died".into()))
-                },
-                Message::VideosFetched,
-            )
-        };
-        #[cfg(target_arch = "wasm32")]
-        let videos_fetch = Task::none();
-        // GitHub Discussions: seed from the last successful fetch, then refresh
-        // the public feed and pinned section on a background thread.
-        #[cfg(not(target_arch = "wasm32"))]
-        let discussions_fetch = {
-            s.discussions = crate::discussions::load_cached();
-            s.discussions_loading = true;
-            let (tx, rx) = iced::futures::channel::oneshot::channel();
-            std::thread::spawn(move || {
-                let _ = tx.send(crate::discussions::fetch_discussions());
-            });
-            Task::perform(
-                async move {
-                    rx.await
-                        .unwrap_or_else(|_| Err("discussion fetch thread died".into()))
-                },
-                Message::DiscussionsFetched,
-            )
-        };
-        #[cfg(target_arch = "wasm32")]
-        let discussions_fetch = Task::none();
         // Recent-file thumbnails: decoded off-thread — parsing every recent
         // DWG's preview on the boot path held the first frame back.
         let thumbs_fetch = s.refresh_recent_thumbs();
@@ -4149,9 +4029,6 @@ impl OpenCADStudio {
                 focus_cmd,
                 cli_open,
                 script,
-                patrons_fetch,
-                videos_fetch,
-                discussions_fetch,
                 thumbs_fetch,
             ]),
         )
@@ -4162,7 +4039,6 @@ impl OpenCADStudio {
     /// open. Secondary manager windows are unavailable on the web for now.
     #[cfg(target_arch = "wasm32")]
     fn boot_web() -> (Self, Task<Message>) {
-        #[cfg_attr(target_arch = "wasm32", allow(unused_mut))]
         let mut s = Self::new();
         s.queue_startup_prompts();
         let focus = s.focus_cmd_input();
@@ -4172,21 +4048,8 @@ impl OpenCADStudio {
             Task::done(Message::PollWebFonts),
             Task::done(Message::ApplyWebFont(primary_font)),
         ]);
-        // Web can't reach the Patreon API directly (CORS); fetch the CI-built
-        // supporters.json served on the same origin instead.
-        let patrons = Task::perform(crate::patreon::fetch_patrons_web(), Message::PatronsFetched);
-        s.videos_loading = true;
-        let videos = Task::perform(crate::videos::fetch_playlist_web(), Message::VideosFetched);
-        s.discussions_loading = true;
-        let discussions = Task::perform(
-            crate::discussions::fetch_discussions_web(),
-            Message::DiscussionsFetched,
-        );
         let thumbs_fetch = s.refresh_recent_thumbs();
-        (
-            s,
-            Task::batch([focus, fonts, patrons, videos, discussions, thumbs_fetch]),
-        )
+        (s, Task::batch([focus, fonts, thumbs_fetch]))
     }
 }
 
@@ -4211,13 +4074,13 @@ pub fn run() -> iced::Result {
             let dot = if tab.dirty { "● " } else { "" };
             let name = tab.tab_display_name();
             format!(
-                "{}Open CAD Studio {} - {}",
+                "{}OCS2Cam {} - {}",
                 dot,
                 env!("OCS_APP_VERSION"),
                 name
             )
         } else {
-            concat!("Open CAD Studio ", env!("OCS_APP_VERSION")).to_string()
+            concat!("OCS2Cam ", env!("OCS_APP_VERSION")).to_string()
         }
     })
     .theme(|state: &OpenCADStudio, _| state.active_theme.clone())
@@ -4251,7 +4114,7 @@ pub fn run_web() -> iced::Result {
     .subscription(OpenCADStudio::subscription)
     .scale_factor(|state: &OpenCADStudio| state.ui_scale as f32 / 100.0)
     .title(|_state: &OpenCADStudio| {
-        concat!("Open CAD Studio ", env!("OCS_APP_VERSION")).to_string()
+        concat!("OCS2Cam ", env!("OCS_APP_VERSION")).to_string()
     })
     .theme(|state: &OpenCADStudio| state.active_theme.clone())
     .backend(iced::Backend::Hardware(iced::backend::Api::OpenGL))

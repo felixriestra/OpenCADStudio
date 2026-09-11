@@ -18,7 +18,6 @@ impl OpenCADStudio {
             Some(K::FindReplace) => crate::tr!("modal", "find-replace"),
             Some(K::PluginManager) => crate::tr!("modal", "plugin-manager"),
             Some(K::UpdateNotice) => crate::tr!("modal", "update-available"),
-            Some(K::DonationPrompt) => crate::tr!("donation", "title"),
             Some(K::Layers) => crate::tr!("modal", "layer-manager"),
             Some(K::LayerStateManager) => crate::tr!("modal", "layer-state-manager"),
             Some(K::LayerTranslator) => crate::t!("Layer Translator").into_owned(),
@@ -1377,9 +1376,6 @@ impl OpenCADStudio {
             super::super::ModalKind::AssocPrompt => {
                 automatic_flow(ex, default_assoc_dialog_window)
             }
-            super::super::ModalKind::DonationPrompt => {
-                sized_flow(ex, 540, 360, donation_dialog_window)
-            }
             super::super::ModalKind::AecDropWarning => {
                 let src_label = self
                     .tabs
@@ -1923,52 +1919,16 @@ fn layer_delete_warning_window(
     .into()
 }
 
-fn donation_dialog_window(sizing: crate::ui::modal::ModalSizing) -> Element<'static, Message> {
-    container(
-        column![
-            text(crate::tr!("donation", "heading")).size(18),
-            row![
-                text(crate::tr!("donation", "body"))
-                    .size(14)
-                    .width(Fill),
-                crate::ui::icons::themed(crate::ui::icons::HEART, 52.0),
-            ]
-            .spacing(20)
-            .align_y(iced::Center),
-            row![
-                Space::new().width(Fill),
-                dialog_button(
-                    crate::tr!("start", "donate"),
-                    Message::DonationPromptDonate,
-                    button::primary,
-                ),
-                dialog_button(
-                    crate::tr!("donation", "decline"),
-                    Message::CloseModal,
-                    button::secondary,
-                ),
-            ]
-            .spacing(8)
-            .align_y(iced::Center),
-        ]
-        .spacing(18)
-        .width(sizing.width),
-    )
-    .style(dialog_body_style)
-    .padding([24, 28])
-    .into()
-}
-
 /// One-time default application prompt.
 fn default_assoc_dialog_window(
     sizing: crate::ui::modal::ModalSizing,
 ) -> Element<'static, Message> {
     container(
         column![
-            text(t!("Make Open CAD Studio your default CAD app?"))
+            text(t!("Make OCS2Cam your default CAD app?"))
                 .size(15),
             iced::widget::Space::new().height(10),
-            text(t!("Open .dwg and .dxf drawings in Open CAD Studio by default. You can change this later in your system settings."))
+            text(t!("Open .dwg and .dxf drawings in OCS2Cam by default. You can change this later in your system settings."))
                 .size(12)
                 .style(dialog_muted_text_style),
             iced::widget::Space::new().height(22),

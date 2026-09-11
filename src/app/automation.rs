@@ -1050,9 +1050,6 @@ mod tests {
             .expect("the start_allowed gate moved — re-point this test");
         // Welcome-page links plus app-wide configuration commands.
         let standalone = [
-            "DONATE",
-            "REPORT",
-            "WEBVERSION",
             "ABOUT",
             "CHANGELOG",
             "CUI",
@@ -1613,4 +1610,3 @@ mod tests {
         assert_eq!(app.tabs[0].active_cmd.as_ref().map(|c| c.name()), Some("MTP"));
     }
 }
-

@@ -4,7 +4,6 @@ mod changelog;
 pub mod clipboard;
 pub mod constrain;
 pub mod defaults;
-mod donate;
 pub mod draw;
 pub mod fence;
 pub mod units;
@@ -13,7 +12,6 @@ pub mod inquiry;
 pub mod layers;
 pub mod modify;
 pub mod properties;
-mod report;
 pub mod select;
 
 use crate::modules::{CadModule, RibbonGroup, RibbonItem};

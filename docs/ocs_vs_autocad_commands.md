@@ -410,7 +410,6 @@ Of those:
 | 345 | REGENMODE | REGENMODE | Sysvar: automatic regeneration on/off |
 | 346 | REGION | REGION | Creates a 2D region from a closed shape |
 | 347 | RENAME | RENAME | Renames named objects (layers, blocks, styles, …) |
-| 348 | REPORT | REPORT | Generates a report about the drawing |
 | 349 | REVCLOUD | REVCLOUD | Draws a revision cloud |
 | 350 | REVERSE | REVERSE | Reverses the vertex order of lines/polylines/splines |
 | 351 | REVOLVE | REVOLVE | Creates a 3D solid/surface by revolving a profile |
@@ -604,10 +603,8 @@ counterpart, or registered a duplicate/synonym alongside the real name.
 | 29 | FRAMES1 | FRAME (value 1) | OCS ribbon toggle for setting sysvar `FRAME` to 1 (visible + plots) |
 | 30 | FRAMES2 | FRAME (value 2) | OCS ribbon toggle for setting sysvar `FRAME` to 2 (visible, doesn't plot) |
 | 31 | CHANGELOG | — (none) | OCS-specific: opens the app's changelog |
-| 32 | DONATE | — (none) | OCS-specific: opens a donation link |
 | 33 | PLUGINMANAGER | APPLOAD (closest) | OCS-specific plugin manager; AutoCAD's nearest analog is loading ObjectARX/LISP apps via APPLOAD |
 | 34 | PLUGINS | APPLOAD (closest) | OCS-specific plugin list; no direct AutoCAD equivalent |
-| 35 | WEBVERSION | — (none) | OCS-specific: opens the web version of the app |
 | 36 | 3O | 3DO | OCS's own short alias for 3DORBIT; real AutoCAD alias is `3DO`, not `3O` |
 | 37 | BLE | BEDIT (BE is the real alias) | OCS's own alias; AutoCAD's real alias for BEDIT is `BE` |
 | 38 | CDIMSTY | DIMSTYLE | OCS-invented shorthand; not a documented AutoCAD alias |

@@ -66,6 +66,12 @@ impl OpenCADStudio {
         // the first space are left untouched. A non-alias passes through as-is.
         let resolved = self.resolve_alias(cmd);
         let cmd = resolved.as_deref().unwrap_or(cmd);
+        if is_removed_solid_command(cmd) {
+            self.command_line.push_info(
+                crate::t!("Solid modelling commands are not available in OCS2Cam.").as_ref(),
+            );
+            return Task::none();
+        }
         // A drafting aid only flips a flag, so it must not disturb whatever is
         // already running: pressing F8 partway through a LINE means "constrain
         // the rest of this line", not "abandon it". Everything below tears the
@@ -265,6 +271,69 @@ impl OpenCADStudio {
     }
 }
 
+/// OCS2Cam is a 2.5D CAD/CAM product. It can still read and display solid
+/// entities found in imported drawings, but it does not expose solid-authoring
+/// commands.
+fn is_removed_solid_command(command: &str) -> bool {
+    let verb = command.split_whitespace().next().unwrap_or(command);
+    matches!(
+        verb,
+        "3DALIGN"
+            | "3DFACE"
+            | "3DMESH"
+            | "3DMIRROR"
+            | "3DPOLY"
+            | "3DROTATE"
+            | "ALIGN3D"
+            | "BOX"
+            | "CHAMFEREDGE"
+            | "CONE"
+            | "CYLINDER"
+            | "EXTRUDE"
+            | "FILLETEDGE"
+            | "HELIX"
+            | "INF"
+            | "INTERFERE"
+            | "INTERSECT"
+            | "LOFT"
+            | "MIRROR3D"
+            | "POLYSOLID"
+            | "PRESSPULL"
+            | "PYR"
+            | "PYRAMID"
+            | "REVOLVE"
+            | "SECTIONPLANE"
+            | "SHELL"
+            | "SL"
+            | "SLICE"
+            | "SOLIDCHAMFER"
+            | "SOLIDEDIT"
+            | "SOLIDFILLET"
+            | "SPHERE"
+            | "SUBTRACT"
+            | "SWEEP"
+            | "THICKEN"
+            | "TORUS"
+            | "UNION"
+            | "WEDGE"
+    )
+}
+
+#[cfg(test)]
+mod ocs2cam_scope_tests {
+    use super::is_removed_solid_command;
+
+    #[test]
+    fn rejects_solid_authoring_but_keeps_2d_and_cam_commands() {
+        for command in ["EXTRUDE", "REVOLVE 360", "BOX", "UNION", "SHELL", "3DFACE"] {
+            assert!(is_removed_solid_command(command), "{command}");
+        }
+        for command in ["LINE", "PLINE", "HATCH", "CAMPROFILE", "CAMDRILL", "CAMEXPORT"] {
+            assert!(!is_removed_solid_command(command), "{command}");
+        }
+    }
+}
+
 /// Commands that toggle a drafting aid and nothing else.
 ///
 /// They are reachable from a function key, and a function key gets pressed
@@ -291,13 +360,10 @@ pub fn start_allowed(cmd: &str) -> bool {
             | "OPEN"
             | "EXIT"
             | "QUIT"
-            | "REPORT"
             | "CHANGELOG"
             | "ABOUT"
             | "PLUGINS"
             | "PLUGINMANAGER"
-            | "DONATE"
-            | "WEBVERSION"
             | "HELP"
             | "PERF"
             | "CUI"
@@ -611,7 +677,6 @@ inventory::submit!(crate::command::CommandRegistration {
         "DESELALL",
         "DESELECT",
         "DIMSTYLE",
-        "DONATE",
         "DRAWORDER",
         "DWGPROP",
         "DWGPROPS",
@@ -679,7 +744,6 @@ inventory::submit!(crate::command::CommandRegistration {
         "QUIT",
         "REDO",
         "RENAME",
-        "REPORT",
         "SA",
         "SAVE",
         "SAVEAS",
@@ -715,7 +779,6 @@ inventory::submit!(crate::command::CommandRegistration {
         "VW",
         "WB",
         "WBLOCK",
-        "WEBVERSION",
         "XA",
         "XATTACH",
         "XDATA",

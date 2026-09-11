@@ -486,12 +486,6 @@ impl OpenCADStudio {
 
             Message::OpenUrl(url) => crate::sys::open_url(&url, self.main_window),
 
-            Message::StartSectionSelect(section) => {
-                self.start_section = section;
-                self.save_config();
-                Task::none()
-            }
-
             Message::ScrollLayoutTabs(dx) => iced::widget::operation::scroll_by(
                 iced::advanced::widget::Id::new(crate::ui::statusbar::LAYOUT_TABS_SCROLL_ID),
                 iced::widget::scrollable::AbsoluteOffset { x: dx, y: 0.0 },
@@ -7209,38 +7203,6 @@ impl OpenCADStudio {
                 }
                 Task::none()
             }
-            Message::PatronsFetched(Ok(names)) => {
-                // Merge the hand-maintained supporters and rank everyone by
-                // amount (also sorts the web list, which arrives unsorted).
-                self.patrons = crate::patreon::merge_manual(names);
-                Task::none()
-            }
-            // No token / offline: still show any hand-maintained supporters
-            // (Start page shows a "Support on Patreon" prompt when empty).
-            Message::PatronsFetched(Err(_)) => {
-                self.patrons = crate::patreon::merge_manual(Vec::new());
-                Task::none()
-            }
-            Message::VideosFetched(Ok(videos)) => {
-                self.videos_loading = false;
-                self.set_videos(videos);
-                Task::none()
-            }
-            // Offline / markup change: keep whatever the on-disk cache seeded.
-            Message::VideosFetched(Err(_)) => {
-                self.videos_loading = false;
-                Task::none()
-            }
-            Message::DiscussionsFetched(Ok(discussions)) => {
-                self.discussions_loading = false;
-                self.discussions = discussions;
-                Task::none()
-            }
-            // Offline: keep the native cache (web leaves the panel empty).
-            Message::DiscussionsFetched(Err(_)) => {
-                self.discussions_loading = false;
-                Task::none()
-            }
             Message::RecentThumbsLoaded(thumbs) => {
                 for (path, handle) in thumbs {
                     self.recent_thumbs.insert(path, handle);
@@ -7593,11 +7555,6 @@ impl OpenCADStudio {
                 self.pending_startup_modals
                     .push_back(super::ModalKind::UpdateNotice);
                 Task::none()
-            }
-            Message::DonationPromptDonate => {
-                self.close_active_modal();
-                self.dispatch_view("DONATE", self.active_tab)
-                    .unwrap_or_else(Task::none)
             }
             Message::UpdateNoticeClose => {
                 self.close_active_modal();

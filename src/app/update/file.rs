@@ -413,7 +413,6 @@ impl OpenCADStudio {
             snap_angle_deg: self.snap_angle_deg,
             otrack: self.snapper.otrack_enabled,
             default_assoc_prompted: self.default_assoc_prompted,
-            donation_prompt_version: self.donation_prompt_version.clone(),
             disabled_plugins: {
                 let mut v: Vec<String> = self.disabled_plugins.iter().cloned().collect();
                 v.sort();
@@ -493,7 +492,6 @@ impl OpenCADStudio {
         // open / tab switch), not app-global, so they are not applied here.
         self.snapper.otrack_enabled = s.otrack;
         self.default_assoc_prompted = s.default_assoc_prompted;
-        self.donation_prompt_version = s.donation_prompt_version.clone();
         self.disabled_plugins = s.disabled_plugins.iter().cloned().collect();
         self.plugin_repos = s.plugin_repos.clone();
         self.command_line.literal_spaces = s.literal_spaces;
@@ -826,9 +824,6 @@ impl OpenCADStudio {
                     .collect(),
                 limit: self.recent_limit,
             },
-            start: crate::app::config::StartConfig {
-                section: self.start_section,
-            },
             statusbar: self.statusbar_config.clone(),
             dock: {
                 let mut dock = self.dock.clone();
@@ -890,7 +885,6 @@ impl OpenCADStudio {
         self.recent_limit_input = self.recent_limit.to_string();
         // Thumbnails are decoded by a background task queued at boot
         // (`refresh_recent_thumbs`) — never here on the boot path.
-        self.start_section = cfg.start.section;
         self.statusbar_config = cfg.statusbar;
         let mut dock = cfg.dock;
         dock.ensure_settings();

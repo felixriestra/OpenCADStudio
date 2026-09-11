@@ -23,8 +23,6 @@ pub struct AppConfig {
     pub theme: UiThemeConfig,
     /// Recent-files list + retained count.
     pub recent: RecentConfig,
-    /// Last selected section on the tabbed Start page.
-    pub start: StartConfig,
     /// Which status-bar pills the user has hidden.
     pub statusbar: StatusBarConfig,
     /// General edge-stack dock layout (which panels are docked, side, order,
@@ -49,7 +47,6 @@ impl Default for AppConfig {
             settings: UserSettings::default(),
             theme: UiThemeConfig::default(),
             recent: RecentConfig::default(),
-            start: StartConfig::default(),
             statusbar: StatusBarConfig::default(),
             dock: crate::ui::dock::DockState::default(),
             annotation_auto_scale: -4,
@@ -427,12 +424,6 @@ impl Default for RecentConfig {
             limit: super::recent::RECENT_DEFAULT,
         }
     }
-}
-
-#[derive(Clone, PartialEq, Serialize, Deserialize, Default)]
-#[serde(default)]
-pub struct StartConfig {
-    pub section: super::StartSection,
 }
 
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
