@@ -215,6 +215,10 @@ pub(super) struct DocumentTab {
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(super) plugin_state: HashMap<&'static str, Box<dyn Any + Send + Sync>>,
     pub(super) suspended_cmd: Option<Box<dyn CadCommand>>,
+    /// Most recently generated controller-ready CAM program for this drawing.
+    /// Keeping it on the tab prevents an export from using another drawing's
+    /// toolpath after a document switch.
+    pub(super) cam_program: Option<(u64, String)>,
 }
 
 impl DocumentTab {
@@ -619,6 +623,7 @@ impl DocumentTab {
             zoom_dynamic_mode: false,
             plugin_state: HashMap::new(),
             suspended_cmd: None,
+            cam_program: None,
         }
     }
 

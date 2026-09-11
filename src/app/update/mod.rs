@@ -1340,6 +1340,34 @@ impl OpenCADStudio {
                 }
                 Task::none()
             }
+            Message::CamExport(program) => Task::perform(
+                async move {
+                    let path = crate::sys::file_dialog()
+                        .set_title("Export G-code")
+                        .set_file_name("profile.nc")
+                        .add_filter("G-code", &["nc", "gcode", "tap"])
+                        .add_filter("All Files", &["*"])
+                        .save_file()
+                        .await
+                        .map(|handle| crate::sys::handle_path(&handle));
+                    (program, path)
+                },
+                |(program, path)| Message::CamExportResult(program, path),
+            ),
+            Message::CamExportResult(program, Some(path)) => {
+                match std::fs::write(&path, program.as_bytes()) {
+                    Ok(()) => self.command_line.push_output(&format!(
+                        "CAMEXPORT: saved {} G-code lines to \"{}\".",
+                        program.lines().count(),
+                        path.display()
+                    )),
+                    Err(error) => self
+                        .command_line
+                        .push_error(&format!("CAMEXPORT: write failed: {error}")),
+                }
+                Task::none()
+            }
+            Message::CamExportResult(_, None) => Task::none(),
 
             // ── Document tabs ─────────────────────────────────────────────
             Message::TabNew => {

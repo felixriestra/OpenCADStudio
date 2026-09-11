@@ -5,6 +5,7 @@ use iced::Task;
 use std::path::PathBuf;
 
 mod blocks;
+mod cam;
 mod dim;
 mod display;
 mod draw;
@@ -213,6 +214,9 @@ impl OpenCADStudio {
     /// `finish_dispatch`), or `None` to defer to the next — equivalent to one
     /// sequential `match` over all arms.
     fn dispatch_families(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
+        if let Some(t) = self.dispatch_cam(cmd, i) {
+            return Some(t);
+        }
         if let Some(t) = self.dispatch_fileops(cmd, i) {
             return Some(t);
         }
@@ -317,6 +321,12 @@ inventory::submit!(crate::command::CommandRegistration {
         // Drafting-aid / display toggles + customization entry points wired in the
         // dispatch families (no interactive command module of their own).
         "ALIASEDIT",
+        "CAMINFO",
+        "CAMPROFILE",
+        "CAMINSIDE",
+        "CAMENGRAVE",
+        "CAMDRILL",
+        "CAMEXPORT",
         "CLEANSCREEN",
         "CUI",
         "DSETTINGS",

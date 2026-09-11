@@ -25,6 +25,7 @@ pub use ocs_plugin_api::ribbon::{
 // ── Module declarations ───────────────────────────────────────────────────
 
 pub mod annotate;
+pub mod cam;
 pub mod draw;
 pub mod insert;
 pub mod model;

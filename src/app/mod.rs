@@ -2176,6 +2176,9 @@ pub enum Message {
         command: String,
         path: Option<std::path::PathBuf>,
     },
+    /// Save the most recently generated CAM program through a native dialog.
+    CamExport(String),
+    CamExportResult(String, Option<std::path::PathBuf>),
     // ── Document tabs ──────────────────────────────────────────────────────
     /// Create a new empty document tab.
     TabNew,
