@@ -21,14 +21,14 @@ use clap::Parser;
 #[command(
     name = "OpenCADStudio",
     version,
-    about = crate::t!("Open CAD Studio — 2D/3D CAD editor").into_owned(),
+    about = "Mac2CAM — 2.5D CAD/CAM for macOS",
     long_about = None,
 )]
 pub struct Cli {
     /// CAD files to open at startup (.dwg / .dxf). Also how the OS file
     /// association launches us when drawings are double-clicked — selecting
     /// several hands them all to one launch, so this takes a list.
-    #[arg(help = crate::t!("CAD files to open at startup (.dwg / .dxf).").into_owned(), long_help = None)]
+    #[arg(help = "Mac2CAM projects or CAD files to open (.mac2cam / .dwg / .dxf).", long_help = None)]
     pub files: Vec<PathBuf>,
 
     /// Start with a new empty drawing, ignoring any file argument.

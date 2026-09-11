@@ -15,9 +15,112 @@ impl OpenCADStudio {
                 {
                     format!("{count} CAM operation(s); '{stale}' has changed source geometry and must be regenerated.")
                 } else {
-                    format!("{count} CAM operation(s) ready. Run CAMEXPORT to save G-code and the job sidecar.")
+                    format!("{count} CAM operation(s) ready. Save the Mac2CAM project or run CAMEXPORT for G-code.")
                 };
                 self.command_line.push_output(&detail);
+            }
+            "CAMLIST" => {
+                if self.tabs[i].cam_job.operations.is_empty() {
+                    self.command_line.push_output("CAMLIST: no operations.");
+                }
+                for (index, operation) in self.tabs[i].cam_job.operations.iter().enumerate() {
+                    self.command_line.push_output(&format!(
+                        "{}: [{}] {} ({:?})",
+                        index + 1,
+                        if operation.enabled { "on" } else { "off" },
+                        operation.name,
+                        operation.kind
+                    ));
+                }
+            }
+            "CAMDELETE" | "CAMENABLE" | "CAMDISABLE" | "CAMDUP" => {
+                let Some(index) = cam_operation_index(cmd, self.tabs[i].cam_job.operations.len())
+                else {
+                    self.command_line.push_error(&format!(
+                        "{verb}: provide an operation number from CAMLIST."
+                    ));
+                    return Some(Task::none());
+                };
+                match verb {
+                    "CAMDELETE" => {
+                        let removed = self.tabs[i].cam_job.operations.remove(index);
+                        self.command_line
+                            .push_output(&format!("CAMDELETE: removed '{}'.", removed.name));
+                    }
+                    "CAMDUP" => {
+                        let mut copy = self.tabs[i].cam_job.operations[index].clone();
+                        let sequence = self.tabs[i].cam_job.operations.len() + 1;
+                        copy.id = format!("{}-copy-{sequence}", copy.id);
+                        copy.name = format!("{} copy", copy.name);
+                        self.tabs[i].cam_job.operations.insert(index + 1, copy);
+                        self.command_line
+                            .push_output("CAMDUP: operation duplicated.");
+                    }
+                    _ => {
+                        self.tabs[i].cam_job.operations[index].enabled = verb == "CAMENABLE";
+                        self.command_line.push_output(&format!(
+                            "{verb}: operation {} is now {}.",
+                            index + 1,
+                            if verb == "CAMENABLE" {
+                                "enabled"
+                            } else {
+                                "disabled"
+                            }
+                        ));
+                    }
+                }
+                self.tabs[i].dirty = true;
+            }
+            "CAMMOVE" => {
+                let values: Vec<_> = cmd.split_whitespace().skip(1).collect();
+                let parsed = values
+                    .first()
+                    .and_then(|value| value.parse::<usize>().ok())
+                    .zip(values.get(1).and_then(|value| value.parse::<usize>().ok()));
+                let count = self.tabs[i].cam_job.operations.len();
+                let Some((from, to)) = parsed
+                    .filter(|(from, to)| *from > 0 && *to > 0 && *from <= count && *to <= count)
+                else {
+                    self.command_line
+                        .push_error("CAMMOVE: use CAMMOVE <from> <to> with numbers from CAMLIST.");
+                    return Some(Task::none());
+                };
+                let operation = self.tabs[i].cam_job.operations.remove(from - 1);
+                self.tabs[i].cam_job.operations.insert(to - 1, operation);
+                self.tabs[i].dirty = true;
+                self.command_line
+                    .push_output(&format!("CAMMOVE: moved operation {from} to {to}."));
+            }
+            "CAMSETUP" => {
+                let Some(setup) = self.tabs[i].cam_job.setups.first_mut() else {
+                    return Some(Task::none());
+                };
+                if cmd.split_whitespace().count() == 1 {
+                    self.command_line.push_output(&format!(
+                        "CAMSETUP: stock {}×{}×{}, origin {},{}, clearance {}, machine {}×{}×{}.",
+                        setup.stock.width,
+                        setup.stock.height,
+                        setup.stock.thickness,
+                        setup.work_origin.x,
+                        setup.work_origin.y,
+                        setup.clearance_z,
+                        setup.machine.travel_x,
+                        setup.machine.travel_y,
+                        setup.machine.travel_z
+                    ));
+                    return Some(Task::none());
+                }
+                let mut candidate = setup.clone();
+                let result = apply_setup_arguments(&mut candidate, cmd);
+                match result.and_then(|()| candidate.validate().map_err(|error| error.to_string()))
+                {
+                    Ok(()) => {
+                        *setup = candidate;
+                        self.tabs[i].dirty = true;
+                        self.command_line.push_output("CAMSETUP: setup updated.");
+                    }
+                    Err(error) => self.command_line.push_error(&format!("CAMSETUP: {error}")),
+                }
             }
             "CAMCLEAR" => {
                 let units =
@@ -497,6 +600,43 @@ fn contour_from_entity(entity: &EntityType, require_closed: bool) -> Result<Cont
     }
 }
 
+fn cam_operation_index(cmd: &str, count: usize) -> Option<usize> {
+    cmd.split_whitespace()
+        .nth(1)?
+        .parse::<usize>()
+        .ok()
+        .filter(|index| *index > 0 && *index <= count)
+        .map(|index| index - 1)
+}
+
+fn apply_setup_arguments(setup: &mut ocs_cam_core::CamSetup, cmd: &str) -> Result<(), String> {
+    for argument in cmd.split_whitespace().skip(1) {
+        let Some((key, value)) = argument.split_once('=') else {
+            return Err(format!("expected key=value, got '{argument}'"));
+        };
+        match key.to_ascii_lowercase().as_str() {
+            "stockw" => setup.stock.width = parse_number(key, value)?,
+            "stockh" => setup.stock.height = parse_number(key, value)?,
+            "thickness" => setup.stock.thickness = parse_number(key, value)?,
+            "originx" => setup.work_origin.x = parse_number(key, value)?,
+            "originy" => setup.work_origin.y = parse_number(key, value)?,
+            "clearance" => setup.clearance_z = parse_number(key, value)?,
+            "travelx" => setup.machine.travel_x = parse_number(key, value)?,
+            "travely" => setup.machine.travel_y = parse_number(key, value)?,
+            "travelz" => setup.machine.travel_z = parse_number(key, value)?,
+            "maxfeed" => setup.machine.maximum_feed = parse_number(key, value)?,
+            "maxrpm" => {
+                setup.machine.maximum_spindle_rpm = value
+                    .parse::<u32>()
+                    .map_err(|_| format!("invalid maxrpm '{value}'"))?
+            }
+            "material" => setup.material.name = value.replace('_', " "),
+            _ => return Err(format!("unknown setup parameter '{key}'")),
+        }
+    }
+    Ok(())
+}
+
 fn drill_point_from_entity(entity: &EntityType) -> Result<ocs_cam_core::Point2, &'static str> {
     let (x, y, z) = match entity {
         EntityType::Point(point) => (point.location.x, point.location.y, point.location.z),
@@ -688,5 +828,20 @@ mod tests {
         let entity = EntityType::Arc(arc);
         assert!(contour_from_entity(&entity, false).is_ok());
         assert!(contour_from_entity(&entity, true).is_err());
+    }
+
+    #[test]
+    fn setup_arguments_and_operation_numbers_are_validated() {
+        let mut setup = ocs_cam_core::CamSetup::default_for(Units::Millimeters);
+        apply_setup_arguments(
+            &mut setup,
+            "CAMSETUP stockw=240 stockh=120 thickness=18 originx=5 material=Birch_Plywood maxrpm=18000",
+        )
+        .unwrap();
+        assert_eq!(setup.stock.width, 240.0);
+        assert_eq!(setup.material.name, "Birch Plywood");
+        assert_eq!(setup.machine.maximum_spindle_rpm, 18_000);
+        assert_eq!(cam_operation_index("CAMDELETE 2", 3), Some(1));
+        assert_eq!(cam_operation_index("CAMDELETE 4", 3), None);
     }
 }

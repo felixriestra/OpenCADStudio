@@ -167,6 +167,8 @@ sole maintained application.
 - 2026-09-11: Phase 5 baseline is operational.
   - Outside/inside profile, pocket, facing, boring, slotting, engraving, and
     drilling all generate canonical Rust toolpaths and ordered job operations.
+  - Added operation listing, ordering, duplication, suppression, re-enabling,
+    and deletion commands; the CAM ribbon exposes the ordered operation list.
 - 2026-09-11: Phase 6 safety foundation complete.
   - Canonical motion validation and GRBL round-trip parsing are active.
   - Setup-aware validation blocks jobs exceeding feed, spindle, XYZ travel, or

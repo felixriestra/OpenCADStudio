@@ -30,6 +30,7 @@ impl CadModule for CamModule {
                     title: "Setup",
                     tools: vec![
                         RibbonItem::LargeTool(tool("CAMINFO", "CAM Setup", "⚙")),
+                        RibbonItem::LargeTool(tool("CAMLIST", "Operations", "☷")),
                         RibbonItem::LargeTool(tool("CAMCLEAR", "Clear Job", "⌫")),
                     ],
                 },
