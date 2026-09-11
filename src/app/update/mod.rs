@@ -1529,7 +1529,11 @@ impl OpenCADStudio {
                                             NumericField::Tool(ToolField::Rpm) => operation.parameters.spindle_rpm = value.max(1.0) as u32,
                                             NumericField::Operation(OperationField::Depth) => operation.parameters.depth = value.max(0.001),
                                             NumericField::Operation(OperationField::StepDown) => operation.parameters.step_down = value.max(0.001),
-                                            NumericField::Operation(OperationField::StepOver) => operation.advanced.step_over = value.max(0.001),
+                                            NumericField::Operation(OperationField::StepOver) => {
+                                                operation.advanced.step_over = operation.parameters.tool_diameter
+                                                    * value.clamp(1.0, 100.0)
+                                                    / 100.0
+                                            }
                                             NumericField::Operation(OperationField::SlotWidth) => operation.advanced.slot_width = value.max(0.001),
                                             NumericField::Advanced(AdvancedField::Tabs) => operation.advanced.tab_count = value.max(0.0) as u32,
                                             NumericField::Advanced(AdvancedField::TabHeight) => operation.advanced.tab_height = value.max(0.0),

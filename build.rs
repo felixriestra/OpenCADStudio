@@ -10,12 +10,19 @@ use std::path::Path;
 /// per-build) `OCS_APP_VERSION`. Shells out rather than adding a date/time
 /// crate purely for this cosmetic build-script string.
 fn build_stamp() -> String {
+    if let Ok(value) = std::env::var("MAC2CAM_BUILD_STAMP") {
+        if !value.trim().is_empty() {
+            return value;
+        }
+    }
     #[cfg(windows)]
     let output = std::process::Command::new("powershell")
         .args(["-NoProfile", "-Command", "Get-Date -Format yyyyMMdd_HHmmss"])
         .output();
     #[cfg(not(windows))]
-    let output = std::process::Command::new("date").args(["+%Y%m%d_%H%M%S"]).output();
+    let output = std::process::Command::new("date")
+        .args(["+%Y%m%d_%H%M%S"])
+        .output();
 
     output
         .ok()
@@ -29,13 +36,17 @@ fn build_stamp() -> String {
 fn main() {
     let version = std::env::var("CARGO_PKG_VERSION").expect("Cargo package version");
     let parts: Vec<&str> = version.split('.').collect();
-    let app_version = if parts.len() == 3 && parts[0].len() == 4
-        && parts[0].starts_with("20") && parts[2] == "0"
-    {
-        format!("{}.{:02}", parts[0], parts[1].parse::<u32>().expect("week number"))
-    } else {
-        version.clone()
-    };
+    let app_version =
+        if parts.len() == 3 && parts[0].len() == 4 && parts[0].starts_with("20") && parts[2] == "0"
+        {
+            format!(
+                "{}.{:02}",
+                parts[0],
+                parts[1].parse::<u32>().expect("week number")
+            )
+        } else {
+            version.clone()
+        };
     println!("cargo:rustc-env=OCS_APP_VERSION={app_version}");
     println!("cargo:rerun-if-changed=.git/HEAD");
     if let Ok(head) = std::fs::read_to_string(".git/HEAD") {
@@ -52,6 +63,7 @@ fn main() {
     // other (git-state-gated) directives above.
     println!("cargo:rerun-if-changed=__ocs_force_build_rs_rerun__");
     println!("cargo:rustc-env=OCS_BUILD_STAMP={}", build_stamp());
+    println!("cargo:rerun-if-env-changed=MAC2CAM_BUILD_STAMP");
     let revision = std::process::Command::new("git")
         .args(["rev-parse", "--short=12", "HEAD"])
         .output()

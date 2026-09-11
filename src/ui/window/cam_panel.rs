@@ -165,13 +165,13 @@ pub fn operations_view<'a>(
             let mut fields = column![
                 text(format!("{:?} parameters", operation.kind)).size(14),
                 number_row(
-                    "Depth",
+                    "Depth (total)",
                     NumericField::Operation(OperationField::Depth),
                     operation.parameters.depth,
                     editor
                 ),
                 number_row(
-                    "Step-down",
+                    "Step-down (per pass)",
                     NumericField::Operation(OperationField::StepDown),
                     operation.parameters.step_down,
                     editor
@@ -184,10 +184,20 @@ pub fn operations_view<'a>(
                     | ocs_cam_core::OperationKind::Facing
                     | ocs_cam_core::OperationKind::Slot
             ) {
+                let default_percent = if operation.kind == ocs_cam_core::OperationKind::Slot {
+                    60.0
+                } else {
+                    50.0
+                };
+                let step_over_percent = if advanced.step_over > 0.0 {
+                    advanced.step_over / operation.parameters.tool_diameter * 100.0
+                } else {
+                    default_percent
+                };
                 fields = fields.push(number_row(
-                    "Stepover",
+                    "Stepover (%)",
                     NumericField::Operation(OperationField::StepOver),
-                    advanced.step_over,
+                    step_over_percent,
                     editor,
                 ));
             }

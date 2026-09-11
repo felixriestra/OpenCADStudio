@@ -11,8 +11,10 @@ DIST="dist"
 STAGE="target/mac2cam-package"
 APP="$DIST/Mac2CAM.app"
 APP_ID="com.twodcam.mac2cam"
+BUILD_STAMP="${MAC2CAM_BUILD_STAMP:-$(date +%Y%m%d_%H%M%S)}"
+export MAC2CAM_BUILD_STAMP
 
-echo "==> Building Mac2CAM $VERSION for $TARGET"
+echo "==> Building Mac2CAM_$BUILD_STAMP for $TARGET"
 cargo build --release --target "$TARGET" --bin OpenCADStudio --bin ocs_launcher
 cargo build --release --target "$TARGET" -p dwg-thumbnailer
 
@@ -73,7 +75,7 @@ cp "$STAGE/AppIcon.icns" "$STAGE/DWG.icns" "$STAGE/DXF.icns" "$APP/Contents/Reso
 cp -R "$EXT" "$APP/Contents/PlugIns/"
 sed \
     -e "s/__VERSION__/$VERSION/g" \
-    -e 's/OCS-__BUILD_STAMP__/Mac2CAM/g' \
+    -e "s/OCS-__BUILD_STAMP__/Mac2CAM_$BUILD_STAMP/g" \
     -e 's#<string>OpenCADStudio</string>#<string>Mac2CAM</string>#' \
     -e "s/io.github.HakanSeven12.OpenCadStudio/$APP_ID/g" \
     packaging/Info.plist > "$APP/Contents/Info.plist"
