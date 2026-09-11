@@ -336,6 +336,12 @@ pub(crate) enum TextEntryMode {
     FreeText,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum HelpDocument {
+    CommandReference,
+    ConstraintsReference,
+}
+
 pub(crate) fn delobj_deletes_auxiliary(value: i16, creates_surface: bool) -> bool {
     value == 2 || (value == 3 && !creates_surface)
 }
@@ -1917,6 +1923,8 @@ pub enum Message {
     OpenExternal(PathBuf),
     /// Open a URL in the system browser.
     OpenUrl(String),
+    /// Open a Markdown reference bundled with Mac2CAM.
+    OpenHelpDocument(HelpDocument),
     /// Scroll the status-bar layout-tab strip horizontally by `delta` px
     /// (negative = left). Driven by the ‹ › arrows next to the tabs.
     ScrollLayoutTabs(f32),

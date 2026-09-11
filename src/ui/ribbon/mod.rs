@@ -29,6 +29,8 @@ pub use collapse::CollapseMode;
 use crate::ui::wrap_bar::{PosReport, WrapBar, WrapFlow};
 use crate::t;
 
+const HELP_MENU_ID: &str = "HELP_MENU";
+
 pub(crate) fn tooltip_content(text: String) -> Element<'static, Message> {
     widgets::make_tip(text)
 }
@@ -536,6 +538,16 @@ impl Ribbon {
                     ..Default::default()
                 });
                 acc.push(btn.into());
+                if module.id() == "view" {
+                    let open = self.open_dropdown.as_deref() == Some(HELP_MENU_ID);
+                    let help = button(text("Help ▾").size(12))
+                        .on_press(Message::ToggleRibbonDropdown(HELP_MENU_ID.to_string()))
+                        .style(move |theme: &Theme, status| {
+                            top_hist_btn_style(theme, true, open, status)
+                        })
+                        .padding([5, 14]);
+                    acc.push(PosReport::new(HELP_MENU_ID, help).into());
+                }
                 acc
             },
         );
@@ -835,6 +847,34 @@ impl Ribbon {
                 .style(popup_panel_style)
                 .width(Length::Fixed(W));
 
+            let (align_right, h_pad, top) = self.dd_anchor(open_id, W, win.0);
+            let positioned = position_ribbon_dropdown(panel.into(), align_right, h_pad, top);
+            return Some(dropdown_backdrop(positioned));
+        }
+
+        if open_id == HELP_MENU_ID {
+            const W: f32 = 220.0;
+            let rows: Vec<Element<Message>> = vec![
+                button(text("Command Reference").size(11))
+                    .on_press(Message::OpenHelpDocument(
+                        crate::app::HelpDocument::CommandReference,
+                    ))
+                    .style(popup_row_style)
+                    .width(Fill)
+                    .padding([7, 12])
+                    .into(),
+                button(text("Constraints Reference").size(11))
+                    .on_press(Message::OpenHelpDocument(
+                        crate::app::HelpDocument::ConstraintsReference,
+                    ))
+                    .style(popup_row_style)
+                    .width(Fill)
+                    .padding([7, 12])
+                    .into(),
+            ];
+            let panel = container(column(rows))
+                .style(popup_panel_style)
+                .width(Length::Fixed(W));
             let (align_right, h_pad, top) = self.dd_anchor(open_id, W, win.0);
             let positioned = position_ribbon_dropdown(panel.into(), align_right, h_pad, top);
             return Some(dropdown_backdrop(positioned));

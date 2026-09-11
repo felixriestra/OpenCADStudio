@@ -536,6 +536,33 @@ impl OpenCADStudio {
 
             Message::OpenUrl(url) => crate::sys::open_url(&url, self.main_window),
 
+            Message::OpenHelpDocument(document) => {
+                self.ribbon.close_dropdown();
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let filename = match document {
+                        super::HelpDocument::CommandReference => "ocs_vs_autocad_commands.md",
+                        super::HelpDocument::ConstraintsReference => "constraint_entity_support.md",
+                    };
+                    let installed = std::env::current_exe()
+                        .ok()
+                        .and_then(|path| path.parent()?.parent().map(std::path::Path::to_path_buf))
+                        .map(|contents| contents.join("Resources/docs").join(filename));
+                    let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("docs")
+                        .join(filename);
+                    let path = installed.filter(|path| path.exists()).unwrap_or(source);
+                    if path.exists() {
+                        let _ = open::that_detached(path);
+                    } else {
+                        self.command_line.push_error(&format!(
+                            "Help document is missing: {filename}"
+                        ));
+                    }
+                }
+                Task::none()
+            }
+
             Message::ScrollLayoutTabs(dx) => iced::widget::operation::scroll_by(
                 iced::advanced::widget::Id::new(crate::ui::statusbar::LAYOUT_TABS_SCROLL_ID),
                 iced::widget::scrollable::AbsoluteOffset { x: dx, y: 0.0 },

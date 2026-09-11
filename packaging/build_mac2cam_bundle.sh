@@ -69,10 +69,12 @@ sed \
 echo "==> Assembling $APP"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/PlugIns"
+mkdir -p "$APP/Contents/Resources/docs"
 cp "target/$TARGET/release/ocs_launcher" "$APP/Contents/MacOS/Mac2CAM"
 cp "target/$TARGET/release/OpenCADStudio" "$APP/Contents/MacOS/OpenCADStudio-App"
 chmod +x "$APP/Contents/MacOS/Mac2CAM" "$APP/Contents/MacOS/OpenCADStudio-App"
 cp "$STAGE/AppIcon.icns" "$STAGE/DWG.icns" "$STAGE/DXF.icns" "$APP/Contents/Resources/"
+cp docs/ocs_vs_autocad_commands.md docs/constraint_entity_support.md "$APP/Contents/Resources/docs/"
 cp -R "$EXT" "$APP/Contents/PlugIns/"
 sed \
     -e "s/__VERSION__/$VERSION/g" \
