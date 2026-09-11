@@ -19,7 +19,7 @@ impl OpenCADStudio {
                 );
                 self.command_line.push_output(&detail);
             }
-            "CAMPROFILE" | "CAMINSIDE" | "CAMPOCKET" | "CAMENGRAVE" => {
+            "CAMPROFILE" | "CAMINSIDE" | "CAMPOCKET" | "CAMFACE" | "CAMENGRAVE" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.len() != 1 {
                     self.command_line.push_error(
@@ -41,16 +41,22 @@ impl OpenCADStudio {
                 };
                 let mut parameters =
                     defaults_for_drawing_units(self.tabs[i].scene.document.header.insertion_units);
-                let step_over = match apply_profile_arguments(&mut parameters, cmd) {
-                    Ok(step_over) => step_over.unwrap_or(parameters.tool_diameter * 0.5),
+                let overrides = match apply_profile_arguments(&mut parameters, cmd) {
+                    Ok(overrides) => overrides,
                     Err(error) => {
                         self.command_line.push_error(&format!("{verb}: {error}"));
                         return Some(Task::none());
                     }
                 };
+                let step_over = overrides
+                    .step_over
+                    .unwrap_or(parameters.tool_diameter * 0.5);
                 let generated = match verb {
                     "CAMINSIDE" => ocs_cam_core::inside_profile(&contour, parameters),
                     "CAMPOCKET" => ocs_cam_core::pocket(&contour, parameters, step_over),
+                    "CAMFACE" => {
+                        ocs_cam_core::facing(contour_bounds(&contour), parameters, step_over)
+                    }
                     "CAMENGRAVE" => ocs_cam_core::engrave(&contour, parameters),
                     _ => ocs_cam_core::outside_profile(&contour, parameters),
                 };
@@ -69,6 +75,83 @@ impl OpenCADStudio {
                         self.command_line.push_output(&format!(
                             "{verb}: generated {motion_count} motions / {line_count} G-code lines. Run CAMEXPORT to save."
                         ));
+                    }
+                    Err(error) => self.command_line.push_error(&format!("{verb}: {error}")),
+                }
+            }
+            "CAMBORE" | "CAMSLOT" => {
+                let handles = self.tabs[i].scene.selected_handles_in_order();
+                if handles.len() != 1 {
+                    self.command_line.push_error(if verb == "CAMBORE" {
+                        "CAMBORE: select exactly one circle."
+                    } else {
+                        "CAMSLOT: select exactly one line."
+                    });
+                    return Some(Task::none());
+                }
+                let Some(entity) = self.tabs[i].scene.document.get_entity(handles[0]) else {
+                    self.command_line
+                        .push_error(&format!("{verb}: the selected entity no longer exists."));
+                    return Some(Task::none());
+                };
+                let mut parameters =
+                    defaults_for_drawing_units(self.tabs[i].scene.document.header.insertion_units);
+                let overrides = match apply_profile_arguments(&mut parameters, cmd) {
+                    Ok(overrides) => overrides,
+                    Err(error) => {
+                        self.command_line.push_error(&format!("{verb}: {error}"));
+                        return Some(Task::none());
+                    }
+                };
+                let generated = match (verb, entity) {
+                    ("CAMBORE", EntityType::Circle(circle)) => {
+                        let center = circle.center_wcs();
+                        if center.z.abs() > 1.0e-6 {
+                            Err(ocs_cam_core::CamError::InvalidParameters)
+                        } else {
+                            ocs_cam_core::bore(
+                                ocs_cam_core::Point2::new(center.x, center.y),
+                                circle.radius * 2.0,
+                                parameters,
+                            )
+                        }
+                    }
+                    ("CAMSLOT", EntityType::Line(line))
+                        if line.start.z.abs() <= 1.0e-6 && line.end.z.abs() <= 1.0e-6 =>
+                    {
+                        ocs_cam_core::slot(
+                            ocs_cam_core::Point2::new(line.start.x, line.start.y),
+                            ocs_cam_core::Point2::new(line.end.x, line.end.y),
+                            overrides.width.unwrap_or(parameters.tool_diameter),
+                            parameters,
+                            overrides
+                                .step_over
+                                .unwrap_or(parameters.tool_diameter * 0.6),
+                        )
+                    }
+                    _ => {
+                        self.command_line.push_error(if verb == "CAMBORE" {
+                            "CAMBORE: the selected entity must be a circle in the world XY plane."
+                        } else {
+                            "CAMSLOT: the selected entity must be a line in the world XY plane."
+                        });
+                        return Some(Task::none());
+                    }
+                };
+                match generated {
+                    Ok(program) => {
+                        let motion_count = program.motions.len();
+                        match ocs_cam_core::post_grbl_checked(&program) {
+                            Ok(gcode) => {
+                                let line_count = gcode.lines().count();
+                                self.tabs[i].cam_program =
+                                    Some((self.tabs[i].edit_revision, gcode));
+                                self.command_line.push_output(&format!(
+                                    "{verb}: generated {motion_count} motions / {line_count} G-code lines. Run CAMEXPORT to save."
+                                ));
+                            }
+                            Err(error) => self.command_line.push_error(&format!("{verb}: {error}")),
+                        }
                     }
                     Err(error) => self.command_line.push_error(&format!("{verb}: {error}")),
                 }
@@ -221,6 +304,30 @@ fn drill_point_from_entity(entity: &EntityType) -> Result<ocs_cam_core::Point2, 
     Ok(ocs_cam_core::Point2::new(x, y))
 }
 
+fn contour_bounds(contour: &Contour) -> ocs_cam_core::Bounds2 {
+    let points = contour.tessellated_points(0.15);
+    let min_x = points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::INFINITY, f64::min);
+    let min_y = points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let max_x = points
+        .iter()
+        .map(|point| point.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let max_y = points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    ocs_cam_core::Bounds2 {
+        min: ocs_cam_core::Point2::new(min_x, min_y),
+        max: ocs_cam_core::Point2::new(max_x, max_y),
+    }
+}
+
 fn defaults_for_drawing_units(insertion_units: i16) -> ProfileParameters {
     if insertion_units == 1 {
         let scale = 1.0 / 25.4;
@@ -239,11 +346,17 @@ fn defaults_for_drawing_units(insertion_units: i16) -> ProfileParameters {
     }
 }
 
+#[derive(Default)]
+struct CamOverrides {
+    step_over: Option<f64>,
+    width: Option<f64>,
+}
+
 fn apply_profile_arguments(
     parameters: &mut ProfileParameters,
     cmd: &str,
-) -> Result<Option<f64>, String> {
-    let mut step_over = None;
+) -> Result<CamOverrides, String> {
+    let mut overrides = CamOverrides::default();
     for argument in cmd.split_whitespace().skip(1) {
         let Some((key, value)) = argument.split_once('=') else {
             return Err(format!("expected key=value, got '{argument}'"));
@@ -253,7 +366,8 @@ fn apply_profile_arguments(
             "top" => parameters.stock_top = parse_number(key, value)?,
             "depth" => parameters.depth = parse_number(key, value)?,
             "stepdown" | "doc" => parameters.step_down = parse_number(key, value)?,
-            "stepover" => step_over = Some(parse_number(key, value)?),
+            "stepover" => overrides.step_over = Some(parse_number(key, value)?),
+            "width" => overrides.width = Some(parse_number(key, value)?),
             "safe" => parameters.safe_z = parse_number(key, value)?,
             "feed" => parameters.feed = parse_number(key, value)?,
             "plunge" => parameters.plunge_feed = parse_number(key, value)?,
@@ -266,7 +380,7 @@ fn apply_profile_arguments(
         }
     }
     parameters.validate().map_err(|error| error.to_string())?;
-    Ok(step_over)
+    Ok(overrides)
 }
 
 fn parse_number(key: &str, value: &str) -> Result<f64, String> {

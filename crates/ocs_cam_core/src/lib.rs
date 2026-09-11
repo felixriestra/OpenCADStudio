@@ -16,6 +16,25 @@ pub struct Point2 {
     pub y: f64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Bounds2 {
+    pub min: Point2,
+    pub max: Point2,
+}
+
+impl Bounds2 {
+    pub fn validate(self) -> Result<(), CamError> {
+        if !self.min.is_finite()
+            || !self.max.is_finite()
+            || self.max.x <= self.min.x
+            || self.max.y <= self.min.y
+        {
+            return Err(CamError::InvalidParameters);
+        }
+        Ok(())
+    }
+}
+
 impl Point2 {
     pub const fn new(x: f64, y: f64) -> Self {
         Self { x, y }
@@ -478,6 +497,256 @@ pub fn drill(points: &[Point2], parameters: ProfileParameters) -> Result<Program
     })
 }
 
+pub fn bore(
+    center: Point2,
+    bore_diameter: f64,
+    parameters: ProfileParameters,
+) -> Result<Program, CamError> {
+    parameters.validate()?;
+    if !center.is_finite()
+        || !bore_diameter.is_finite()
+        || bore_diameter <= parameters.tool_diameter
+    {
+        return Err(CamError::InvalidParameters);
+    }
+    let radius = (bore_diameter - parameters.tool_diameter) * 0.5;
+    let start = Point2::new(center.x + radius, center.y);
+    let mut motions = vec![
+        Motion::SpindleOn {
+            rpm: parameters.spindle_rpm,
+        },
+        Motion::Rapid {
+            x: None,
+            y: None,
+            z: Some(parameters.safe_z),
+        },
+        Motion::Rapid {
+            x: Some(start.x),
+            y: Some(start.y),
+            z: None,
+        },
+    ];
+    let mut reached = 0.0;
+    while reached + EPSILON < parameters.depth {
+        reached = (reached + parameters.step_down).min(parameters.depth);
+        motions.push(Motion::Linear {
+            x: None,
+            y: None,
+            z: Some(parameters.stock_top - reached),
+            feed: parameters.plunge_feed,
+        });
+        motions.push(Motion::Arc {
+            clockwise: false,
+            end: start,
+            center_offset: Point2::new(-radius, 0.0),
+            feed: parameters.feed,
+        });
+    }
+    motions.extend([
+        Motion::Rapid {
+            x: None,
+            y: None,
+            z: Some(parameters.safe_z),
+        },
+        Motion::SpindleOff,
+        Motion::End,
+    ]);
+    Ok(Program {
+        name: "Bore".to_string(),
+        units: parameters.units,
+        motions,
+    })
+}
+
+pub fn facing(
+    bounds: Bounds2,
+    parameters: ProfileParameters,
+    step_over: f64,
+) -> Result<Program, CamError> {
+    bounds.validate()?;
+    parameters.validate()?;
+    if !step_over.is_finite() || step_over <= 0.0 || step_over > parameters.tool_diameter {
+        return Err(CamError::InvalidParameters);
+    }
+    let radius = parameters.tool_diameter * 0.5;
+    let min_x = bounds.min.x - radius;
+    let max_x = bounds.max.x + radius;
+    let min_y = bounds.min.y - radius;
+    let max_y = bounds.max.y + radius;
+    let rows = (((max_y - min_y) / step_over).ceil() as usize + 1).max(2);
+    let actual_step = (max_y - min_y) / (rows - 1) as f64;
+    let mut motions = vec![Motion::SpindleOn {
+        rpm: parameters.spindle_rpm,
+    }];
+    let mut reached = 0.0;
+    while reached + EPSILON < parameters.depth {
+        reached = (reached + parameters.step_down).min(parameters.depth);
+        motions.extend([
+            Motion::Rapid {
+                x: None,
+                y: None,
+                z: Some(parameters.safe_z),
+            },
+            Motion::Rapid {
+                x: Some(min_x),
+                y: Some(min_y),
+                z: None,
+            },
+            Motion::Linear {
+                x: None,
+                y: None,
+                z: Some(parameters.stock_top - reached),
+                feed: parameters.plunge_feed,
+            },
+        ]);
+        for row in 0..rows {
+            let y = min_y + row as f64 * actual_step;
+            let x = if row % 2 == 0 { max_x } else { min_x };
+            motions.push(Motion::Linear {
+                x: Some(x),
+                y: Some(y),
+                z: None,
+                feed: parameters.feed,
+            });
+            if row + 1 < rows {
+                motions.push(Motion::Linear {
+                    x: Some(x),
+                    y: Some(min_y + (row + 1) as f64 * actual_step),
+                    z: None,
+                    feed: parameters.feed,
+                });
+            }
+        }
+    }
+    motions.extend([
+        Motion::Rapid {
+            x: None,
+            y: None,
+            z: Some(parameters.safe_z),
+        },
+        Motion::SpindleOff,
+        Motion::End,
+    ]);
+    Ok(Program {
+        name: "Facing".to_string(),
+        units: parameters.units,
+        motions,
+    })
+}
+
+pub fn slot(
+    start: Point2,
+    end: Point2,
+    width: f64,
+    parameters: ProfileParameters,
+    step_over: f64,
+) -> Result<Program, CamError> {
+    parameters.validate()?;
+    if !start.is_finite()
+        || !end.is_finite()
+        || !width.is_finite()
+        || width < parameters.tool_diameter
+        || !step_over.is_finite()
+        || step_over <= 0.0
+        || step_over > parameters.tool_diameter
+    {
+        return Err(CamError::InvalidParameters);
+    }
+    let dx = end.x - start.x;
+    let dy = end.y - start.y;
+    let length = dx.hypot(dy);
+    if length <= EPSILON {
+        return Err(CamError::DegenerateContour);
+    }
+    let normal = Point2::new(-dy / length, dx / length);
+    let max_offset = (width - parameters.tool_diameter) * 0.5;
+    let rows = if max_offset <= EPSILON {
+        1
+    } else {
+        (((max_offset * 2.0) / step_over).ceil() as usize + 1).max(2)
+    };
+    let actual_step = if rows == 1 {
+        0.0
+    } else {
+        max_offset * 2.0 / (rows - 1) as f64
+    };
+    let offset_point = |point: Point2, distance: f64| {
+        Point2::new(point.x + normal.x * distance, point.y + normal.y * distance)
+    };
+    let mut motions = vec![Motion::SpindleOn {
+        rpm: parameters.spindle_rpm,
+    }];
+    let mut reached = 0.0;
+    while reached + EPSILON < parameters.depth {
+        reached = (reached + parameters.step_down).min(parameters.depth);
+        let first = offset_point(start, if rows == 1 { 0.0 } else { -max_offset });
+        motions.extend([
+            Motion::Rapid {
+                x: None,
+                y: None,
+                z: Some(parameters.safe_z),
+            },
+            Motion::Rapid {
+                x: Some(first.x),
+                y: Some(first.y),
+                z: None,
+            },
+            Motion::Linear {
+                x: None,
+                y: None,
+                z: Some(parameters.stock_top - reached),
+                feed: parameters.plunge_feed,
+            },
+        ]);
+        for row in 0..rows {
+            let distance = if rows == 1 {
+                0.0
+            } else {
+                -max_offset + row as f64 * actual_step
+            };
+            let destination = if row % 2 == 0 {
+                offset_point(end, distance)
+            } else {
+                offset_point(start, distance)
+            };
+            motions.push(Motion::Linear {
+                x: Some(destination.x),
+                y: Some(destination.y),
+                z: None,
+                feed: parameters.feed,
+            });
+            if row + 1 < rows {
+                let next_distance = -max_offset + (row + 1) as f64 * actual_step;
+                let next = if row % 2 == 0 {
+                    offset_point(end, next_distance)
+                } else {
+                    offset_point(start, next_distance)
+                };
+                motions.push(Motion::Linear {
+                    x: Some(next.x),
+                    y: Some(next.y),
+                    z: None,
+                    feed: parameters.feed,
+                });
+            }
+        }
+    }
+    motions.extend([
+        Motion::Rapid {
+            x: None,
+            y: None,
+            z: Some(parameters.safe_z),
+        },
+        Motion::SpindleOff,
+        Motion::End,
+    ]);
+    Ok(Program {
+        name: "Slot".to_string(),
+        units: parameters.units,
+        motions,
+    })
+}
+
 fn offset_contour(source: &Contour, radius: f64, inside: bool) -> Result<Contour, CamError> {
     let probe = if inside {
         source.inside_probe((radius * 0.25).max(EPSILON * 10.0))
@@ -831,6 +1100,73 @@ mod tests {
         };
         assert_eq!(verify_program(&program), Err(CamError::InvalidProgram));
         assert_eq!(post_grbl_checked(&program), Err(CamError::InvalidProgram));
+    }
+
+    #[test]
+    fn bore_uses_circular_interpolation_at_each_depth() {
+        let parameters = ProfileParameters {
+            tool_diameter: 6.0,
+            depth: 4.0,
+            step_down: 2.0,
+            ..ProfileParameters::default()
+        };
+        let program = bore(Point2::new(10.0, 12.0), 16.0, parameters).unwrap();
+        assert_eq!(
+            program
+                .motions
+                .iter()
+                .filter(|motion| matches!(motion, Motion::Arc { .. }))
+                .count(),
+            2
+        );
+        verify_program(&program).unwrap();
+    }
+
+    #[test]
+    fn facing_covers_the_stock_bounds() {
+        let parameters = ProfileParameters {
+            tool_diameter: 10.0,
+            depth: 0.5,
+            step_down: 0.5,
+            ..ProfileParameters::default()
+        };
+        let program = facing(
+            Bounds2 {
+                min: Point2::new(0.0, 0.0),
+                max: Point2::new(40.0, 20.0),
+            },
+            parameters,
+            7.0,
+        )
+        .unwrap();
+        let gcode = post_grbl_checked(&program).unwrap();
+        assert!(gcode.contains("X-5 Y-5"), "{gcode}");
+        assert!(gcode.contains("X45"), "{gcode}");
+    }
+
+    #[test]
+    fn slot_clears_multiple_rows_and_depths() {
+        let parameters = ProfileParameters {
+            tool_diameter: 6.0,
+            depth: 4.0,
+            step_down: 2.0,
+            ..ProfileParameters::default()
+        };
+        let program = slot(
+            Point2::new(0.0, 0.0),
+            Point2::new(20.0, 0.0),
+            12.0,
+            parameters,
+            3.0,
+        )
+        .unwrap();
+        let plunges = program
+            .motions
+            .iter()
+            .filter(|motion| matches!(motion, Motion::Linear { z: Some(_), .. }))
+            .count();
+        assert_eq!(plunges, 2);
+        verify_program(&program).unwrap();
     }
 
     #[test]
