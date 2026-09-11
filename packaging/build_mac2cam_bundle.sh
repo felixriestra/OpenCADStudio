@@ -24,7 +24,8 @@ mkdir -p "$STAGE" "$DIST"
 ICONSET="$STAGE/Mac2CAM.iconset"
 mkdir -p "$ICONSET"
 for SIZE in 16 32 64 128 256 512 1024; do
-    rsvg-convert -w "$SIZE" -h "$SIZE" assets/logo.svg -o "$ICONSET/icon_${SIZE}x${SIZE}.png"
+    sips -z "$SIZE" "$SIZE" assets/mac2cam-app-icon.png \
+        --out "$ICONSET/icon_${SIZE}x${SIZE}.png" >/dev/null
 done
 for BASE in 16 32 128 256 512; do
     cp "$ICONSET/icon_$((BASE * 2))x$((BASE * 2)).png" "$ICONSET/icon_${BASE}x${BASE}@2x.png"
