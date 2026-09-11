@@ -610,6 +610,7 @@ pub(super) fn on_ribbon_tool_click(&mut self, tool_id: String, event: ModuleEven
                         self.show_properties = false;
                         self.ribbon.set_properties(false);
                     }
+                    PanelId::Cam => self.show_cam_panel = false,
                 }
                 if self.dock_expanded == Some(id) {
                     self.dock_expanded = None;
@@ -699,6 +700,7 @@ pub(super) fn on_ribbon_tool_click(&mut self, tool_id: String, event: ModuleEven
         match id {
             PanelId::Properties => self.show_properties,
             PanelId::BlockPalette => self.show_block_palette,
+            PanelId::Cam => self.show_cam_panel,
         }
     }
 
@@ -1139,7 +1141,7 @@ mod tests {
         let id = crate::ui::dock::PanelId::BlockPalette;
         assert_eq!(
             app.dock.location(id),
-            Some((crate::app::config::DockSide::Right, 0))
+            Some((crate::app::config::DockSide::Right, 1))
         );
         let _ = app.on_dock(crate::ui::dock::DockMsg::DockGrab(id));
         app.win_size = (1600.0, 900.0).into();

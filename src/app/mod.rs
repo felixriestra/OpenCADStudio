@@ -671,6 +671,10 @@ pub(super) struct OpenCADStudio {
     show_properties: bool,
     /// Docked Insert Block panel visibility.
     pub(crate) show_block_palette: bool,
+    pub(crate) show_cam_panel: bool,
+    pub(crate) cam_selected_operation: Option<usize>,
+    pub(crate) cam_preview_segments: Vec<ocs_cam_core::PreviewSegment>,
+    pub(crate) cam_preview_step: Option<usize>,
     /// General edge-stack dock layout for the side panels.
     pub(crate) dock: crate::ui::dock::DockState,
     /// Which panel is currently floated at full height (hovered, or a pinned
@@ -2143,6 +2147,7 @@ pub enum Message {
     /// Save the most recently generated CAM program through a native dialog.
     CamExport(String, String),
     CamExportResult(String, String, Option<std::path::PathBuf>),
+    CamPanel(crate::ui::window::cam_panel::CamPanelMsg),
     // ── Document tabs ──────────────────────────────────────────────────────
     /// Create a new empty document tab.
     TabNew,
@@ -3581,6 +3586,10 @@ impl OpenCADStudio {
             render_mode_preview: None,
             show_properties: true,
             show_block_palette: false,
+            show_cam_panel: true,
+            cam_selected_operation: None,
+            cam_preview_segments: Vec::new(),
+            cam_preview_step: None,
             block_palette: Default::default(),
             dock: Default::default(),
             dock_expanded: None,

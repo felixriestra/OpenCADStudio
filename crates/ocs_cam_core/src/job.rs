@@ -53,6 +53,61 @@ pub enum OperationKind {
     Drill,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DrillCycle {
+    Simple,
+    #[default]
+    Peck,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AdvancedParameters {
+    pub tab_count: u32,
+    pub tab_height: f64,
+    pub lead_in: f64,
+    pub lead_out: f64,
+    pub ramp_length: f64,
+    pub finish_allowance: f64,
+    pub finish_pass: bool,
+    pub preserve_pocket_islands: bool,
+    pub drill_cycle: DrillCycle,
+}
+
+impl Default for AdvancedParameters {
+    fn default() -> Self {
+        Self {
+            tab_count: 0,
+            tab_height: 1.0,
+            lead_in: 0.0,
+            lead_out: 0.0,
+            ramp_length: 0.0,
+            finish_allowance: 0.0,
+            finish_pass: false,
+            preserve_pocket_islands: true,
+            drill_cycle: DrillCycle::Peck,
+        }
+    }
+}
+
+impl AdvancedParameters {
+    pub fn validate(self) -> Result<(), CamError> {
+        if [
+            self.tab_height,
+            self.lead_in,
+            self.lead_out,
+            self.ramp_length,
+            self.finish_allowance,
+        ]
+        .iter()
+        .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            return Err(CamError::InvalidParameters);
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CamOperation {
     pub id: String,
@@ -68,6 +123,8 @@ pub struct CamOperation {
     pub geometry_fingerprint: Option<String>,
     pub tool: ToolDefinition,
     pub parameters: ProfileParameters,
+    #[serde(default)]
+    pub advanced: AdvancedParameters,
     pub program: Program,
 }
 
@@ -92,6 +149,7 @@ impl CamOperation {
             _ => return Err(CamError::InvalidJob),
         }
         self.parameters.validate()?;
+        self.advanced.validate()?;
         verify_program(&self.program)
     }
 }
@@ -103,6 +161,8 @@ pub struct CamJob {
     pub units: Units,
     #[serde(default)]
     pub setups: Vec<CamSetup>,
+    #[serde(default)]
+    pub tool_library: Vec<ToolDefinition>,
     pub operations: Vec<CamOperation>,
 }
 
@@ -113,6 +173,7 @@ impl CamJob {
             name: name.into(),
             units,
             setups: vec![CamSetup::default_for(units)],
+            tool_library: Vec::new(),
             operations: Vec::new(),
         }
     }
@@ -121,6 +182,15 @@ impl CamJob {
         operation.validate()?;
         if operation.program.units != self.units {
             return Err(CamError::MixedUnits);
+        }
+        if let Some(existing) = self
+            .tool_library
+            .iter_mut()
+            .find(|tool| tool.id == operation.tool.id)
+        {
+            *existing = operation.tool.clone();
+        } else {
+            self.tool_library.push(operation.tool.clone());
         }
         if let Some(existing) = self
             .operations
@@ -151,6 +221,9 @@ impl CamJob {
                     .ok_or(CamError::InvalidJob)?;
                 verify_operation_envelope(operation, setup)?;
             }
+        }
+        if self.tool_library.iter().any(|tool| !tool.validate()) {
+            return Err(CamError::InvalidJob);
         }
         for setup in &self.setups {
             setup.validate()?;
@@ -252,6 +325,7 @@ mod tests {
             geometry_fingerprint: None,
             tool: ToolDefinition::from_parameters("tool-1", parameters),
             parameters,
+            advanced: AdvancedParameters::default(),
             program: outside_profile(&contour, parameters).unwrap(),
         }
     }

@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 mod job;
-pub use job::{CamJob, CamOperation, OperationKind, ToolDefinition};
+pub use job::{
+    AdvancedParameters, CamJob, CamOperation, DrillCycle, OperationKind, ToolDefinition,
+};
 mod manufacturing_geometry;
 pub use manufacturing_geometry::{
     DrillLocation, EngravingPath, GeometrySource, MachiningRegion, ManufacturingGeometry,
@@ -427,6 +429,47 @@ pub fn inside_profile(
     profile_program("Inside profile", &compensated, parameters)
 }
 
+pub fn profile_with_options(
+    source: &Contour,
+    parameters: ProfileParameters,
+    outside: bool,
+    options: AdvancedParameters,
+) -> Result<Program, CamError> {
+    source.validate_closed()?;
+    parameters.validate()?;
+    options.validate()?;
+    let rough_allowance = if options.finish_pass {
+        options.finish_allowance
+    } else {
+        0.0
+    };
+    let rough = offset_contour(
+        source,
+        parameters.tool_diameter * 0.5 + rough_allowance,
+        !outside,
+    )?;
+    let finish = if options.finish_pass && options.finish_allowance > EPSILON {
+        Some(offset_contour(
+            source,
+            parameters.tool_diameter * 0.5,
+            !outside,
+        )?)
+    } else {
+        None
+    };
+    profile_program_with_options(
+        if outside {
+            "Outside profile"
+        } else {
+            "Inside profile"
+        },
+        &rough,
+        finish.as_ref(),
+        parameters,
+        options,
+    )
+}
+
 pub fn engrave(source: &Contour, parameters: ProfileParameters) -> Result<Program, CamError> {
     source.validate_path()?;
     parameters.validate()?;
@@ -463,7 +506,164 @@ pub fn pocket(
     pocket_program(&contours, parameters)
 }
 
+pub fn pocket_region(
+    region: &MachiningRegion,
+    parameters: ProfileParameters,
+    step_over: f64,
+    preserve_islands: bool,
+) -> Result<Program, CamError> {
+    region.outer.validate_closed()?;
+    parameters.validate()?;
+    if !step_over.is_finite() || step_over <= 0.0 || step_over > parameters.tool_diameter {
+        return Err(CamError::InvalidParameters);
+    }
+    if region.islands.is_empty() || !preserve_islands {
+        return pocket(&region.outer, parameters, step_over);
+    }
+    let outer = offset_contour(&region.outer, parameters.tool_diameter * 0.5, true)?;
+    let islands = region
+        .islands
+        .iter()
+        .map(|island| {
+            island.validate_closed()?;
+            offset_contour(island, parameters.tool_diameter * 0.5, false)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let outer_points = outer.tessellated_points(0.1);
+    let island_points = islands
+        .iter()
+        .map(|island| island.tessellated_points(0.1))
+        .collect::<Vec<_>>();
+    let min_y = outer_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::INFINITY, f64::min);
+    let max_y = outer_points
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let rows = (((max_y - min_y) / step_over).ceil() as usize + 1).max(2);
+    let actual_step = (max_y - min_y) / (rows - 1) as f64;
+    let mut scanlines = Vec::<(Point2, Point2)>::new();
+    for row in 0..rows {
+        let y = min_y + row as f64 * actual_step;
+        let probe_y = if row == 0 {
+            y + EPSILON * 10.0
+        } else if row + 1 == rows {
+            y - EPSILON * 10.0
+        } else {
+            y
+        };
+        let mut xs = polygon_scan_intersections(&outer_points, probe_y);
+        for island in &island_points {
+            xs.extend(polygon_scan_intersections(island, probe_y));
+        }
+        xs.sort_by(f64::total_cmp);
+        xs.dedup_by(|a, b| (*a - *b).abs() <= EPSILON);
+        for pair in xs.windows(2) {
+            let mid = Point2::new((pair[0] + pair[1]) * 0.5, probe_y);
+            if point_in_polygon(mid, &outer_points)
+                && !island_points
+                    .iter()
+                    .any(|island| point_in_polygon(mid, island))
+                && pair[1] - pair[0] > EPSILON
+            {
+                let (a, b) = if row % 2 == 0 {
+                    (pair[0], pair[1])
+                } else {
+                    (pair[1], pair[0])
+                };
+                scanlines.push((Point2::new(a, probe_y), Point2::new(b, probe_y)));
+            }
+        }
+    }
+    if scanlines.is_empty() {
+        return Err(CamError::OffsetCollapsed);
+    }
+    let mut motions = vec![Motion::SpindleOn {
+        rpm: parameters.spindle_rpm,
+    }];
+    let mut reached = 0.0;
+    while reached + EPSILON < parameters.depth {
+        reached = (reached + parameters.step_down).min(parameters.depth);
+        for (start, end) in &scanlines {
+            motions.extend([
+                Motion::Rapid {
+                    x: None,
+                    y: None,
+                    z: Some(parameters.safe_z),
+                },
+                Motion::Rapid {
+                    x: Some(start.x),
+                    y: Some(start.y),
+                    z: None,
+                },
+                Motion::Linear {
+                    x: None,
+                    y: None,
+                    z: Some(parameters.stock_top - reached),
+                    feed: parameters.plunge_feed,
+                },
+                Motion::Linear {
+                    x: Some(end.x),
+                    y: Some(end.y),
+                    z: None,
+                    feed: parameters.feed,
+                },
+            ]);
+        }
+    }
+    motions.extend([
+        Motion::Rapid {
+            x: None,
+            y: None,
+            z: Some(parameters.safe_z),
+        },
+        Motion::SpindleOff,
+        Motion::End,
+    ]);
+    let program = Program {
+        name: "Pocket with islands".to_string(),
+        units: parameters.units,
+        motions,
+    };
+    verify_program(&program)?;
+    Ok(program)
+}
+
+fn polygon_scan_intersections(points: &[Point2], y: f64) -> Vec<f64> {
+    if points.len() < 3 {
+        return Vec::new();
+    }
+    let mut xs = Vec::new();
+    for index in 0..points.len() {
+        let a = points[index];
+        let b = points[(index + 1) % points.len()];
+        if (a.y > y) != (b.y > y) {
+            xs.push(a.x + (y - a.y) * (b.x - a.x) / (b.y - a.y));
+        }
+    }
+    xs
+}
+
+fn point_in_polygon(point: Point2, polygon: &[Point2]) -> bool {
+    polygon_scan_intersections(polygon, point.y)
+        .into_iter()
+        .filter(|x| *x > point.x)
+        .count()
+        % 2
+        == 1
+}
+
 pub fn drill(points: &[Point2], parameters: ProfileParameters) -> Result<Program, CamError> {
+    drill_with_cycle(points, parameters, DrillCycle::Peck)
+}
+
+pub fn drill_with_cycle(
+    points: &[Point2],
+    parameters: ProfileParameters,
+    cycle: DrillCycle,
+) -> Result<Program, CamError> {
     parameters.validate()?;
     if points.is_empty() {
         return Err(CamError::NoDrillPoints);
@@ -490,7 +690,10 @@ pub fn drill(points: &[Point2], parameters: ProfileParameters) -> Result<Program
         });
         let mut reached = 0.0;
         while reached + EPSILON < parameters.depth {
-            reached = (reached + parameters.step_down).min(parameters.depth);
+            reached = match cycle {
+                DrillCycle::Simple => parameters.depth,
+                DrillCycle::Peck => (reached + parameters.step_down).min(parameters.depth),
+            };
             motions.push(Motion::Linear {
                 x: None,
                 y: None,
@@ -833,6 +1036,207 @@ fn profile_program(
         units: parameters.units,
         motions,
     })
+}
+
+fn profile_program_with_options(
+    name: &str,
+    rough: &Contour,
+    finish: Option<&Contour>,
+    parameters: ProfileParameters,
+    options: AdvancedParameters,
+) -> Result<Program, CamError> {
+    let mut motions = vec![Motion::SpindleOn {
+        rpm: parameters.spindle_rpm,
+    }];
+    let mut reached = 0.0;
+    while reached + EPSILON < parameters.depth {
+        reached = (reached + parameters.step_down).min(parameters.depth);
+        append_profile_pass(
+            &mut motions,
+            rough,
+            parameters.stock_top - reached,
+            parameters,
+            options,
+            reached + EPSILON >= parameters.depth,
+        );
+    }
+    if let Some(finish) = finish {
+        append_profile_pass(
+            &mut motions,
+            finish,
+            parameters.stock_top - parameters.depth,
+            parameters,
+            options,
+            true,
+        );
+    }
+    motions.extend([Motion::SpindleOff, Motion::End]);
+    let program = Program {
+        name: name.to_string(),
+        units: parameters.units,
+        motions,
+    };
+    verify_program(&program)?;
+    Ok(program)
+}
+
+fn append_profile_pass(
+    motions: &mut Vec<Motion>,
+    contour: &Contour,
+    depth_z: f64,
+    parameters: ProfileParameters,
+    options: AdvancedParameters,
+    final_depth: bool,
+) {
+    let start = contour.vertices[0].point;
+    let next = contour.vertices[1].point;
+    let dx = next.x - start.x;
+    let dy = next.y - start.y;
+    let length = dx.hypot(dy).max(EPSILON);
+    let ux = dx / length;
+    let uy = dy / length;
+    let approach = options.lead_in.max(options.ramp_length);
+    let entry = Point2::new(start.x - ux * approach, start.y - uy * approach);
+    motions.push(Motion::Rapid {
+        x: None,
+        y: None,
+        z: Some(parameters.safe_z),
+    });
+    motions.push(Motion::Rapid {
+        x: Some(if approach > EPSILON { entry.x } else { start.x }),
+        y: Some(if approach > EPSILON { entry.y } else { start.y }),
+        z: None,
+    });
+    if options.ramp_length > EPSILON {
+        motions.push(Motion::Linear {
+            x: Some(start.x),
+            y: Some(start.y),
+            z: Some(depth_z),
+            feed: parameters.plunge_feed,
+        });
+    } else {
+        motions.push(Motion::Linear {
+            x: None,
+            y: None,
+            z: Some(depth_z),
+            feed: parameters.plunge_feed,
+        });
+        if options.lead_in > EPSILON {
+            motions.push(Motion::Linear {
+                x: Some(start.x),
+                y: Some(start.y),
+                z: None,
+                feed: parameters.feed,
+            });
+        }
+    }
+    append_contour_motions_with_tabs(
+        motions,
+        contour,
+        parameters.feed,
+        depth_z,
+        parameters.stock_top,
+        if final_depth { options.tab_count } else { 0 },
+        options.tab_height,
+    );
+    if options.lead_out > EPSILON {
+        motions.push(Motion::Linear {
+            x: Some(start.x + ux * options.lead_out),
+            y: Some(start.y + uy * options.lead_out),
+            z: None,
+            feed: parameters.feed,
+        });
+    }
+    motions.push(Motion::Rapid {
+        x: None,
+        y: None,
+        z: Some(parameters.safe_z),
+    });
+}
+
+fn append_contour_motions_with_tabs(
+    motions: &mut Vec<Motion>,
+    contour: &Contour,
+    feed: f64,
+    depth_z: f64,
+    stock_top: f64,
+    tab_count: u32,
+    tab_height: f64,
+) {
+    if tab_count == 0 {
+        append_contour_motions(motions, contour, feed);
+        return;
+    }
+    let count = contour.vertices.len();
+    let segment_count = if contour.closed { count } else { count - 1 };
+    let wanted = tab_count.min(segment_count as u32) as usize;
+    for index in 0..segment_count {
+        let start = contour.vertices[index];
+        let end = contour.vertices[(index + 1) % count];
+        let tabbed = start.bulge.abs() <= EPSILON
+            && (0..wanted).any(|tab| index == tab * segment_count / wanted);
+        if tabbed {
+            let at = |fraction: f64| {
+                Point2::new(
+                    start.point.x + (end.point.x - start.point.x) * fraction,
+                    start.point.y + (end.point.y - start.point.y) * fraction,
+                )
+            };
+            let before = at(0.42);
+            let after = at(0.58);
+            motions.push(Motion::Linear {
+                x: Some(before.x),
+                y: Some(before.y),
+                z: None,
+                feed,
+            });
+            motions.push(Motion::Linear {
+                x: None,
+                y: None,
+                z: Some((depth_z + tab_height).min(stock_top)),
+                feed,
+            });
+            motions.push(Motion::Linear {
+                x: Some(after.x),
+                y: Some(after.y),
+                z: None,
+                feed,
+            });
+            motions.push(Motion::Linear {
+                x: None,
+                y: None,
+                z: Some(depth_z),
+                feed,
+            });
+            motions.push(Motion::Linear {
+                x: Some(end.point.x),
+                y: Some(end.point.y),
+                z: None,
+                feed,
+            });
+        } else if let Some(arc) = BulgeArc::from_bulge(
+            [start.point.x, start.point.y],
+            [end.point.x, end.point.y],
+            start.bulge,
+        ) {
+            motions.push(Motion::Arc {
+                clockwise: arc.sweep < 0.0,
+                end: end.point,
+                center_offset: Point2::new(
+                    arc.center[0] - start.point.x,
+                    arc.center[1] - start.point.y,
+                ),
+                feed,
+            });
+        } else {
+            motions.push(Motion::Linear {
+                x: Some(end.point.x),
+                y: Some(end.point.y),
+                z: None,
+                feed,
+            });
+        }
+    }
 }
 
 fn pocket_program(
@@ -1189,6 +1593,91 @@ mod tests {
             .count();
         assert_eq!(plunges, 2);
         verify_program(&program).unwrap();
+    }
+
+    #[test]
+    fn advanced_profile_emits_ramp_tabs_and_finish_pass() {
+        let parameters = ProfileParameters {
+            depth: 3.0,
+            step_down: 3.0,
+            ..ProfileParameters::default()
+        };
+        let options = AdvancedParameters {
+            tab_count: 2,
+            tab_height: 1.0,
+            lead_in: 2.0,
+            ramp_length: 2.0,
+            finish_allowance: 0.5,
+            finish_pass: true,
+            ..AdvancedParameters::default()
+        };
+        let program = profile_with_options(&rectangle(), parameters, true, options).unwrap();
+        verify_program(&program).unwrap();
+        assert!(program.motions.iter().any(|motion| matches!(
+            motion,
+            Motion::Linear { x: Some(_), y: Some(_), z: Some(z), .. } if (*z + 3.0).abs() < 1.0e-9
+        )));
+        assert!(program.motions.iter().any(|motion| matches!(
+            motion,
+            Motion::Linear { z: Some(z), .. } if (*z + 2.0).abs() < 1.0e-9
+        )));
+    }
+
+    #[test]
+    fn simple_drill_cycle_uses_one_plunge_per_location() {
+        let parameters = ProfileParameters {
+            depth: 3.0,
+            step_down: 1.0,
+            ..ProfileParameters::default()
+        };
+        let program = drill_with_cycle(
+            &[Point2::new(1.0, 2.0), Point2::new(4.0, 5.0)],
+            parameters,
+            DrillCycle::Simple,
+        )
+        .unwrap();
+        assert_eq!(
+            program
+                .motions
+                .iter()
+                .filter(|motion| matches!(motion, Motion::Linear { z: Some(_), .. }))
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn pocket_region_preserves_selected_islands() {
+        let island = Contour {
+            closed: true,
+            vertices: vec![
+                ContourVertex::line(14.0, 6.0),
+                ContourVertex::line(26.0, 6.0),
+                ContourVertex::line(26.0, 14.0),
+                ContourVertex::line(14.0, 14.0),
+            ],
+        };
+        let region = MachiningRegion {
+            outer: rectangle(),
+            islands: vec![island],
+        };
+        let parameters = ProfileParameters {
+            tool_diameter: 4.0,
+            depth: 1.0,
+            step_down: 1.0,
+            ..ProfileParameters::default()
+        };
+        let program = pocket_region(&region, parameters, 2.0, true).unwrap();
+        verify_program(&program).unwrap();
+        assert_eq!(program.name, "Pocket with islands");
+        let segments = preview_segments(&program).unwrap();
+        assert!(!segments.iter().any(|segment| {
+            segment.kind == SegmentKind::Cut
+                && segment.start.y > 6.0
+                && segment.start.y < 14.0
+                && segment.start.x < 14.0
+                && segment.end.x > 26.0
+        }));
     }
 
     #[test]

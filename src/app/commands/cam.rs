@@ -3,8 +3,28 @@ use acadrust::{CadDocument, EntityType, Handle};
 use ocs_cam_core::{Contour, ContourVertex, ProfileParameters, Units};
 
 impl OpenCADStudio {
+    pub(crate) fn refresh_cam_operation(&mut self, tab_index: usize, operation_index: usize) -> Result<(), String> {
+        let operation = self.tabs[tab_index]
+            .cam_job
+            .operations
+            .get(operation_index)
+            .ok_or_else(|| "CAM operation no longer exists".to_string())?;
+        let geometry = manufacturing_geometry(
+            &self.tabs[tab_index].scene.document,
+            operation.kind,
+            &operation.source_ids,
+        )?;
+        let fingerprint = geometry.fingerprint().map_err(|error| error.to_string())?;
+        let operation = &mut self.tabs[tab_index].cam_job.operations[operation_index];
+        operation.geometry = Some(geometry);
+        operation.geometry_fingerprint = Some(fingerprint);
+        regenerate_cam_operation(operation)
+    }
+
     pub(super) fn dispatch_cam(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         let verb = cmd.split_whitespace().next().unwrap_or_default();
+        self.show_cam_panel = true;
+        self.dock_expanded = Some(crate::ui::dock::PanelId::Cam);
         match verb {
             "CAMINFO" => {
                 let count = self.tabs[i].cam_job.operations.len();
@@ -163,9 +183,12 @@ impl OpenCADStudio {
             }
             "CAMPROFILE" | "CAMINSIDE" | "CAMPOCKET" | "CAMFACE" | "CAMENGRAVE" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
-                if handles.len() != 1 {
-                    self.command_line
-                        .push_error("CAM: select exactly one planar CAD curve.");
+                if handles.is_empty() || (verb != "CAMPOCKET" && handles.len() != 1) {
+                    self.command_line.push_error(if verb == "CAMPOCKET" {
+                        "CAMPOCKET: select an outer boundary, then any island contours."
+                    } else {
+                        "CAM: select exactly one planar CAD curve."
+                    });
                     return Some(Task::none());
                 }
                 let Some(entity) = self.tabs[i].scene.document.get_entity(handles[0]) else {
@@ -179,6 +202,32 @@ impl OpenCADStudio {
                         self.command_line.push_error(&format!("{verb}: {error}"));
                         return Some(Task::none());
                     }
+                };
+                let pocket_region = if verb == "CAMPOCKET" {
+                    let islands = handles
+                        .iter()
+                        .skip(1)
+                        .map(|handle| {
+                            self.tabs[i]
+                                .scene
+                                .document
+                                .get_entity(*handle)
+                                .ok_or("a selected pocket island no longer exists")
+                                .and_then(|entity| contour_from_entity(entity, true))
+                        })
+                        .collect::<Result<Vec<_>, _>>();
+                    match islands {
+                        Ok(islands) => Some(ocs_cam_core::MachiningRegion {
+                            outer: contour.clone(),
+                            islands,
+                        }),
+                        Err(error) => {
+                            self.command_line.push_error(&format!("CAMPOCKET: {error}"));
+                            return Some(Task::none());
+                        }
+                    }
+                } else {
+                    None
                 };
                 let mut parameters =
                     defaults_for_drawing_units(self.tabs[i].scene.document.header.insertion_units);
@@ -194,7 +243,12 @@ impl OpenCADStudio {
                     .unwrap_or(parameters.tool_diameter * 0.5);
                 let generated = match verb {
                     "CAMINSIDE" => ocs_cam_core::inside_profile(&contour, parameters),
-                    "CAMPOCKET" => ocs_cam_core::pocket(&contour, parameters, step_over),
+                    "CAMPOCKET" => ocs_cam_core::pocket_region(
+                        pocket_region.as_ref().expect("pocket region was created"),
+                        parameters,
+                        step_over,
+                        true,
+                    ),
                     "CAMFACE" => {
                         ocs_cam_core::facing(contour_bounds(&contour), parameters, step_over)
                     }
@@ -405,6 +459,7 @@ impl OpenCADStudio {
                 parameters,
             ),
             parameters,
+            advanced: ocs_cam_core::AdvancedParameters::default(),
             program,
         };
         self.tabs[i]
@@ -441,6 +496,24 @@ fn manufacturing_geometry(
             .map(|id| ocs_cam_core::GeometrySource { id })
             .collect(),
     );
+    if kind == ocs_cam_core::OperationKind::Pocket {
+        let mut contours = Vec::new();
+        for source_id in source_ids {
+            let value = u64::from_str_radix(source_id.trim_start_matches("0x"), 16)
+                .map_err(|_| format!("invalid CAM source handle '{source_id}'"))?;
+            let entity = document
+                .get_entity(Handle::new(value))
+                .ok_or_else(|| format!("CAM source entity {source_id} no longer exists"))?;
+            contours.push(contour_from_entity(entity, true).map_err(str::to_string)?);
+        }
+        let mut contours = contours.into_iter();
+        geometry.regions.push(ocs_cam_core::MachiningRegion {
+            outer: contours.next().ok_or("pocket has no outer boundary")?,
+            islands: contours.collect(),
+        });
+        geometry.validate().map_err(|error| error.to_string())?;
+        return Ok(geometry);
+    }
     for source_id in source_ids {
         let value = u64::from_str_radix(source_id.trim_start_matches("0x"), 16)
             .map_err(|_| format!("invalid CAM source handle '{source_id}'"))?;
@@ -674,6 +747,101 @@ fn contour_bounds(contour: &Contour) -> ocs_cam_core::Bounds2 {
         min: ocs_cam_core::Point2::new(min_x, min_y),
         max: ocs_cam_core::Point2::new(max_x, max_y),
     }
+}
+
+pub(crate) fn regenerate_cam_operation(
+    operation: &mut ocs_cam_core::CamOperation,
+) -> Result<(), String> {
+    let geometry = operation
+        .geometry
+        .as_ref()
+        .ok_or_else(|| "operation has no manufacturing snapshot".to_string())?;
+    let parameters = operation.parameters;
+    let first_region = || {
+        geometry
+            .regions
+            .first()
+            .map(|region| &region.outer)
+            .ok_or_else(|| "operation has no closed region".to_string())
+    };
+    let first_path = || {
+        geometry
+            .engraving_paths
+            .first()
+            .map(|path| &path.contour)
+            .ok_or_else(|| "operation has no open path".to_string())
+    };
+    let program = match operation.kind {
+        ocs_cam_core::OperationKind::OutsideProfile => {
+            ocs_cam_core::profile_with_options(
+                first_region()?,
+                parameters,
+                true,
+                operation.advanced,
+            )
+        }
+        ocs_cam_core::OperationKind::InsideProfile => {
+            ocs_cam_core::profile_with_options(
+                first_region()?,
+                parameters,
+                false,
+                operation.advanced,
+            )
+        }
+        ocs_cam_core::OperationKind::Pocket => ocs_cam_core::pocket_region(
+            geometry
+                .regions
+                .first()
+                .ok_or_else(|| "operation has no closed region".to_string())?,
+            parameters,
+            parameters.tool_diameter * 0.5,
+            operation.advanced.preserve_pocket_islands,
+        ),
+        ocs_cam_core::OperationKind::Facing => ocs_cam_core::facing(
+            contour_bounds(first_region()?),
+            parameters,
+            parameters.tool_diameter * 0.5,
+        ),
+        ocs_cam_core::OperationKind::Engrave => {
+            ocs_cam_core::engrave(first_path()?, parameters)
+        }
+        ocs_cam_core::OperationKind::Drill => ocs_cam_core::drill_with_cycle(
+            &geometry
+                .drill_locations
+                .iter()
+                .map(|location| location.point)
+                .collect::<Vec<_>>(),
+            parameters,
+            operation.advanced.drill_cycle,
+        ),
+        ocs_cam_core::OperationKind::Bore => {
+            let bounds = contour_bounds(first_region()?);
+            let center = ocs_cam_core::Point2::new(
+                (bounds.min.x + bounds.max.x) * 0.5,
+                (bounds.min.y + bounds.max.y) * 0.5,
+            );
+            ocs_cam_core::bore(center, bounds.max.x - bounds.min.x, parameters)
+        }
+        ocs_cam_core::OperationKind::Slot => {
+            let path = first_path()?;
+            let start = path.vertices.first().ok_or("slot path is empty")?.point;
+            let end = path.vertices.last().ok_or("slot path is empty")?.point;
+            ocs_cam_core::slot(
+                start,
+                end,
+                parameters.tool_diameter,
+                parameters,
+                parameters.tool_diameter * 0.6,
+            )
+        }
+    }
+    .map_err(|error| error.to_string())?;
+    operation.program = program;
+    operation.tool.diameter = operation.parameters.tool_diameter;
+    operation.tool.feed = operation.parameters.feed;
+    operation.tool.plunge_feed = operation.parameters.plunge_feed;
+    operation.tool.spindle_rpm = operation.parameters.spindle_rpm;
+    Ok(())
 }
 
 fn defaults_for_drawing_units(insertion_units: i16) -> ProfileParameters {

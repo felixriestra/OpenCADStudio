@@ -41,6 +41,7 @@ pub enum DockMsg {
 pub enum PanelId {
     Properties,
     BlockPalette,
+    Cam,
 }
 
 impl PanelId {
@@ -49,6 +50,7 @@ impl PanelId {
         match self {
             PanelId::Properties => "Properties",
             PanelId::BlockPalette => "Block Palette",
+            PanelId::Cam => "CAM Job",
         }
     }
 
@@ -57,6 +59,7 @@ impl PanelId {
         match self {
             PanelId::Properties => 250.0,
             PanelId::BlockPalette => 260.0,
+            PanelId::Cam => 310.0,
         }
     }
 }
@@ -105,7 +108,7 @@ impl Default for DockState {
     fn default() -> Self {
         Self {
             left: vec![PanelId::Properties],
-            right: vec![PanelId::BlockPalette],
+            right: vec![PanelId::Cam, PanelId::BlockPalette],
             panels: BTreeMap::new(),
         }
     }
@@ -131,8 +134,10 @@ impl DockState {
     /// resize never hit a missing configuration. Also a cheap heal for configs
     /// written by an older version.
     pub fn ensure_settings(&mut self) {
-        for id in [PanelId::Properties, PanelId::BlockPalette] {
-            self.panels.entry(id).or_insert_with(|| DockPanel::for_id(id));
+        for id in [PanelId::Properties, PanelId::BlockPalette, PanelId::Cam] {
+            self.panels
+                .entry(id)
+                .or_insert_with(|| DockPanel::for_id(id));
         }
     }
 
@@ -166,18 +171,27 @@ impl DockState {
 
     /// Set the persisted width, clamped.
     pub fn set_width(&mut self, id: PanelId, width: f32) {
-        let entry = self.panels.entry(id).or_insert_with(|| DockPanel::for_id(id));
+        let entry = self
+            .panels
+            .entry(id)
+            .or_insert_with(|| DockPanel::for_id(id));
         entry.width = width.clamp(DOCK_MIN_W, DOCK_MAX_W);
     }
 
     /// Reset width to the panel's default.
     pub fn reset_width(&mut self, id: PanelId) {
-        let entry = self.panels.entry(id).or_insert_with(|| DockPanel::for_id(id));
+        let entry = self
+            .panels
+            .entry(id)
+            .or_insert_with(|| DockPanel::for_id(id));
         entry.width = id.default_width();
     }
 
     pub fn set_auto_collapse(&mut self, id: PanelId, on: bool) {
-        let entry = self.panels.entry(id).or_insert_with(|| DockPanel::for_id(id));
+        let entry = self
+            .panels
+            .entry(id)
+            .or_insert_with(|| DockPanel::for_id(id));
         entry.auto_collapse = on;
     }
 
@@ -226,11 +240,15 @@ mod tests {
     #[test]
     fn default_docks_each_known_panel_on_an_edge() {
         let state = DockState::default();
-        assert_eq!(state.location(PanelId::Properties), Some((DockSide::Left, 0)));
+        assert_eq!(
+            state.location(PanelId::Properties),
+            Some((DockSide::Left, 0))
+        );
         assert_eq!(
             state.location(PanelId::BlockPalette),
-            Some((DockSide::Right, 0))
+            Some((DockSide::Right, 1))
         );
+        assert_eq!(state.location(PanelId::Cam), Some((DockSide::Right, 0)));
     }
 
     #[test]
@@ -239,6 +257,7 @@ mod tests {
         state.ensure_settings();
         assert_eq!(state.width(PanelId::Properties, 1600.0), 250.0);
         assert_eq!(state.width(PanelId::BlockPalette, 1600.0), 260.0);
+        assert_eq!(state.width(PanelId::Cam, 1600.0), 310.0);
         assert!(!state.auto_collapse(PanelId::Properties));
     }
 
@@ -252,7 +271,7 @@ mod tests {
         );
         // It no longer occupies the left edge.
         assert!(state.left.is_empty());
-        assert_eq!(state.right.len(), 2);
+        assert_eq!(state.right.len(), 3);
     }
 
     #[test]
@@ -261,7 +280,7 @@ mod tests {
         assert!(state.dock(PanelId::Properties, DockSide::Right, 99));
         assert_eq!(
             state.location(PanelId::Properties),
-            Some((DockSide::Right, 1))
+            Some((DockSide::Right, 2))
         );
     }
 
@@ -285,7 +304,10 @@ mod tests {
         let mut state = DockState::default();
         state.set_width(PanelId::BlockPalette, 500.0);
         // Window too narrow -> capped by the 0.45 fraction, not DOCK_MAX_W.
-        assert_eq!(state.width(PanelId::BlockPalette, 800.0), DOCK_MAX_W.min(360.0));
+        assert_eq!(
+            state.width(PanelId::BlockPalette, 800.0),
+            DOCK_MAX_W.min(360.0)
+        );
     }
 
     #[test]

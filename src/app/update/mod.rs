@@ -96,6 +96,56 @@ mod style;
 mod util;
 mod viewport;
 
+fn cam_preview_wires(
+    segments: &[ocs_cam_core::PreviewSegment],
+) -> Vec<crate::scene::WireModel> {
+    let mut wires = Vec::with_capacity(segments.len() * 2);
+    for (index, segment) in segments.iter().enumerate() {
+            let (color, width) = match segment.kind {
+                ocs_cam_core::SegmentKind::Rapid => ([0.20, 0.65, 1.0, 0.85], 1.25),
+                ocs_cam_core::SegmentKind::Cut => ([1.0, 0.45, 0.10, 1.0], 2.5),
+            };
+            let mut wire = crate::scene::WireModel::solid_f64(
+                format!("cam-preview-{index}"),
+                vec![
+                    [segment.start.x, segment.start.y, segment.start.z],
+                    [segment.end.x, segment.end.y, segment.end.z],
+                ],
+                color,
+                false,
+            );
+            wire.line_weight_px = width;
+            wire.plot_visible = false;
+            wires.push(wire);
+
+            let dx = segment.end.x - segment.start.x;
+            let dy = segment.end.y - segment.start.y;
+            let length = dx.hypot(dy);
+            if segment.kind == ocs_cam_core::SegmentKind::Cut && length > 1.0e-6 {
+                let arrow_length = (length * 0.18).clamp(0.4, 2.5);
+                let ux = dx / length;
+                let uy = dy / length;
+                let base_x = segment.end.x - ux * arrow_length;
+                let base_y = segment.end.y - uy * arrow_length;
+                let wing = arrow_length * 0.45;
+                let mut arrow = crate::scene::WireModel::solid_f64(
+                    format!("cam-direction-{index}"),
+                    vec![
+                        [base_x - uy * wing, base_y + ux * wing, segment.end.z],
+                        [segment.end.x, segment.end.y, segment.end.z],
+                        [base_x + uy * wing, base_y - ux * wing, segment.end.z],
+                    ],
+                    [1.0, 0.8, 0.15, 1.0],
+                    false,
+                );
+                arrow.line_weight_px = 1.5;
+                arrow.plot_visible = false;
+                wires.push(arrow);
+            }
+    }
+    wires
+}
+
 impl OpenCADStudio {
     pub(in crate::app) fn reset_modal_geometry(&mut self) {
         self.modal_offset = iced::Vector::ZERO;
@@ -1435,6 +1485,309 @@ impl OpenCADStudio {
                 Task::none()
             }
             Message::CamExportResult(_, _, None) => Task::none(),
+
+            Message::CamPanel(action) => {
+                use crate::ui::window::cam_panel::{
+                    AdvancedField, CamPanelMsg as A, SetupField, ToolField,
+                };
+                let i = self.active_tab;
+                let count = self.tabs[i].cam_job.operations.len();
+                match action {
+                    A::Select(index) if index < count => self.cam_selected_operation = Some(index),
+                    A::Toggle(index) if index < count => {
+                        let operation = &mut self.tabs[i].cam_job.operations[index];
+                        operation.enabled = !operation.enabled;
+                        self.tabs[i].dirty = true;
+                    }
+                    A::MoveUp(index) if index > 0 && index < count => {
+                        self.tabs[i].cam_job.operations.swap(index, index - 1);
+                        self.cam_selected_operation = Some(index - 1);
+                        self.tabs[i].dirty = true;
+                    }
+                    A::MoveDown(index) if index + 1 < count => {
+                        self.tabs[i].cam_job.operations.swap(index, index + 1);
+                        self.cam_selected_operation = Some(index + 1);
+                        self.tabs[i].dirty = true;
+                    }
+                    A::Duplicate(index) if index < count => {
+                        let mut copy = self.tabs[i].cam_job.operations[index].clone();
+                        copy.id = format!("{}-copy-{}", copy.id, count + 1);
+                        copy.name = format!("{} copy", copy.name);
+                        self.tabs[i].cam_job.operations.insert(index + 1, copy);
+                        self.cam_selected_operation = Some(index + 1);
+                        self.tabs[i].dirty = true;
+                    }
+                    A::Delete(index) if index < count => {
+                        self.tabs[i].cam_job.operations.remove(index);
+                        self.cam_selected_operation = (index < count - 1)
+                            .then_some(index)
+                            .or_else(|| index.checked_sub(1));
+                        self.tabs[i].dirty = true;
+                    }
+                    A::Regenerate(index) if index < count => {
+                        match self.refresh_cam_operation(i, index) {
+                            Ok(()) => {
+                                self.tabs[i].dirty = true;
+                                self.command_line.push_output("CAM operation regenerated.");
+                            }
+                            Err(error) => self.command_line.push_error(&format!(
+                                "CAM regeneration failed: {error}"
+                            )),
+                        }
+                    }
+                    A::PreviewAll => {
+                        let program = self.tabs[i].cam_job.compile();
+                        match program.and_then(|program| ocs_cam_core::preview_segments(&program)) {
+                            Ok(segments) => {
+                                self.cam_preview_step = None;
+                                self.tabs[i].scene.set_preview_wires(cam_preview_wires(&segments));
+                                self.cam_preview_segments = segments;
+                            }
+                            Err(error) => self.command_line.push_error(&format!("CAM preview: {error}")),
+                        }
+                    }
+                    A::PreviewSelected => {
+                        if let Some(operation) = self
+                            .cam_selected_operation
+                            .and_then(|index| self.tabs[i].cam_job.operations.get(index))
+                        {
+                            match ocs_cam_core::preview_segments(&operation.program) {
+                                Ok(segments) => {
+                                    self.cam_preview_step = None;
+                                    self.tabs[i].scene.set_preview_wires(cam_preview_wires(&segments));
+                                    self.cam_preview_segments = segments;
+                                }
+                                Err(error) => self.command_line.push_error(&format!("CAM preview: {error}")),
+                            }
+                        }
+                    }
+                    A::ClearPreview => {
+                        self.tabs[i].scene.set_preview_wires(Vec::new());
+                        self.cam_preview_segments.clear();
+                        self.cam_preview_step = None;
+                    }
+                    A::PreviewFirst => {
+                        if !self.cam_preview_segments.is_empty() {
+                            self.cam_preview_step = Some(1);
+                            self.tabs[i].scene.set_preview_wires(cam_preview_wires(
+                                &self.cam_preview_segments[..1],
+                            ));
+                        }
+                    }
+                    A::PreviewPrevious => {
+                        if !self.cam_preview_segments.is_empty() {
+                            let step = self
+                                .cam_preview_step
+                                .unwrap_or(self.cam_preview_segments.len())
+                                .saturating_sub(1)
+                                .max(1);
+                            self.cam_preview_step = Some(step);
+                            self.tabs[i].scene.set_preview_wires(cam_preview_wires(
+                                &self.cam_preview_segments[..step],
+                            ));
+                        }
+                    }
+                    A::PreviewNext => {
+                        if !self.cam_preview_segments.is_empty() {
+                            let step = self
+                                .cam_preview_step
+                                .unwrap_or(0)
+                                .saturating_add(1)
+                                .min(self.cam_preview_segments.len())
+                                .max(1);
+                            self.cam_preview_step = Some(step);
+                            self.tabs[i].scene.set_preview_wires(cam_preview_wires(
+                                &self.cam_preview_segments[..step],
+                            ));
+                        }
+                    }
+                    A::PreviewLast => {
+                        self.cam_preview_step = None;
+                        self.tabs[i].scene.set_preview_wires(cam_preview_wires(
+                            &self.cam_preview_segments,
+                        ));
+                    }
+                    A::AdjustSetup(field, delta) => {
+                        if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
+                            let value = match field {
+                                SetupField::StockWidth => &mut setup.stock.width,
+                                SetupField::StockHeight => &mut setup.stock.height,
+                                SetupField::StockThickness => &mut setup.stock.thickness,
+                                SetupField::Clearance => &mut setup.clearance_z,
+                                SetupField::OriginX => &mut setup.work_origin.x,
+                                SetupField::OriginY => &mut setup.work_origin.y,
+                                SetupField::TravelX => &mut setup.machine.travel_x,
+                                SetupField::TravelY => &mut setup.machine.travel_y,
+                                SetupField::TravelZ => &mut setup.machine.travel_z,
+                                SetupField::MaximumFeed => &mut setup.machine.maximum_feed,
+                                SetupField::MaximumRpm => {
+                                    setup.machine.maximum_spindle_rpm =
+                                        ((setup.machine.maximum_spindle_rpm as f64 + delta)
+                                            .max(1.0)) as u32;
+                                    self.tabs[i].dirty = true;
+                                    return Task::none();
+                                }
+                            };
+                            *value = match field {
+                                SetupField::OriginX | SetupField::OriginY => *value + delta,
+                                _ => (*value + delta).max(0.001),
+                            };
+                            self.tabs[i].dirty = true;
+                        }
+                    }
+                    A::CycleMaterial => {
+                        if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
+                            let (name, factor) = match setup.material.name.as_str() {
+                                "Generic" => ("Aluminum", 0.55),
+                                "Aluminum" => ("Hardwood", 0.85),
+                                "Hardwood" => ("Plywood", 1.0),
+                                "Plywood" => ("Acrylic", 0.7),
+                                _ => ("Generic", 1.0),
+                            };
+                            setup.material.name = name.to_string();
+                            setup.material.feed_factor = factor;
+                            self.tabs[i].dirty = true;
+                        }
+                    }
+                    A::AdjustTool(field, delta) => {
+                        if let Some(operation) = self
+                            .cam_selected_operation
+                            .and_then(|index| self.tabs[i].cam_job.operations.get_mut(index))
+                        {
+                            match field {
+                                ToolField::Diameter => {
+                                    operation.parameters.tool_diameter =
+                                        (operation.parameters.tool_diameter + delta).max(0.001)
+                                }
+                                ToolField::Feed => {
+                                    operation.parameters.feed =
+                                        (operation.parameters.feed + delta).max(0.001)
+                                }
+                                ToolField::Plunge => {
+                                    operation.parameters.plunge_feed =
+                                        (operation.parameters.plunge_feed + delta).max(0.001)
+                                }
+                                ToolField::Rpm => {
+                                    operation.parameters.spindle_rpm =
+                                        ((operation.parameters.spindle_rpm as f64 + delta)
+                                            .max(1.0)) as u32
+                                }
+                            }
+                            match crate::app::commands::regenerate_cam_operation(operation) {
+                                Ok(()) => {
+                                    let tool = operation.tool.clone();
+                                    if let Some(saved) = self.tabs[i]
+                                        .cam_job
+                                        .tool_library
+                                        .iter_mut()
+                                        .find(|saved| saved.id == tool.id)
+                                    {
+                                        *saved = tool;
+                                    }
+                                    self.tabs[i].dirty = true;
+                                }
+                                Err(error) => self.command_line.push_error(&format!(
+                                    "CAM regeneration failed: {error}"
+                                )),
+                            }
+                        }
+                    }
+                    A::ApplyLibraryTool(tool_index) => {
+                        let tool = self.tabs[i].cam_job.tool_library.get(tool_index).cloned();
+                        if let (Some(tool), Some(operation_index)) =
+                            (tool, self.cam_selected_operation)
+                        {
+                            if let Some(operation) =
+                                self.tabs[i].cam_job.operations.get_mut(operation_index)
+                            {
+                                operation.parameters.tool_diameter = tool.diameter;
+                                operation.parameters.feed = tool.feed;
+                                operation.parameters.plunge_feed = tool.plunge_feed;
+                                operation.parameters.spindle_rpm = tool.spindle_rpm;
+                                operation.tool = tool;
+                                match crate::app::commands::regenerate_cam_operation(operation) {
+                                    Ok(()) => self.tabs[i].dirty = true,
+                                    Err(error) => self.command_line.push_error(&format!(
+                                        "CAM regeneration failed: {error}"
+                                    )),
+                                }
+                            }
+                        }
+                    }
+                    A::AdjustAdvanced(field, delta) => {
+                        if let Some(operation) = self
+                            .cam_selected_operation
+                            .and_then(|index| self.tabs[i].cam_job.operations.get_mut(index))
+                        {
+                            match field {
+                                AdvancedField::Tabs => {
+                                    operation.advanced.tab_count =
+                                        ((operation.advanced.tab_count as f64 + delta).max(0.0))
+                                            as u32
+                                }
+                                AdvancedField::TabHeight => {
+                                    operation.advanced.tab_height =
+                                        (operation.advanced.tab_height + delta).max(0.0)
+                                }
+                                AdvancedField::LeadIn => {
+                                    operation.advanced.lead_in =
+                                        (operation.advanced.lead_in + delta).max(0.0)
+                                }
+                                AdvancedField::LeadOut => {
+                                    operation.advanced.lead_out =
+                                        (operation.advanced.lead_out + delta).max(0.0)
+                                }
+                                AdvancedField::RampLength => {
+                                    operation.advanced.ramp_length =
+                                        (operation.advanced.ramp_length + delta).max(0.0)
+                                }
+                                AdvancedField::FinishAllowance => {
+                                    operation.advanced.finish_allowance =
+                                        (operation.advanced.finish_allowance + delta).max(0.0)
+                                }
+                            }
+                            match crate::app::commands::regenerate_cam_operation(operation) {
+                                Ok(()) => self.tabs[i].dirty = true,
+                                Err(error) => self.command_line.push_error(&format!(
+                                    "CAM regeneration failed: {error}"
+                                )),
+                            }
+                        }
+                    }
+                    A::ToggleFinishPass | A::TogglePocketIslands | A::ToggleDrillCycle => {
+                        if let Some(operation) = self
+                            .cam_selected_operation
+                            .and_then(|index| self.tabs[i].cam_job.operations.get_mut(index))
+                        {
+                            match action {
+                                A::ToggleFinishPass => {
+                                    operation.advanced.finish_pass =
+                                        !operation.advanced.finish_pass
+                                }
+                                A::TogglePocketIslands => {
+                                    operation.advanced.preserve_pocket_islands =
+                                        !operation.advanced.preserve_pocket_islands
+                                }
+                                A::ToggleDrillCycle => {
+                                    operation.advanced.drill_cycle = match operation.advanced.drill_cycle {
+                                        ocs_cam_core::DrillCycle::Simple => ocs_cam_core::DrillCycle::Peck,
+                                        ocs_cam_core::DrillCycle::Peck => ocs_cam_core::DrillCycle::Simple,
+                                    }
+                                }
+                                _ => unreachable!(),
+                            }
+                            match crate::app::commands::regenerate_cam_operation(operation) {
+                                Ok(()) => self.tabs[i].dirty = true,
+                                Err(error) => self.command_line.push_error(&format!(
+                                    "CAM regeneration failed: {error}"
+                                )),
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                Task::none()
+            }
 
             // ── Document tabs ─────────────────────────────────────────────
             Message::TabNew => {

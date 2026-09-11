@@ -47,10 +47,11 @@ impl ProjectContents {
         cam_job.validate().map_err(|error| error.to_string())?;
         let mut seen = HashSet::new();
         let tools = cam_job
-            .operations
+            .tool_library
             .iter()
-            .map(|operation| operation.tool.clone())
+            .chain(cam_job.operations.iter().map(|operation| &operation.tool))
             .filter(|tool| seen.insert(tool.id.clone()))
+            .cloned()
             .collect();
         Ok(Self {
             manifest: ProjectManifest::default(),
@@ -106,7 +107,7 @@ pub fn decode_project(bytes: &[u8]) -> Result<ProjectContents, String> {
         ));
     }
     let drawing = read_entry(&mut archive, &manifest.drawing_entry, MAX_DRAWING_BYTES)?;
-    let cam_job: CamJob = serde_json::from_slice(&read_entry(
+    let mut cam_job: CamJob = serde_json::from_slice(&read_entry(
         &mut archive,
         &manifest.cam_entry,
         MAX_JSON_BYTES,
@@ -118,6 +119,9 @@ pub fn decode_project(bytes: &[u8]) -> Result<ProjectContents, String> {
         MAX_JSON_BYTES,
     )?)
     .map_err(|e| format!("invalid tools.json: {e}"))?;
+    if cam_job.tool_library.is_empty() {
+        cam_job.tool_library = tools.clone();
+    }
     let project = ProjectContents {
         manifest,
         drawing,

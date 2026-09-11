@@ -20,6 +20,7 @@ mod view;
 // path (`commands::DrawOrderRefCommand`) from `update.rs`, so re-export it at
 // the module root to keep that path valid.
 pub(crate) use view::DrawOrderCommand;
+pub(crate) use cam::regenerate_cam_operation;
 
 impl OpenCADStudio {
     /// First `"{prefix}{n}"` (n ≥ 1) not already used by a block record in the
