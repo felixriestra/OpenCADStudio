@@ -352,7 +352,10 @@ impl Ribbon {
     /// The Block Palette highlight is threaded in from the app's authoritative
     /// `show_block_palette` rather than a ribbon copy, so it can't drift from
     /// the panel's true visibility.
-    fn toggle_state(&self, show_block_palette: bool) -> widgets::ToggleState {
+    /// The `show_constraints` toggle is threaded in from the app's
+    /// authoritative field, the same way `show_block_palette` already is —
+    /// so it can't drift from a Ribbon-owned copy.
+    fn toggle_state(&self, show_block_palette: bool, show_constraints: bool) -> widgets::ToggleState {
         use widgets::ToggleState;
         ToggleState {
             ortho_mode: self.ortho_mode,
@@ -362,6 +365,7 @@ impl Ribbon {
             show_block_palette,
             show_file_tabs: self.show_file_tabs,
             show_layout_tabs: self.show_layout_tabs,
+            show_constraints,
         }
     }
 
@@ -437,6 +441,7 @@ impl Ribbon {
         undo_count: usize,
         redo_count: usize,
         show_block_palette: bool,
+        show_constraints: bool,
     ) -> Element<'_, Message> {
         // ── Quick-access file commands + undo/redo, one merged flow ────────
         let lead = iced::widget::Row::with_children(vec![
@@ -617,7 +622,7 @@ impl Ribbon {
                 let panels: Vec<Panel<'_>> = groups
                     .iter()
                     .map(|g| {
-                        let ts = self.toggle_state(show_block_palette);
+                        let ts = self.toggle_state(show_block_palette, show_constraints);
                         Panel {
                         id: g.title.to_string(),
                         elements: [render_group(
@@ -1623,9 +1628,9 @@ mod tests {
         // time: the ribbon keeps no second copy that a BLOCKPALETTE / close
         // handler must remember to keep in sync.
         let ribbon = Ribbon::default();
-        let on = ribbon.toggle_state(true);
+        let on = ribbon.toggle_state(true, true);
         assert!(is_active_tool("BLOCKPALETTE", &None, &on));
-        let off = ribbon.toggle_state(false);
+        let off = ribbon.toggle_state(false, true);
         assert!(!is_active_tool("BLOCKPALETTE", &None, &off));
     }
 
@@ -1689,10 +1694,10 @@ mod tests {
 
         let n = 200u32;
         // Warm-up for allocator/tree-slot settling before timing begins.
-        let _ = ribbon.view(false, false, 0, 0, false);
+        let _ = ribbon.view(false, false, 0, 0, false, true);
         let start = Instant::now();
         for _ in 0..n {
-            let _ = ribbon.view(false, false, 0, 0, false);
+            let _ = ribbon.view(false, false, 0, 0, false, true);
         }
         let per_frame = start.elapsed() / n;
         println!(

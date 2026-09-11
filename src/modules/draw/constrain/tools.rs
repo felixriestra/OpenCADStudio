@@ -6,10 +6,10 @@ pub mod horizontal {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "HCONSTRAINT",
+            id: "GCHORIZONTAL",
             label: "Horizontal",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/horizontal.svg")),
-            event: ModuleEvent::Command("HCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCHORIZONTAL".to_string()),
         }
     }
 }
@@ -18,10 +18,10 @@ pub mod vertical {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "VCONSTRAINT",
+            id: "GCVERTICAL",
             label: "Vertical",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/vertical.svg")),
-            event: ModuleEvent::Command("VCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCVERTICAL".to_string()),
         }
     }
 }
@@ -30,10 +30,10 @@ pub mod parallel {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "PCONSTRAINT",
+            id: "GCPARALLEL",
             label: "Parallel",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/parallel.svg")),
-            event: ModuleEvent::Command("PCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCPARALLEL".to_string()),
         }
     }
 }
@@ -42,10 +42,10 @@ pub mod perpendicular {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "QCONSTRAINT",
+            id: "GCPERPENDICULAR",
             label: "Perpendicular",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/perpendicular.svg")),
-            event: ModuleEvent::Command("QCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCPERPENDICULAR".to_string()),
         }
     }
 }
@@ -54,10 +54,10 @@ pub mod equal {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "ECONSTRAINT",
+            id: "GCEQUAL",
             label: "Equal",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/equal.svg")),
-            event: ModuleEvent::Command("ECONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCEQUAL".to_string()),
         }
     }
 }
@@ -66,10 +66,10 @@ pub mod tangent {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "TCONSTRAINT",
+            id: "GCTANGENT",
             label: "Tangent",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/tangent.svg")),
-            event: ModuleEvent::Command("TCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCTANGENT".to_string()),
         }
     }
 }
@@ -78,10 +78,10 @@ pub mod concentric {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "NCONSTRAINT",
+            id: "GCCONCENTRIC",
             label: "Concentric",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/concentric.svg")),
-            event: ModuleEvent::Command("NCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCCONCENTRIC".to_string()),
         }
     }
 }
@@ -110,10 +110,10 @@ pub mod colinear {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "LCONSTRAINT",
+            id: "GCCOLLINEAR",
             label: "Colinear",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/colinear.svg")),
-            event: ModuleEvent::Command("LCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCCOLLINEAR".to_string()),
         }
     }
 }
@@ -122,10 +122,10 @@ pub mod fixed {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "FXCONSTRAINT",
+            id: "GCFIX",
             label: "Fixed",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/fixed.svg")),
-            event: ModuleEvent::Command("FXCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCFIX".to_string()),
         }
     }
 }
@@ -134,10 +134,25 @@ pub mod symmetric {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "SYCONSTRAINT",
+            id: "GCSYMMETRIC",
             label: "Symmetric",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/symmetric.svg")),
-            event: ModuleEvent::Command("SYCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCSYMMETRIC".to_string()),
+        }
+    }
+}
+
+/// Global constraint-glyph visibility toggle (Constraints ribbon group).
+/// id "SHOWCONSTRAINTS" is special-cased in `ui/ribbon/widgets.rs`'s
+/// `is_active_tool` for toggle-state highlighting off `App::show_constraints`.
+pub mod show_constraints {
+    use super::*;
+    pub fn tool() -> ToolDef {
+        ToolDef {
+            id: "SHOWCONSTRAINTS",
+            label: "Show Constraints",
+            icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/show_constraints.svg")),
+            event: ModuleEvent::Command("SHOWCONSTRAINTS".to_string()),
         }
     }
 }
@@ -145,16 +160,17 @@ pub mod symmetric {
 // ── Autocomplete registry ─────────────────────────────────
 inventory::submit!(crate::command::CommandRegistration {
     names: &[
-        "HCONSTRAINT",
-        "VCONSTRAINT",
-        "PCONSTRAINT",
-        "QCONSTRAINT",
-        "ECONSTRAINT",
-        "TCONSTRAINT",
-        "NCONSTRAINT",
+        "SHOWCONSTRAINTS",
+        "GCHORIZONTAL",
+        "GCVERTICAL",
+        "GCPARALLEL",
+        "GCPERPENDICULAR",
+        "GCEQUAL",
+        "GCTANGENT",
+        "GCCONCENTRIC",
         "NRCONSTRAINT",
-        "LCONSTRAINT",
-        "FXCONSTRAINT",
-        "SYCONSTRAINT",
+        "GCCOLLINEAR",
+        "GCFIX",
+        "GCSYMMETRIC",
     ]
 });

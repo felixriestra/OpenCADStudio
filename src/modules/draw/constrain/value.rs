@@ -1,4 +1,4 @@
-//! DCONSTRAINT / ACONSTRAINT — constraints that need a typed target value
+//! DIMCONSTRAINT / DCANGULAR — constraints that need a typed target value
 //! (a distance or an angle), unlike the plain select-and-click constraints
 //! in `mod.rs`.
 //!
@@ -55,10 +55,10 @@ pub mod distance_tool {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "DCONSTRAINT",
+            id: "DIMCONSTRAINT",
             label: "Distance",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/distance.svg")),
-            event: ModuleEvent::Command("DCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("DIMCONSTRAINT".to_string()),
         }
     }
 }
@@ -67,10 +67,10 @@ pub mod angle_tool {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "ACONSTRAINT",
+            id: "DCANGULAR",
             label: "Angle",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/angle.svg")),
-            event: ModuleEvent::Command("ACONSTRAINT".to_string()),
+            event: ModuleEvent::Command("DCANGULAR".to_string()),
         }
     }
 }
@@ -167,7 +167,7 @@ impl DistanceConstraintCommand {
 
 impl CadCommand for DistanceConstraintCommand {
     fn name(&self) -> &'static str {
-        "DCONSTRAINT"
+        "DIMCONSTRAINT"
     }
 
     fn prompt(&self) -> String {
@@ -278,7 +278,7 @@ impl AngleConstraintCommand {
 
 impl CadCommand for AngleConstraintCommand {
     fn name(&self) -> &'static str {
-        "ACONSTRAINT"
+        "DCANGULAR"
     }
 
     fn prompt(&self) -> String {
@@ -308,7 +308,7 @@ impl CadCommand for AngleConstraintCommand {
 }
 
 // ── Autocomplete registry ─────────────────────────────────
-inventory::submit!(crate::command::CommandRegistration { names: &["DCONSTRAINT", "ACONSTRAINT"] });
+inventory::submit!(crate::command::CommandRegistration { names: &["DIMCONSTRAINT", "DCANGULAR"] });
 
 #[cfg(test)]
 mod tests {
@@ -373,7 +373,7 @@ mod tests {
     fn x_keyword_switches_mode_and_then_builds_a_distance_x_constraint() {
         let mut scene = Scene::new();
         let line = add_line(&mut scene);
-        let mut cmd = DistanceConstraintCommand::new(&scene, line).expect("Line supports DCONSTRAINT");
+        let mut cmd = DistanceConstraintCommand::new(&scene, line).expect("Line supports DIMCONSTRAINT");
 
         // The keyword itself only switches mode and re-prompts — it must
         // not build a constraint yet.
@@ -393,7 +393,7 @@ mod tests {
     fn d_keyword_switches_a_circles_command_to_diameter_mode() {
         let mut scene = Scene::new();
         let circle = add_circle(&mut scene);
-        let mut cmd = DistanceConstraintCommand::new(&scene, circle).expect("Circle supports DCONSTRAINT");
+        let mut cmd = DistanceConstraintCommand::new(&scene, circle).expect("Circle supports DIMCONSTRAINT");
 
         assert!(matches!(cmd.on_text_input("D"), Some(CmdResult::NeedPoint)));
         assert!(cmd.prompt().contains("diameter"), "prompt should reflect Diameter mode: {}", cmd.prompt());
@@ -411,7 +411,7 @@ mod tests {
     fn default_mode_still_builds_a_plain_radius_constraint() {
         let mut scene = Scene::new();
         let circle = add_circle(&mut scene);
-        let mut cmd = DistanceConstraintCommand::new(&scene, circle).expect("Circle supports DCONSTRAINT");
+        let mut cmd = DistanceConstraintCommand::new(&scene, circle).expect("Circle supports DIMCONSTRAINT");
 
         match cmd.on_text_input("5") {
             Some(CmdResult::AddSketchConstraint { kind, .. }) => assert_eq!(kind, ConstraintKind::Radius),
@@ -423,7 +423,7 @@ mod tests {
     fn a_keyword_switches_an_arcs_command_to_arc_length_mode() {
         let mut scene = Scene::new();
         let arc = add_arc(&mut scene);
-        let mut cmd = DistanceConstraintCommand::new(&scene, arc).expect("Arc supports DCONSTRAINT");
+        let mut cmd = DistanceConstraintCommand::new(&scene, arc).expect("Arc supports DIMCONSTRAINT");
 
         assert!(matches!(cmd.on_text_input("A"), Some(CmdResult::NeedPoint)));
         assert!(cmd.prompt().contains("arc length"), "prompt should reflect ArcLength mode: {}", cmd.prompt());
@@ -441,7 +441,7 @@ mod tests {
     fn arc_length_keyword_is_not_offered_for_a_plain_circle() {
         let mut scene = Scene::new();
         let circle = add_circle(&mut scene);
-        let mut cmd = DistanceConstraintCommand::new(&scene, circle).expect("Circle supports DCONSTRAINT");
+        let mut cmd = DistanceConstraintCommand::new(&scene, circle).expect("Circle supports DIMCONSTRAINT");
 
         assert!(!cmd.prompt().contains("Arclength"), "a plain circle has no arc length option: {}", cmd.prompt());
         // "A" isn't a recognized keyword here and doesn't parse as a
@@ -453,7 +453,7 @@ mod tests {
     fn arc_length_default_is_the_arcs_current_swept_length() {
         let mut scene = Scene::new();
         let arc = add_arc(&mut scene); // radius 3, 90° sweep -> length = 3 * pi/2
-        let mut cmd = DistanceConstraintCommand::new(&scene, arc).expect("Arc supports DCONSTRAINT");
+        let mut cmd = DistanceConstraintCommand::new(&scene, arc).expect("Arc supports DIMCONSTRAINT");
         cmd.on_text_input("A");
 
         let expected = 3.0 * std::f64::consts::FRAC_PI_2;

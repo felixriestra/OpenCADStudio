@@ -62,8 +62,17 @@ pub enum PropValue {
     /// row for one persistent sketch constraint. Clicking it selects every
     /// entity in `handles` in the viewport. `conflicting` mirrors
     /// `SketchConstraintSet::conflicts`, tinting the row the same danger
-    /// color the constraint's glyph pill already uses.
-    EntityLink { handles: Vec<Handle>, conflicting: bool },
+    /// color the constraint's glyph pill already uses. `id` routes the two
+    /// per-row visibility toggles below back to this specific constraint.
+    /// `show_value` is `None` when the constraint has no driving value (e.g.
+    /// Horizontal) — no second toggle is rendered for those rows.
+    EntityLink {
+        id: crate::scene::sketch_constraints::ConstraintId,
+        handles: Vec<Handle>,
+        conflicting: bool,
+        visible: bool,
+        show_value: Option<bool>,
+    },
     /// One row of the document-wide named-parameter table (Parameters
     /// section, shown when nothing is selected). `index` is the row's
     /// position in `ParameterTable::iter()` order — stable across edits to
@@ -80,6 +89,13 @@ pub enum PropValue {
     },
     /// The trailing "+ Add parameter" row in the Parameters section.
     ParamAddRow,
+    /// The Parameters section's leading header row (no-selection page only):
+    /// a global on/off toggle for whether ANY constraint pill in the
+    /// viewport shows its driven value/parameter-name text. Mirrors
+    /// `App::show_constraint_values`; ANDed at render time with each
+    /// individual constraint's own `show_value` flag (the per-entity toggle
+    /// shown in the Constraints section's `EntityLink` rows instead).
+    ParamsVisibilityToggle(bool),
 }
 
 /// A single property row in the Properties panel.

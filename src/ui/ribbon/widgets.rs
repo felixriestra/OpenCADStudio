@@ -40,6 +40,9 @@ pub(super) struct ToggleState {
     pub show_block_palette: bool,
     pub show_file_tabs: bool,
     pub show_layout_tabs: bool,
+    /// Global constraint-glyph visibility (SHOWCONSTRAINTS) — drives the
+    /// Constraints group's visibility-toggle button highlight.
+    pub show_constraints: bool,
 }
 
 // ── Layout constants (single source of truth: ROW_H from ui::mod) ─────────
@@ -435,6 +438,7 @@ pub(super) fn is_active_tool(
         "BLOCKPALETTE" => state.show_block_palette,
         "FILETAB" => state.show_file_tabs,
         "LAYOUTTAB" => state.show_layout_tabs,
+        "SHOWCONSTRAINTS" => state.show_constraints,
         id => active_tool.as_deref() == Some(id),
     }
 }

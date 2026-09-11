@@ -31,6 +31,7 @@ pub use coincident::{coincident_tool, CoincidentConstraintCommand};
 pub use equal_distance::{equal_distance_tool, EqualDistanceConstraintCommand};
 pub use point_on_entity::{center_point_tool, midpoint_tool, point_on_curve_tool, PointOnEntityConstraintCommand};
 pub use tools::{
-    concentric, equal, fixed, horizontal, colinear, normal, parallel, perpendicular, symmetric, tangent, vertical,
+    concentric, equal, fixed, horizontal, colinear, normal, parallel, perpendicular, show_constraints, symmetric,
+    tangent, vertical,
 };
 pub use value::{angle_tool, distance_tool, AngleConstraintCommand, DistanceConstraintCommand};

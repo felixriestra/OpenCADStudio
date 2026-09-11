@@ -864,13 +864,14 @@ impl PropertiesPanel {
                 self.render_hatch_pattern_row(label, current)
             }
             PropValue::AttrText { tag, value } => self.render_attr_row(tag, value),
-            PropValue::EntityLink { handles, conflicting } => {
-                render_entity_link_row(label, handles.clone(), *conflicting)
+            PropValue::EntityLink { id, handles, conflicting, visible, show_value } => {
+                render_entity_link_row(label, *id, handles.clone(), *conflicting, *visible, *show_value)
             }
             PropValue::ParamRow { index, name, formula, resolved } => {
                 self.render_param_row(*index, name, formula, resolved)
             }
             PropValue::ParamAddRow => render_param_add_row(),
+            PropValue::ParamsVisibilityToggle(value) => render_params_visibility_toggle_row(*value),
         }
     }
 
@@ -1933,29 +1934,118 @@ fn render_ro_with_tooltip_row<'a>(
 /// field, so this doesn't use the usual `prop_row_widget` label|value split.
 /// Clicking it selects every entity in `handles`; a conflicting/redundant
 /// constraint (mirrors the viewport glyph pill's own color cue) tints red.
-fn render_entity_link_row<'a>(label: &'a str, handles: Vec<Handle>, conflicting: bool) -> Element<'a, Message> {
-    let btn = button(text(label).size(FONT_SZ).width(Length::Fill))
-        .on_press(Message::PropConstraintLinkClick(handles))
-        .style(move |theme: &Theme, status| {
-            let palette = theme.palette();
-            let pair = if conflicting {
-                palette.danger.weak
-            } else {
-                match status {
-                    button::Status::Hovered | button::Status::Pressed => palette.background.weak,
-                    _ => palette.background.base,
-                }
-            };
-            button::Style {
-                background: Some(Background::Color(pair.color)),
-                border: Border { color: palette.background.neutral.color, width: 1.0, radius: 2.0.into() },
-                text_color: pair.text,
-                ..Default::default()
+///
+/// Two small toggle buttons follow the label, reusing the Layers panel's
+/// `icons::layer_visible` eye icon for the same "shown in the viewport or
+/// not" concept: one for this constraint's own glyph visibility, and — only
+/// when `show_value` is `Some` (the constraint has a driving value) — one
+/// for whether its pill shows that value/parameter-name text.
+fn render_entity_link_row<'a>(
+    label: &'a str,
+    id: crate::scene::sketch_constraints::ConstraintId,
+    handles: Vec<Handle>,
+    conflicting: bool,
+    visible: bool,
+    show_value: Option<bool>,
+) -> Element<'a, Message> {
+    let row_style = move |theme: &Theme, status: button::Status| {
+        let palette = theme.palette();
+        let pair = if conflicting {
+            palette.danger.weak
+        } else {
+            match status {
+                button::Status::Hovered | button::Status::Pressed => palette.background.weak,
+                _ => palette.background.base,
             }
-        })
+        };
+        button::Style {
+            background: Some(Background::Color(pair.color)),
+            border: Border { color: palette.background.neutral.color, width: 1.0, radius: 2.0.into() },
+            text_color: pair.text,
+            ..Default::default()
+        }
+    };
+    let link_btn = button(text(label).size(FONT_SZ).width(Length::Fill))
+        .on_press(Message::PropConstraintLinkClick(handles))
+        .style(row_style)
         .padding([3, 8])
         .width(Length::Fill);
-    container(btn).width(Length::Fill).into()
+
+    let toggle_btn_style = move |theme: &Theme, status: button::Status| {
+        let palette = theme.palette();
+        let pair = match status {
+            button::Status::Hovered | button::Status::Pressed => palette.background.weak,
+            _ => palette.background.base,
+        };
+        button::Style {
+            background: Some(Background::Color(pair.color)),
+            border: Border { color: palette.background.neutral.color, width: 1.0, radius: 2.0.into() },
+            text_color: pair.text,
+            ..Default::default()
+        }
+    };
+
+    let visibility_btn = button(crate::ui::icons::semantic(crate::ui::icons::layer_visible(visible), 13.0))
+        .on_press(Message::PropConstraintVisibilityToggle { id, value: !visible })
+        .style(toggle_btn_style)
+        .padding([3, 6]);
+
+    let mut controls = row![link_btn, visibility_btn].spacing(2).align_y(iced::Center);
+    if let Some(show_value) = show_value {
+        let value_label_btn = button(
+            text("=")
+                .size(FONT_SZ)
+                .style(move |theme: &Theme| iced::widget::text::Style {
+                    color: (!show_value).then_some(theme.palette().background.strong.text),
+                }),
+        )
+        .on_press(Message::PropConstraintValueLabelToggle { id, value: !show_value })
+        .style(toggle_btn_style)
+        .padding([3, 6]);
+        controls = controls.push(value_label_btn);
+    }
+    container(controls).width(Length::Fill).into()
+}
+
+// ── Parameters section: leading global visibility toggle ───────────────────
+
+/// The Parameters section's leading header row (no-selection page): a
+/// global on/off toggle for whether any constraint pill in the viewport
+/// shows its driven value/parameter-name text — relocated here from the
+/// Options dialog so it lives next to the named-parameter table it governs.
+/// Mirrors the per-constraint toggle in the Constraints section's
+/// `EntityLink` rows (shown when an entity is selected instead), following
+/// the same "global here, per-row when something's selected" pattern as the
+/// Constraints ribbon group's own visibility toggle.
+fn render_params_visibility_toggle_row<'a>(value: bool) -> Element<'a, Message> {
+    let btn_label = if value { t!("Shown").into_owned() } else { t!("Hidden").into_owned() };
+    let btn = button(
+        row![
+            crate::ui::icons::semantic(crate::ui::icons::layer_visible(value), 13.0),
+            text(btn_label).size(FONT_SZ),
+        ]
+        .spacing(6)
+        .align_y(iced::Center),
+    )
+    .on_press(Message::ShowConstraintValuesChanged(!value))
+    .style(move |theme: &Theme, status| {
+        let palette = theme.palette();
+        let pair = match status {
+            button::Status::Hovered | button::Status::Pressed => palette.background.weak,
+            _ => palette.background.base,
+        };
+        button::Style {
+            background: Some(Background::Color(pair.color)),
+            border: Border { color: palette.background.neutral.color, width: 1.0, radius: 2.0.into() },
+            text_color: pair.text,
+            ..Default::default()
+        }
+    })
+    .padding([4, 8])
+    .width(Length::Fill);
+    container(row![text(t!("Show values").into_owned()).size(FONT_SZ).width(Length::Fill), btn].align_y(iced::Center))
+        .width(Length::Fill)
+        .into()
 }
 
 // ── Parameters section: "+ Add parameter" row ──────────────────────────────

@@ -1193,6 +1193,51 @@ impl OpenCADStudio {
     /// resolve-failure treatment a formula's own bad reference already gets
     /// (`build_constraint`) — re-solving surfaces that rather than needing
     /// special-case handling here.
+    /// Flips one Constraints-section row's own glyph-visibility toggle. Purely
+    /// cosmetic (no re-solve) — this doesn't touch `enabled`/solve
+    /// participation, just whether the glyph is drawn.
+    pub(super) fn on_prop_constraint_visibility_toggle(
+        &mut self,
+        id: crate::scene::sketch_constraints::ConstraintId,
+        value: bool,
+    ) -> Task<Message> {
+        let i = self.active_tab;
+        let scope = self.tabs[i].current_sketch_scope();
+        if let Some(c) = self.tabs[i]
+            .scene
+            .sketch_constraint_set_mut(scope)
+            .constraints
+            .iter_mut()
+            .find(|c| c.id == id)
+        {
+            c.visible = value;
+        }
+        self.refresh_properties();
+        Task::none()
+    }
+
+    /// Flips one Constraints-section row's value/parameter-name label
+    /// toggle. Purely cosmetic, like `on_prop_constraint_visibility_toggle`.
+    pub(super) fn on_prop_constraint_value_label_toggle(
+        &mut self,
+        id: crate::scene::sketch_constraints::ConstraintId,
+        value: bool,
+    ) -> Task<Message> {
+        let i = self.active_tab;
+        let scope = self.tabs[i].current_sketch_scope();
+        if let Some(c) = self.tabs[i]
+            .scene
+            .sketch_constraint_set_mut(scope)
+            .constraints
+            .iter_mut()
+            .find(|c| c.id == id)
+        {
+            c.show_value = value;
+        }
+        self.refresh_properties();
+        Task::none()
+    }
+
     pub(super) fn on_prop_param_delete(&mut self, index: usize) -> Task<Message> {
         let i = self.active_tab;
         let Some(name) = self.tabs[i].scene.named_parameters().iter().nth(index).map(|p| p.name.clone()) else {

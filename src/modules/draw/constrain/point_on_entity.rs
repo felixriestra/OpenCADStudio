@@ -22,10 +22,10 @@ pub mod center_point_tool {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "CPCONSTRAINT",
+            id: "GCCOINCIDENT_CENTER",
             label: "Center Point",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/center_point.svg")),
-            event: ModuleEvent::Command("CPCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCCOINCIDENT_CENTER".to_string()),
         }
     }
 }
@@ -34,10 +34,10 @@ pub mod midpoint_tool {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "MPCONSTRAINT",
+            id: "GCCOINCIDENT_MID",
             label: "Midpoint",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/midpoint.svg")),
-            event: ModuleEvent::Command("MPCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCCOINCIDENT_MID".to_string()),
         }
     }
 }
@@ -46,10 +46,10 @@ pub mod point_on_curve_tool {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "OCCONSTRAINT",
+            id: "GCCOINCIDENT_CURVE",
             label: "Point on Curve",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/point_on_curve.svg")),
-            event: ModuleEvent::Command("OCCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCCOINCIDENT_CURVE".to_string()),
         }
     }
 }
@@ -91,4 +91,6 @@ impl CadCommand for PointOnEntityConstraintCommand {
 }
 
 // ── Autocomplete registry ─────────────────────────────────
-inventory::submit!(crate::command::CommandRegistration { names: &["CPCONSTRAINT", "MPCONSTRAINT", "OCCONSTRAINT"] });
+inventory::submit!(crate::command::CommandRegistration {
+    names: &["GCCOINCIDENT_CENTER", "GCCOINCIDENT_MID", "GCCOINCIDENT_CURVE"]
+});

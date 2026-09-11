@@ -573,6 +573,10 @@ pub(super) struct OpenCADStudio {
     /// and the glyph alone is already enough to see *that* a constraint is
     /// present (`docs/parametric_system_design.md` §6.3/§7).
     pub show_constraint_values: bool,
+    /// Global constraint-glyph visibility (Constraints ribbon group's
+    /// SHOWCONSTRAINTS toggle). When false, no constraint glyph is drawn in
+    /// any viewport regardless of each constraint's own `visible` flag.
+    pub show_constraints: bool,
     /// Minutes between autosaves to a `.sv$` recovery file (SAVETIME command);
     /// 0 disables autosave.
     pub savetime_min: i32,
@@ -2117,7 +2121,8 @@ pub enum Message {
     /// Options. See `write_dwg_native_constraints`'s doc comment.
     WriteDwgNativeConstraintsChanged(bool),
     /// Toggle showing driven values/named-parameter names on constraint
-    /// pills, from Options. See `show_constraint_values`'s doc comment.
+    /// pills, from the Properties panel's Parameters section (no-selection
+    /// page). See `show_constraint_values`'s doc comment.
     ShowConstraintValuesChanged(bool),
     /// Switch the interface language and redraw localized views.
     LanguageChanged(crate::i18n::Language),
@@ -2888,6 +2893,21 @@ pub enum Message {
     /// A Constraints-section row was clicked: select every entity in the
     /// list (replacing the current selection) in the viewport.
     PropConstraintLinkClick(Vec<acadrust::Handle>),
+    /// A Constraints-section row's own visibility toggle was clicked: show
+    /// or hide that one constraint's glyph in the viewport, independent of
+    /// the app-wide `show_constraints` ribbon toggle.
+    PropConstraintVisibilityToggle {
+        id: crate::scene::sketch_constraints::ConstraintId,
+        value: bool,
+    },
+    /// A Constraints-section row's value-label toggle was clicked: show or
+    /// hide that one constraint's driven value/parameter-name text in its
+    /// viewport pill, independent of the app-wide `show_constraint_values`
+    /// toggle. Only rendered for constraints with a driving value.
+    PropConstraintValueLabelToggle {
+        id: crate::scene::sketch_constraints::ConstraintId,
+        value: bool,
+    },
     // ── About window ────────────────────────────────────────────────────
     AboutOpen,
     /// Close whatever in-canvas modal dialog is open (Plan B).
@@ -3580,6 +3600,7 @@ impl OpenCADStudio {
             file_assoc_enabled: true,
             write_dwg_native_constraints: false,
             show_constraint_values: true,
+            show_constraints: true,
             savetime_min: 10,
             default_bg_color: None,
             default_paper_bg_color: None,

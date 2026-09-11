@@ -299,6 +299,11 @@ pub struct UserSettings {
     /// canvas detail on a dense sketch.
     #[serde(default = "default_show_constraint_values")]
     pub show_constraint_values: bool,
+    /// Global constraint-glyph visibility (Constraints ribbon group's
+    /// SHOWCONSTRAINTS toggle). When false, no constraint glyph is drawn in
+    /// any viewport regardless of each constraint's own `visible` flag.
+    #[serde(default = "default_show_constraints")]
+    pub show_constraints: bool,
     /// Minutes between autosaves to a `.sv$` recovery file (SAVETIME command).
     /// 0 disables autosave.
     pub savetime_min: i32,
@@ -369,6 +374,10 @@ fn default_show_constraint_values() -> bool {
     true
 }
 
+fn default_show_constraints() -> bool {
+    true
+}
+
 fn deserialize_clipromptlines<'de, D>(de: D) -> Result<i32, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -425,6 +434,7 @@ impl Default for UserSettings {
             file_assoc_enabled: true,
             write_dwg_native_constraints: false,
             show_constraint_values: true,
+            show_constraints: true,
             savetime_min: 10,
             default_save_format: crate::io::DEFAULT_SAVE_FORMAT.to_string(),
             pick_add: true,

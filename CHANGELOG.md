@@ -6,6 +6,65 @@ pushed.
 
 ## Unreleased (since `3d0a41b6`)
 
+- **Feature:** all 17 renameable sketch-constraint command ids replaced with
+  their real AutoCAD names, closing the biggest gap flagged by
+  `docs/ocs_vs_autocad_commands.md`'s command-comparison audit:
+  `CCONSTRAINT`→`GCCOINCIDENT`, `HCONSTRAINT`/`VCONSTRAINT`→
+  `GCHORIZONTAL`/`GCVERTICAL`, `PCONSTRAINT`/`QCONSTRAINT`→
+  `GCPARALLEL`/`GCPERPENDICULAR`, `ECONSTRAINT`→`GCEQUAL`,
+  `TCONSTRAINT`→`GCTANGENT`, `NCONSTRAINT`→`GCCONCENTRIC`,
+  `LCONSTRAINT`→`GCCOLLINEAR`, `FXCONSTRAINT`→`GCFIX`,
+  `SYCONSTRAINT`→`GCSYMMETRIC`, `DCONSTRAINT`→`DIMCONSTRAINT`,
+  `ACONSTRAINT`→`DCANGULAR`. Old names are gone outright, not kept as
+  aliases — these were brand-new, unshipped commands nobody depended on yet.
+  Four sub-modes with no distinct AutoCAD command of their own (real AutoCAD
+  expresses them as an osnap choice mid-command, not a separate command) got
+  a suffixed AutoCAD-rooted name instead, matching OCS's own `ARC_3P`/
+  `CIRCLE_2P`/`RECT_CEN` convention for command variants: `CPCONSTRAINT`→
+  `GCCOINCIDENT_CENTER`, `MPCONSTRAINT`→`GCCOINCIDENT_MID`, `OCCONSTRAINT`→
+  `GCCOINCIDENT_CURVE`, `EDCONSTRAINT`→`GCEQUAL_DIST`. `NRCONSTRAINT`
+  (Normal) is unchanged — AutoCAD's constraint set has no equivalent.
+  ([tools.rs](src/modules/draw/constrain/tools.rs),
+  [coincident.rs](src/modules/draw/constrain/coincident.rs),
+  [equal_distance.rs](src/modules/draw/constrain/equal_distance.rs),
+  [point_on_entity.rs](src/modules/draw/constrain/point_on_entity.rs),
+  [value.rs](src/modules/draw/constrain/value.rs),
+  [commands/draw.rs](src/app/commands/draw.rs),
+  [command.rs](src/command.rs),
+  [context-map.json](help/context-map.json),
+  [ocs_vs_autocad_commands.md](docs/ocs_vs_autocad_commands.md))
+
+- **Feature:** constraint/named-parameter canvas-visibility controls split
+  out of the single Options-dialog "Show values and parameter names on
+  constraint markers" checkbox into three independent toggles: a new global
+  `SHOWCONSTRAINTS` ribbon button (Constraints group) that hides every
+  constraint glyph in the viewport at once; a per-constraint visibility +
+  value-label toggle pair added to each Properties-panel Constraints-section
+  row (the value-label toggle only appears for a constraint that actually
+  drives a value); and the named-parameter value/name-label toggle, moved
+  out of Options into a new header row in the Properties panel's Parameters
+  section (shown on the no-selection page). Two new `SketchConstraint`
+  fields, `visible` and `show_value`, are independent of the pre-existing
+  `enabled` solve-suppression flag — a constraint can be solving but hidden,
+  or disabled but still marked visible.
+  ([sketch_constraints.rs](src/scene/sketch_constraints.rs),
+  [app/mod.rs](src/app/mod.rs),
+  [settings.rs](src/app/settings.rs),
+  [update/file.rs](src/app/update/file.rs),
+  [update/mod.rs](src/app/update/mod.rs),
+  [view/mod.rs](src/app/view/mod.rs),
+  [view/modal.rs](src/app/view/modal.rs),
+  [app/properties.rs](src/app/properties.rs),
+  [model/object.rs](src/scene/model/object.rs),
+  [selection.rs](src/scene/selection.rs),
+  [ui/properties.rs](src/ui/properties.rs),
+  [ui/ribbon/mod.rs](src/ui/ribbon/mod.rs),
+  [ui/ribbon/widgets.rs](src/ui/ribbon/widgets.rs),
+  [ui/window/options.rs](src/ui/window/options.rs),
+  [command_driver.rs](src/app/command_driver.rs),
+  [modules/draw/mod.rs](src/modules/draw/mod.rs),
+  [assets/icons/constrain/show_constraints.svg](assets/icons/constrain/show_constraints.svg))
+
 - **Feature:** Properties panel gains a "Parameters" section (shown with no
   selection) for inline named-parameter name/formula editing, add, and
   delete, and a "Constraints" section (shown for a single selected entity)

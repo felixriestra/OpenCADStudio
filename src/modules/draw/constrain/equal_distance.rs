@@ -1,8 +1,8 @@
-//! EDCONSTRAINT — AutoCAD's fourth `Equal` sub-kind
+//! GCEQUAL_DIST — AutoCAD's fourth `Equal` sub-kind
 //! (`ACEQUALDISTANCECONSTRAINT`): the distance between one point pair
 //! equals the distance between another, rather than two whole entities
 //! being equal length/radius. Needs four point picks (unlike the two
-//! whole-entity selections `ECONSTRAINT` uses), so — like
+//! whole-entity selections `GCEQUAL` uses), so — like
 //! `CoincidentConstraintCommand` — it accumulates raw points and hands them
 //! back for the host to resolve (`CadCommand` has no document access).
 
@@ -15,10 +15,10 @@ pub mod equal_distance_tool {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "EDCONSTRAINT",
+            id: "GCEQUAL_DIST",
             label: "Equal Distance",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/equal_distance.svg")),
-            event: ModuleEvent::Command("EDCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCEQUAL_DIST".to_string()),
         }
     }
 }
@@ -36,7 +36,7 @@ impl EqualDistanceConstraintCommand {
 
 impl CadCommand for EqualDistanceConstraintCommand {
     fn name(&self) -> &'static str {
-        "EDCONSTRAINT"
+        "GCEQUAL_DIST"
     }
 
     fn prompt(&self) -> String {
@@ -67,4 +67,4 @@ impl CadCommand for EqualDistanceConstraintCommand {
 }
 
 // ── Autocomplete registry ─────────────────────────────────
-inventory::submit!(crate::command::CommandRegistration { names: &["EDCONSTRAINT"] });
+inventory::submit!(crate::command::CommandRegistration { names: &["GCEQUAL_DIST"] });

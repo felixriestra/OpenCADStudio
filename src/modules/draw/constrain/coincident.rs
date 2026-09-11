@@ -1,11 +1,11 @@
-//! CCONSTRAINT — the manual Coincident UI (design doc §6.1's open item):
+//! GCCOINCIDENT — the manual Coincident UI (design doc §6.1's open item):
 //! unlike the rest of this module's plain select-and-click constraints,
 //! Coincident addresses a *point* on an entity (an endpoint, a circle/arc
 //! center), not the whole entity, so it needs two point picks instead of a
 //! selection.
 //!
 //! A `CadCommand` has no document access (see `value.rs`'s module doc
-//! comment for the same constraint on `DCONSTRAINT`/`ACONSTRAINT`), so this
+//! comment for the same constraint on `DIMCONSTRAINT`/`DCANGULAR`), so this
 //! command only accumulates the two raw points `on_point` receives and hands
 //! them back as `CmdResult::AddCoincidentConstraint` — the host resolves
 //! each point to a real `SketchRef` (`sketch_constraints::nearest_sketch_point`)
@@ -21,10 +21,10 @@ pub mod coincident_tool {
     use super::*;
     pub fn tool() -> ToolDef {
         ToolDef {
-            id: "CCONSTRAINT",
+            id: "GCCOINCIDENT",
             label: "Coincident",
             icon: IconKind::Svg(include_bytes!("../../../../assets/icons/constrain/coincident.svg")),
-            event: ModuleEvent::Command("CCONSTRAINT".to_string()),
+            event: ModuleEvent::Command("GCCOINCIDENT".to_string()),
         }
     }
 }
@@ -42,7 +42,7 @@ impl CoincidentConstraintCommand {
 
 impl CadCommand for CoincidentConstraintCommand {
     fn name(&self) -> &'static str {
-        "CCONSTRAINT"
+        "GCCOINCIDENT"
     }
 
     fn prompt(&self) -> String {
@@ -73,4 +73,4 @@ impl CadCommand for CoincidentConstraintCommand {
 }
 
 // ── Autocomplete registry ─────────────────────────────────
-inventory::submit!(crate::command::CommandRegistration { names: &["CCONSTRAINT"] });
+inventory::submit!(crate::command::CommandRegistration { names: &["GCCOINCIDENT"] });

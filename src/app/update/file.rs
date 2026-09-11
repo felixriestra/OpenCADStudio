@@ -435,6 +435,7 @@ impl OpenCADStudio {
             file_assoc_enabled: self.file_assoc_enabled,
             write_dwg_native_constraints: self.write_dwg_native_constraints,
             show_constraint_values: self.show_constraint_values,
+            show_constraints: self.show_constraints,
             savetime_min: self.savetime_min,
             default_save_format: self.default_save_format.clone(),
             pick_add: self.pick_add,
@@ -516,6 +517,7 @@ impl OpenCADStudio {
         self.file_assoc_enabled = s.file_assoc_enabled;
         self.write_dwg_native_constraints = s.write_dwg_native_constraints;
         self.show_constraint_values = s.show_constraint_values;
+        self.show_constraints = s.show_constraints;
         self.savetime_min = s.savetime_min;
         self.default_save_format =
             crate::io::canonical_save_format(&s.default_save_format).to_string();

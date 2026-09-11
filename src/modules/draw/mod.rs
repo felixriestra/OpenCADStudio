@@ -37,7 +37,7 @@ impl CadModule for DrawModule {
         use constrain::{
             angle_tool, center_point_tool, coincident_tool, colinear, concentric, distance_tool, equal,
             equal_distance_tool, fixed, horizontal, midpoint_tool, normal, parallel, perpendicular, point_on_curve_tool,
-            symmetric, tangent, vertical,
+            show_constraints, symmetric, tangent, vertical,
         };
         use draw::{arc, circle, ellipse, hatch, line, polyline, shapes};
         use groups::{group, ungroup};
@@ -129,6 +129,7 @@ impl CadModule for DrawModule {
                 RibbonGroup {
                     title: "Constraints",
                     tools: vec![
+                        show_constraints::tool().into(),
                         horizontal::tool().into(),
                         vertical::tool().into(),
                         parallel::tool().into(),

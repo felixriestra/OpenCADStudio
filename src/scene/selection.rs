@@ -738,7 +738,8 @@ impl Scene {
                                 | PropValue::FieldLwVaries { .. }
                                 | PropValue::EntityLink { .. }
                                 | PropValue::ParamRow { .. }
-                                | PropValue::ParamAddRow => continue,
+                                | PropValue::ParamAddRow
+                                | PropValue::ParamsVisibilityToggle(_) => continue,
                             }
                         };
                         out.push(choice(prop.field, prop.label, editor));
@@ -889,7 +890,8 @@ impl Scene {
                     | PropValue::FieldLwVaries { .. }
                     | PropValue::EntityLink { .. }
                     | PropValue::ParamRow { .. }
-                    | PropValue::ParamAddRow => return None,
+                    | PropValue::ParamAddRow
+                    | PropValue::ParamsVisibilityToggle(_) => return None,
                 })
             }
         }

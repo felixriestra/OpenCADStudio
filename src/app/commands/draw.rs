@@ -966,7 +966,12 @@ impl OpenCADStudio {
             // ── Constraints (persistent: added to the scope's SketchConstraintSet,
             // solved via Scene::bump_entities, re-solved on every later edit —
             // see docs/parametric_system_design.md §6.1) ──
-            "HCONSTRAINT" | "VCONSTRAINT" | "FXCONSTRAINT" => {
+            "SHOWCONSTRAINTS" => {
+                self.show_constraints ^= true;
+                self.persist_settings_if_changed();
+            }
+
+            "GCHORIZONTAL" | "GCVERTICAL" | "GCFIX" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.is_empty() {
                     use crate::modules::draw::select::SelectObjectsCommand;
@@ -980,8 +985,8 @@ impl OpenCADStudio {
                     use crate::command::CmdResult;
                     use crate::scene::sketch_constraints::{ConstraintKind, SketchRef};
                     let (kind, label) = match cmd {
-                        "HCONSTRAINT" => (ConstraintKind::Horizontal, "Horizontal constraint"),
-                        "VCONSTRAINT" => (ConstraintKind::Vertical, "Vertical constraint"),
+                        "GCHORIZONTAL" => (ConstraintKind::Horizontal, "Horizontal constraint"),
+                        "GCVERTICAL" => (ConstraintKind::Vertical, "Vertical constraint"),
                         _ => (ConstraintKind::Fixed, "Fixed constraint"),
                     };
                     return Some(self.apply_cmd_result(CmdResult::AddSketchConstraint {
@@ -993,21 +998,21 @@ impl OpenCADStudio {
                 }
             }
 
-            "CCONSTRAINT" => {
+            "GCCOINCIDENT" => {
                 use crate::modules::draw::constrain::CoincidentConstraintCommand;
                 let new_cmd = CoincidentConstraintCommand::new();
                 self.command_line.push_info(&new_cmd.prompt());
                 self.tabs[i].active_cmd = Some(Box::new(new_cmd));
             }
 
-            "EDCONSTRAINT" => {
+            "GCEQUAL_DIST" => {
                 use crate::modules::draw::constrain::EqualDistanceConstraintCommand;
                 let new_cmd = EqualDistanceConstraintCommand::new();
                 self.command_line.push_info(&new_cmd.prompt());
                 self.tabs[i].active_cmd = Some(Box::new(new_cmd));
             }
 
-            "PCONSTRAINT" | "QCONSTRAINT" | "ECONSTRAINT" | "TCONSTRAINT" | "LCONSTRAINT" | "NRCONSTRAINT" => {
+            "GCPARALLEL" | "GCPERPENDICULAR" | "GCEQUAL" | "GCTANGENT" | "GCCOLLINEAR" | "NRCONSTRAINT" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.is_empty() {
                     use crate::modules::draw::select::SelectObjectsCommand;
@@ -1022,10 +1027,10 @@ impl OpenCADStudio {
                     use crate::command::CmdResult;
                     use crate::scene::sketch_constraints::{ConstraintKind, SketchRef};
                     let (kind, label) = match cmd {
-                        "PCONSTRAINT" => (ConstraintKind::Parallel, "Parallel constraint"),
-                        "QCONSTRAINT" => (ConstraintKind::Perpendicular, "Perpendicular constraint"),
-                        "TCONSTRAINT" => (ConstraintKind::Tangent, "Tangent constraint"),
-                        "LCONSTRAINT" => (ConstraintKind::Colinear, "Colinear constraint"),
+                        "GCPARALLEL" => (ConstraintKind::Parallel, "Parallel constraint"),
+                        "GCPERPENDICULAR" => (ConstraintKind::Perpendicular, "Perpendicular constraint"),
+                        "GCTANGENT" => (ConstraintKind::Tangent, "Tangent constraint"),
+                        "GCCOLLINEAR" => (ConstraintKind::Colinear, "Colinear constraint"),
                         "NRCONSTRAINT" => (ConstraintKind::Normal, "Normal constraint"),
                         _ => (ConstraintKind::Equal, "Equal constraint"),
                     };
@@ -1038,7 +1043,7 @@ impl OpenCADStudio {
                 }
             }
 
-            "NCONSTRAINT" => {
+            "GCCONCENTRIC" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.is_empty() {
                     use crate::modules::draw::select::SelectObjectsCommand;
@@ -1059,7 +1064,7 @@ impl OpenCADStudio {
                 }
             }
 
-            "SYCONSTRAINT" => {
+            "GCSYMMETRIC" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.is_empty() {
                     use crate::modules::draw::select::SelectObjectsCommand;
@@ -1082,7 +1087,7 @@ impl OpenCADStudio {
                 }
             }
 
-            "CPCONSTRAINT" | "MPCONSTRAINT" | "OCCONSTRAINT" => {
+            "GCCOINCIDENT_CENTER" | "GCCOINCIDENT_MID" | "GCCOINCIDENT_CURVE" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.is_empty() {
                     use crate::modules::draw::select::SelectObjectsCommand;
@@ -1097,9 +1102,9 @@ impl OpenCADStudio {
                     use crate::modules::draw::constrain::PointOnEntityConstraintCommand;
                     use crate::scene::sketch_constraints::ConstraintKind;
                     let (name, kind, label) = match cmd {
-                        "CPCONSTRAINT" => ("CPCONSTRAINT", ConstraintKind::CenterPoint, "Center point constraint"),
-                        "MPCONSTRAINT" => ("MPCONSTRAINT", ConstraintKind::Midpoint, "Midpoint constraint"),
-                        _ => ("OCCONSTRAINT", ConstraintKind::PointOnCurve, "Point on curve constraint"),
+                        "GCCOINCIDENT_CENTER" => ("GCCOINCIDENT_CENTER", ConstraintKind::CenterPoint, "Center point constraint"),
+                        "GCCOINCIDENT_MID" => ("GCCOINCIDENT_MID", ConstraintKind::Midpoint, "Midpoint constraint"),
+                        _ => ("GCCOINCIDENT_CURVE", ConstraintKind::PointOnCurve, "Point on curve constraint"),
                     };
                     let new_cmd = PointOnEntityConstraintCommand::new(name, kind, handles[0], label);
                     self.command_line.push_info(&new_cmd.prompt());
@@ -1107,7 +1112,7 @@ impl OpenCADStudio {
                 }
             }
 
-            "DCONSTRAINT" => {
+            "DIMCONSTRAINT" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.is_empty() {
                     use crate::modules::draw::select::SelectObjectsCommand;
@@ -1129,7 +1134,7 @@ impl OpenCADStudio {
                 }
             }
 
-            "ACONSTRAINT" => {
+            "DCANGULAR" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.is_empty() {
                     use crate::modules::draw::select::SelectObjectsCommand;

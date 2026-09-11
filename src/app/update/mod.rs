@@ -5988,6 +5988,12 @@ impl OpenCADStudio {
                 self.refresh_properties();
                 Task::none()
             }
+            Message::PropConstraintVisibilityToggle { id, value } => {
+                self.on_prop_constraint_visibility_toggle(id, value)
+            }
+            Message::PropConstraintValueLabelToggle { id, value } => {
+                self.on_prop_constraint_value_label_toggle(id, value)
+            }
 
             // ── Options / About windows ───────────────────────────────────
             Message::OptionsOpen => {

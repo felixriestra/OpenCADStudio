@@ -415,7 +415,12 @@ impl OpenCADStudio {
                         PropSection {
                             title: t!("Parameters").into_owned(),
                             props: {
-                                let mut props: Vec<Property> = scene
+                                let mut props: Vec<Property> = vec![Property {
+                                    label: String::new(),
+                                    field: "show_named_parameters",
+                                    value: PropValue::ParamsVisibilityToggle(self.show_constraint_values),
+                                }];
+                                props.extend(scene
                                     .named_parameters()
                                     .iter()
                                     .enumerate()
@@ -428,8 +433,7 @@ impl OpenCADStudio {
                                             formula: p.source.clone(),
                                             resolved: scene.named_parameters().resolve(&p.name).map_err(|e| e.to_string()),
                                         },
-                                    })
-                                    .collect();
+                                    }));
                                 props.push(Property {
                                     label: String::new(),
                                     field: "named_parameter_add",
@@ -2193,7 +2197,13 @@ impl OpenCADStudio {
                                     crate::scene::model::object::Property {
                                         label,
                                         field: "sketch_constraint",
-                                        value: crate::scene::model::object::PropValue::EntityLink { handles, conflicting },
+                                        value: crate::scene::model::object::PropValue::EntityLink {
+                                            id: c.id,
+                                            handles,
+                                            conflicting,
+                                            visible: c.visible,
+                                            show_value: c.driving_param.is_some().then_some(c.show_value),
+                                        },
                                     }
                                 })
                                 .collect();
@@ -3200,6 +3210,9 @@ fn make_sections_read_only(
             PropValue::EntityLink { handles, .. } => format!("{} entity link(s)", handles.len()),
             PropValue::ParamRow { name, formula, .. } => format!("{name} = {formula}"),
             PropValue::ParamAddRow => String::new(),
+            PropValue::ParamsVisibilityToggle(value) => {
+                if *value { t!("Yes") } else { t!("No") }.into_owned()
+            }
         };
         property.field = "locked_read_only";
         property.value = PropValue::ReadOnly(text);

@@ -173,6 +173,15 @@ pub struct SketchConstraint {
     /// Lets a user suppress a constraint without losing it — a re-solve
     /// skips a disabled constraint entirely.
     pub enabled: bool,
+    /// Whether this constraint's glyph pill is drawn in the viewport at all.
+    /// Independent of `enabled` (solve participation) and of the app-wide
+    /// `show_constraints` ribbon toggle — both this flag and the app-wide
+    /// one must be true for the glyph to actually show.
+    pub visible: bool,
+    /// Whether this constraint's pill shows its driven value/parameter-name
+    /// text (only meaningful when `driving_param.is_some()`). Independent
+    /// of the app-wide `show_constraint_values` toggle — both must be true.
+    pub show_value: bool,
 }
 
 /// What "one sketch" scopes to, given the app has no dedicated Sketch
@@ -238,7 +247,7 @@ impl SketchConstraintSet {
     pub fn add(&mut self, kind: ConstraintKind, refs: Vec<SketchRef>, driving_param: Option<DrivingValue>) -> ConstraintId {
         let id = self.next_id;
         self.next_id += 1;
-        self.constraints.push(SketchConstraint { id, kind, refs, driving_param, enabled: true });
+        self.constraints.push(SketchConstraint { id, kind, refs, driving_param, enabled: true, visible: true, show_value: true });
         id
     }
 

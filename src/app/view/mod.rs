@@ -808,7 +808,7 @@ bg={bg_ms:.1}ms n={view_count}"
             // Persistent sketch-constraint glyphs (design doc §6.3/§7) — model
             // space only, like the constraints themselves; paper space shows
             // none (out of scope per the design doc §3.1).
-            let constraint_glyphs: Vec<(iced::Point, String, bool)> = if is_paper {
+            let constraint_glyphs: Vec<(iced::Point, String, bool)> = if is_paper || !self.show_constraints {
                 Vec::new()
             } else {
                 let (vw, vh) = sel_ref.vp_size;
@@ -828,7 +828,7 @@ bg={bg_ms:.1}ms n={view_count}"
                         };
                         set.constraints
                             .iter()
-                            .filter(|c| c.enabled)
+                            .filter(|c| c.enabled && c.visible)
                             .filter_map(|c| {
                                 let anchor = crate::scene::sketch_constraints::glyph_anchor(&tab.scene.document, c)?;
                                 let screen = crate::scene::pick::grip::project_rte(
@@ -839,7 +839,7 @@ bg={bg_ms:.1}ms n={view_count}"
                                 )?;
                                 let point = iced::Point::new(bounds.x + screen.x, bounds.y + screen.y);
                                 let is_conflicting = set.conflicts.iter().any(|(id, _)| *id == c.id);
-                                let label = if self.show_constraint_values {
+                                let label = if self.show_constraint_values && c.show_value {
                                     crate::scene::sketch_constraints::glyph_label(c)
                                 } else {
                                     c.kind.glyph_symbol().to_string()
@@ -2030,6 +2030,7 @@ bg={bg_ms:.1}ms n={view_count}"
                     self.tabs[self.active_tab].history.undo_stack.len(),
                     self.tabs[self.active_tab].history.redo_stack.len(),
                     self.show_block_palette,
+                    self.show_constraints,
                 ));
             }
             if self.show_file_tabs {
