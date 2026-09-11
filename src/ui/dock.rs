@@ -139,6 +139,13 @@ impl DockState {
                 .entry(id)
                 .or_insert_with(|| DockPanel::for_id(id));
         }
+        // Layouts persisted before Mac2CAM had a CAM panel contain no placement
+        // for it. Closing a panel only changes visibility, so adding a missing
+        // placement here is a one-time schema migration rather than overriding
+        // a user layout choice.
+        if self.location(PanelId::Cam).is_none() {
+            self.right.insert(0, PanelId::Cam);
+        }
     }
 
     /// Where (if anywhere) a panel is currently docked.
@@ -259,6 +266,21 @@ mod tests {
         assert_eq!(state.width(PanelId::BlockPalette, 1600.0), 260.0);
         assert_eq!(state.width(PanelId::Cam, 1600.0), 310.0);
         assert!(!state.auto_collapse(PanelId::Properties));
+    }
+
+    #[test]
+    fn ensure_settings_migrates_a_pre_cam_layout() {
+        let mut state = DockState {
+            left: vec![PanelId::Properties],
+            right: vec![PanelId::BlockPalette],
+            panels: BTreeMap::new(),
+        };
+        state.ensure_settings();
+        assert_eq!(state.location(PanelId::Cam), Some((DockSide::Right, 0)));
+        assert_eq!(
+            state.location(PanelId::BlockPalette),
+            Some((DockSide::Right, 1))
+        );
     }
 
     #[test]
