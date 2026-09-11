@@ -1445,6 +1445,17 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
                 self.tabs[i].scene.material_base_dir =
                     path.parent().map(std::path::Path::to_path_buf);
                 self.tabs[i].scene.document = doc;
+                if path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("mac2cam")) {
+                    match crate::io::mac2cam_project::read_project(&path) {
+                        Ok(project) => {
+                            self.tabs[i].cam_job = project.cam_job;
+                            self.tabs[i].cam_job_revision = Some(self.tabs[i].edit_revision);
+                        }
+                        Err(error) => self.command_line.push_error(&format!(
+                            "Mac2CAM project metadata could not be loaded: {error}"
+                        )),
+                    }
+                }
                 // Design doc §8 stage 4: read back any persisted sketch
                 // constraint sets right after the document is installed.
                 self.tabs[i].scene.load_sketch_constraints_from_document();
@@ -2044,6 +2055,7 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
         });
         let clone_started = iced::time::Instant::now();
         let snapshot = self.tabs[i].scene.document.clone();
+        let cam_job = self.tabs[i].cam_job.clone();
         let clone_ms = clone_started.elapsed().as_secs_f64() * 1000.0;
         if crate::perf::enabled() {
             crate::perf_record!(
@@ -2118,6 +2130,7 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
         let capture_window = thumbnail.and(capture_bounds).and(self.main_window);
         let mut work = Some((
             snapshot,
+            cam_job,
             thumbnail,
             capture_bounds,
             worker_path,
@@ -2129,6 +2142,7 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
         let mut run_save = move |screenshot: Option<iced::window::Screenshot>| {
             let (
                 mut snapshot,
+                cam_job,
                 thumbnail,
                 capture_bounds,
                 worker_path,
@@ -2158,14 +2172,21 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
                                 );
                             }
                         }
-                        let result = crate::io::save_owned_as_version_atomic(
-                            snapshot,
-                            &worker_path,
-                            version,
-                            backup,
-                            expected_fingerprint,
-                            verify_reader,
-                        );
+                        let result = if worker_path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("mac2cam")) {
+                            crate::io::save_to_bytes(&snapshot, "dwg", version)
+                                .and_then(|drawing| crate::io::mac2cam_project::ProjectContents::new(drawing, cam_job))
+                                .and_then(|project| crate::io::mac2cam_project::write_project_atomic(&worker_path, &project))
+                                .map_err(crate::io::SaveFailure::other)
+                        } else {
+                            crate::io::save_owned_as_version_atomic(
+                                snapshot,
+                                &worker_path,
+                                version,
+                                backup,
+                                expected_fingerprint,
+                                verify_reader,
+                            )
+                        };
                         (result, refreshed_preview)
                     })
                     .join()

@@ -8,7 +8,6 @@ pub const MANUFACTURING_GEOMETRY_SCHEMA_VERSION: u32 = 1;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeometrySource {
     pub id: String,
-    pub document_revision: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -123,7 +122,6 @@ mod tests {
     fn region_with_island_round_trips_and_fingerprints_stably() {
         let mut geometry = ManufacturingGeometry::new(vec![GeometrySource {
             id: "AB".to_string(),
-            document_revision: 7,
         }]);
         geometry.regions.push(MachiningRegion {
             outer: rectangle(0.0, 0.0, 20.0, 10.0),
@@ -142,7 +140,6 @@ mod tests {
     fn rejects_unknown_sources_and_empty_snapshots() {
         let empty = ManufacturingGeometry::new(vec![GeometrySource {
             id: "AB".to_string(),
-            document_revision: 1,
         }]);
         assert_eq!(empty.validate(), Err(CamError::InvalidJob));
 

@@ -39,6 +39,7 @@ acadrust = { git = "https://github.com/HakanSeven12/cadcodec.git", rev = "f23ffc
 cadkernel = { git = "https://github.com/HakanSeven12/cadkernel.git", rev = "0507b720fef47bd7da0d4f777f97f1743a4f4038", features = ["acis", "offset"] }
 dwg-thumbnailer = { path = "crates/dwg-thumbnailer" }
 flate2 = "1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "tiff"] }
 # Rasterises assets/logo.svg into the window icon at startup, so the taskbar
 # icon comes from the same file every other build target does. Already in the

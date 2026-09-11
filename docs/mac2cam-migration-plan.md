@@ -37,7 +37,7 @@ parameters are authoritative project state.
 
 - Add a versioned, UI-independent geometry snapshot to `ocs_cam_core`.
 - Represent closed regions with islands, open engraving paths, and drill points.
-- Track source entity identifiers, document revisions, and geometry fingerprints.
+- Track source entity identifiers and deterministic geometry fingerprints.
 - Adapt DWG lines, arcs, circles, ellipses, splines, and polylines.
 - Invalidate only operations whose source geometry changed.
 - Preserve backward compatibility with existing CAM sidecars.
@@ -136,9 +136,19 @@ sole maintained application.
 
 ## Execution status
 
-- 2026-09-11: Phase 1 started.
-- Added the first versioned manufacturing-geometry schema.
-- Added closed regions with islands, open engraving paths, drill locations,
-  source references, validation, deterministic fingerprints, and serde tests.
-- Wired new CAM operations to persist geometry snapshots and fingerprints.
-- Preserved loading of legacy operation records that have no snapshot fields.
+- 2026-09-11: Phase 1 complete.
+  - Added the first versioned manufacturing-geometry schema.
+  - Added closed regions with islands, open engraving paths, drill locations,
+    source references, validation, deterministic fingerprints, and serde tests.
+  - Added CAD adapters for lines, arcs, circles, ellipses, splines, lightweight
+    polylines, and legacy 2D polylines.
+  - Replaced whole-document invalidation with source-specific snapshot checks.
+  - Preserved loading of legacy operation records that have no snapshot fields.
+- 2026-09-11: Phase 2 persistence foundation complete.
+  - Added the versioned `.mac2cam` ZIP package with `drawing.dwg`, `cam.json`,
+    `tools.json`, and reserved toolpath/simulation cache directories.
+  - Added validation, entry size limits, deterministic authoritative contents,
+    atomic replacement, and round-trip tests.
+  - Wired native Open, Save, Save As, recent-file handling, and CAM restoration
+    to the package format; new drawings now default to Mac2CAM projects while
+    DWG and DXF remain explicit interchange formats.

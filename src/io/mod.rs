@@ -21,6 +21,8 @@ pub mod patterns;
 pub mod update_check;
 pub mod paper_sizes;
 pub mod thumbnail;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod mac2cam_project;
 #[cfg(target_arch = "wasm32")]
 mod web_worker;
 #[cfg(target_arch = "wasm32")]
@@ -164,7 +166,8 @@ impl From<&str> for OpenLoadError {
 pub async fn pick_open_path() -> Option<(PathBuf, u64)> {
     let handle = crate::sys::file_dialog()
         .set_title(crate::t!("Open CAD file").as_ref())
-        .add_filter(crate::t!("CAD Files").as_ref(), &["dwg", "dxf", "bak", "sv$", "DWG", "DXF", "BAK"])
+        .add_filter(crate::t!("CAD Files").as_ref(), &["mac2cam", "dwg", "dxf", "bak", "sv$", "MAC2CAM", "DWG", "DXF", "BAK"])
+        .add_filter("Mac2CAM Projects", &["mac2cam", "MAC2CAM"])
         .add_filter(crate::t!("DWG Files").as_ref(), &["dwg", "DWG"])
         .add_filter(crate::t!("DXF Files").as_ref(), &["dxf", "DXF"])
         .add_filter(crate::t!("Backup / Autosave").as_ref(), &["bak", "sv$", "BAK"])
@@ -973,6 +976,21 @@ fn read_file_attempt(
         .map(|e| e.to_string_lossy().to_lowercase())
         .unwrap_or_default();
 
+    if ext == "mac2cam" {
+        let project = mac2cam_project::read_project(path).map_err(ReaderFailure::terminal)?;
+        let options = if failsafe {
+            DwgReadOptions::failsafe()
+        } else {
+            DwgReadOptions::default()
+        };
+        let mut reader = DwgReader::from_stream(std::io::Cursor::new(project.drawing));
+        reader.options = options;
+        if let Some(progress) = progress {
+            reader.set_progress_callback(progress);
+        }
+        return reader.read_with_stats().map_err(ReaderFailure::from_reader);
+    }
+
     // A `.bak` backup or `.sv$` autosave holds a verbatim DWG/DXF copy — detect
     // the real format from the file's leading bytes, not the extension.
     let effective = if ext == "bak" || ext == "sv$" {
@@ -1178,10 +1196,10 @@ pub(crate) fn resolve_image_file(raw: &str, base_dir: Option<&Path>) -> Option<S
 
 // ── Save ──────────────────────────────────────────────────────────────────
 
-pub const DEFAULT_SAVE_FORMAT: &str = "DWG 2018";
+pub const DEFAULT_SAVE_FORMAT: &str = "Mac2CAM Project";
 
 pub const SAVE_FORMAT_OPTIONS: &[&str] = &[
-    "DWG 2018", "DWG 2013", "DWG 2010", "DWG 2007", "DWG 2004", "DWG 2000", "DWG R14", "DXF 2018",
+    "Mac2CAM Project", "DWG 2018", "DWG 2013", "DWG 2010", "DWG 2007", "DWG 2004", "DWG 2000", "DWG R14", "DXF 2018",
     "DXF 2013", "DXF 2010", "DXF 2007", "DXF 2004", "DXF 2000", "DXF R14",
 ];
 
@@ -1201,7 +1219,7 @@ pub fn source_is_dxf(path: Option<&Path>, document: &CadDocument) -> bool {
         .as_deref()
     {
         Some("dxf") => true,
-        Some("dwg") => false,
+        Some("dwg") | Some("mac2cam") => false,
         _ => document.dwg_source_version.is_none(),
     }
 }
@@ -1211,6 +1229,9 @@ pub fn source_is_dxf(path: Option<&Path>, document: &CadDocument) -> bool {
 pub fn parse_save_format(format: &str) -> (&'static str, acadrust::DxfVersion) {
     use acadrust::DxfVersion;
     let f = format.to_ascii_uppercase();
+    if f.starts_with("MAC2CAM") {
+        return ("mac2cam", DxfVersion::AC1032);
+    }
     let is_dxf = f.starts_with("DXF");
     let ext = if is_dxf { "dxf" } else { "dwg" };
     let version = if f.contains("2013") {

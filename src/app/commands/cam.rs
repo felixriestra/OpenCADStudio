@@ -1,5 +1,5 @@
 use super::*;
-use acadrust::EntityType;
+use acadrust::{CadDocument, EntityType, Handle};
 use ocs_cam_core::{Contour, ContourVertex, ProfileParameters, Units};
 
 impl OpenCADStudio {
@@ -10,8 +10,10 @@ impl OpenCADStudio {
                 let count = self.tabs[i].cam_job.operations.len();
                 let detail = if count == 0 {
                     "No CAM operations. Select geometry and choose a CAM toolpath.".to_string()
-                } else if self.tabs[i].cam_job_revision != Some(self.tabs[i].edit_revision) {
-                    format!("{count} CAM operation(s), but the drawing changed. Regenerate before export.")
+                } else if let Some(stale) =
+                    first_stale_operation(&self.tabs[i].scene.document, &self.tabs[i].cam_job)
+                {
+                    format!("{count} CAM operation(s); '{stale}' has changed source geometry and must be regenerated.")
                 } else {
                     format!("{count} CAM operation(s) ready. Run CAMEXPORT to save G-code and the job sidecar.")
                 };
@@ -28,9 +30,12 @@ impl OpenCADStudio {
                     .push_output("CAMCLEAR: all CAM operations removed.");
             }
             "CAMPREVIEW" => {
-                if self.tabs[i].cam_job_revision != Some(self.tabs[i].edit_revision) {
-                    self.command_line
-                        .push_error("CAMPREVIEW: regenerate toolpaths after drawing changes.");
+                if let Some(stale) =
+                    first_stale_operation(&self.tabs[i].scene.document, &self.tabs[i].cam_job)
+                {
+                    self.command_line.push_error(&format!(
+                        "CAMPREVIEW: regenerate '{stale}' after its source geometry changed."
+                    ));
                     return Some(Task::none());
                 }
                 let preview = self.tabs[i]
@@ -56,9 +61,8 @@ impl OpenCADStudio {
             "CAMPROFILE" | "CAMINSIDE" | "CAMPOCKET" | "CAMFACE" | "CAMENGRAVE" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.len() != 1 {
-                    self.command_line.push_error(
-                        "CAM: select exactly one line, circle, or lightweight polyline.",
-                    );
+                    self.command_line
+                        .push_error("CAM: select exactly one planar CAD curve.");
                     return Some(Task::none());
                 }
                 let Some(entity) = self.tabs[i].scene.document.get_entity(handles[0]) else {
@@ -217,10 +221,12 @@ impl OpenCADStudio {
                         .push_error("CAMEXPORT: generate a toolpath with CAMPROFILE first.");
                     return Some(Task::none());
                 }
-                if self.tabs[i].cam_job_revision != Some(self.tabs[i].edit_revision) {
-                    self.command_line.push_error(
-                        "CAMEXPORT: the drawing changed; regenerate the toolpath before export.",
-                    );
+                if let Some(stale) =
+                    first_stale_operation(&self.tabs[i].scene.document, &self.tabs[i].cam_job)
+                {
+                    self.command_line.push_error(&format!(
+                        "CAMEXPORT: regenerate '{stale}' because its source geometry changed."
+                    ));
                     return Some(Task::none());
                 }
                 let program = match self.tabs[i].cam_job.compile() {
@@ -270,64 +276,9 @@ impl OpenCADStudio {
             "CAMDRILL" => ocs_cam_core::OperationKind::Drill,
             _ => return Err("unknown operation type".to_string()),
         };
-        let revision = self.tabs[i].edit_revision;
-        let mut geometry = ocs_cam_core::ManufacturingGeometry::new(
-            handles
-                .iter()
-                .map(|handle| ocs_cam_core::GeometrySource {
-                    id: format!("{handle}"),
-                    document_revision: revision,
-                })
-                .collect(),
-        );
-        match verb {
-            "CAMDRILL" => {
-                for handle in handles {
-                    let entity = self.tabs[i]
-                        .scene
-                        .document
-                        .get_entity(*handle)
-                        .ok_or_else(|| "CAM source entity no longer exists".to_string())?;
-                    geometry.drill_locations.push(ocs_cam_core::DrillLocation {
-                        source_id: format!("{handle}"),
-                        point: drill_point_from_entity(entity).map_err(str::to_string)?,
-                    });
-                }
-            }
-            "CAMENGRAVE" | "CAMSLOT" => {
-                for handle in handles {
-                    let entity = self.tabs[i]
-                        .scene
-                        .document
-                        .get_entity(*handle)
-                        .ok_or_else(|| "CAM source entity no longer exists".to_string())?;
-                    geometry.engraving_paths.push(ocs_cam_core::EngravingPath {
-                        source_ids: vec![format!("{handle}")],
-                        contour: contour_from_entity(entity, false).map_err(str::to_string)?,
-                    });
-                }
-            }
-            _ => {
-                for handle in handles {
-                    let entity = self.tabs[i]
-                        .scene
-                        .document
-                        .get_entity(*handle)
-                        .ok_or_else(|| "CAM source entity no longer exists".to_string())?;
-                    geometry.regions.push(ocs_cam_core::MachiningRegion {
-                        outer: contour_from_entity(entity, true).map_err(str::to_string)?,
-                        islands: Vec::new(),
-                    });
-                }
-            }
-        }
+        let source_ids: Vec<String> = handles.iter().map(|handle| format!("{handle}")).collect();
+        let geometry = manufacturing_geometry(&self.tabs[i].scene.document, kind, &source_ids)?;
         let geometry_fingerprint = geometry.fingerprint().map_err(|error| error.to_string())?;
-        if self.tabs[i].cam_job_revision.is_some()
-            && self.tabs[i].cam_job_revision != Some(revision)
-        {
-            self.tabs[i].cam_job =
-                ocs_cam_core::CamJob::new(self.tabs[i].tab_title.clone(), parameters.units);
-        }
         if self.tabs[i].cam_job.operations.is_empty() {
             self.tabs[i].cam_job.units = parameters.units;
             self.tabs[i].cam_job.name = self.tabs[i].tab_title.clone();
@@ -338,7 +289,7 @@ impl OpenCADStudio {
             name: program.name.clone(),
             kind,
             enabled: true,
-            source_ids: handles.iter().map(|handle| format!("{handle}")).collect(),
+            source_ids,
             geometry: Some(geometry),
             geometry_fingerprint: Some(geometry_fingerprint),
             tool: ocs_cam_core::ToolDefinition::from_parameters(
@@ -352,7 +303,7 @@ impl OpenCADStudio {
             .cam_job
             .add_operation(operation)
             .map_err(|error| error.to_string())?;
-        self.tabs[i].cam_job_revision = Some(revision);
+        self.tabs[i].cam_job_revision = Some(self.tabs[i].edit_revision);
         let compiled = self.tabs[i]
             .cam_job
             .compile()
@@ -370,6 +321,56 @@ impl OpenCADStudio {
     }
 }
 
+fn manufacturing_geometry(
+    document: &CadDocument,
+    kind: ocs_cam_core::OperationKind,
+    source_ids: &[String],
+) -> Result<ocs_cam_core::ManufacturingGeometry, String> {
+    let mut geometry = ocs_cam_core::ManufacturingGeometry::new(
+        source_ids
+            .iter()
+            .cloned()
+            .map(|id| ocs_cam_core::GeometrySource { id })
+            .collect(),
+    );
+    for source_id in source_ids {
+        let value = u64::from_str_radix(source_id.trim_start_matches("0x"), 16)
+            .map_err(|_| format!("invalid CAM source handle '{source_id}'"))?;
+        let entity = document
+            .get_entity(Handle::new(value))
+            .ok_or_else(|| format!("CAM source entity {source_id} no longer exists"))?;
+        match kind {
+            ocs_cam_core::OperationKind::Drill => {
+                geometry.drill_locations.push(ocs_cam_core::DrillLocation {
+                    source_id: source_id.clone(),
+                    point: drill_point_from_entity(entity).map_err(str::to_string)?,
+                });
+            }
+            ocs_cam_core::OperationKind::Engrave | ocs_cam_core::OperationKind::Slot => {
+                geometry.engraving_paths.push(ocs_cam_core::EngravingPath {
+                    source_ids: vec![source_id.clone()],
+                    contour: contour_from_entity(entity, false).map_err(str::to_string)?,
+                });
+            }
+            _ => geometry.regions.push(ocs_cam_core::MachiningRegion {
+                outer: contour_from_entity(entity, true).map_err(str::to_string)?,
+                islands: Vec::new(),
+            }),
+        }
+    }
+    geometry.validate().map_err(|error| error.to_string())?;
+    Ok(geometry)
+}
+
+fn first_stale_operation(document: &CadDocument, job: &ocs_cam_core::CamJob) -> Option<String> {
+    job.operations.iter().find_map(|operation| {
+        let expected = operation.geometry_fingerprint.as_ref()?;
+        let current = manufacturing_geometry(document, operation.kind, &operation.source_ids)
+            .and_then(|geometry| geometry.fingerprint().map_err(|error| error.to_string()));
+        (current.as_ref() != Ok(expected)).then(|| operation.name.clone())
+    })
+}
+
 fn contour_from_entity(entity: &EntityType, require_closed: bool) -> Result<Contour, &'static str> {
     match entity {
         EntityType::LwPolyline(polyline) => {
@@ -385,6 +386,30 @@ fn contour_from_entity(entity: &EntityType, require_closed: bool) -> Result<Cont
             }
             Ok(Contour {
                 closed: polyline.is_closed,
+                vertices: polyline
+                    .vertices
+                    .iter()
+                    .map(|vertex| ContourVertex {
+                        point: ocs_cam_core::Point2::new(vertex.location.x, vertex.location.y),
+                        bulge: vertex.bulge,
+                    })
+                    .collect(),
+            })
+        }
+        EntityType::Polyline2D(polyline) => {
+            let closed = polyline.flags.is_closed();
+            if require_closed && !closed {
+                return Err("the selected 2D polyline is open");
+            }
+            if polyline.normal.z < 0.999_999
+                || polyline.normal.x.abs() > 1.0e-6
+                || polyline.normal.y.abs() > 1.0e-6
+                || polyline.elevation.abs() > 1.0e-6
+            {
+                return Err("only contours in the world XY plane are supported");
+            }
+            Ok(Contour {
+                closed,
                 vertices: polyline
                     .vertices
                     .iter()
@@ -435,7 +460,35 @@ fn contour_from_entity(entity: &EntityType, require_closed: bool) -> Result<Cont
                 ],
             })
         }
-        _ => Err("supported geometry is a lightweight polyline, circle, or engraving line"),
+        EntityType::Arc(_) | EntityType::Ellipse(_) | EntityType::Spline(_) => {
+            let curve = crate::entities::curve::entity_curve(entity)
+                .ok_or("the selected curve is not planar")?;
+            let closed = curve.curve.is_closed();
+            if require_closed && !closed {
+                return Err("the selected curve is open");
+            }
+            let mut points = crate::entities::curve::curve_points(&curve);
+            if points.iter().any(|point| point[2].abs() > 1.0e-6) {
+                return Err("only curves in the world XY plane are supported");
+            }
+            if closed
+                && points.len() > 1
+                && points[0]
+                    .iter()
+                    .zip(points.last().unwrap())
+                    .all(|(a, b)| (a - b).abs() <= 1.0e-9)
+            {
+                points.pop();
+            }
+            Ok(Contour {
+                closed,
+                vertices: points
+                    .into_iter()
+                    .map(|point| ContourVertex::line(point[0], point[1]))
+                    .collect(),
+            })
+        }
+        _ => Err("supported geometry is a planar polyline, circle, arc, ellipse, spline, or engraving line"),
     }
 }
 
@@ -573,5 +626,62 @@ mod tests {
             drill_point_from_entity(&point).unwrap(),
             ocs_cam_core::Point2::new(3.0, 7.0)
         );
+    }
+
+    #[test]
+    fn unrelated_document_edits_do_not_change_a_source_snapshot() {
+        let mut document = CadDocument::default();
+        let mut circle = acadrust::entities::Circle::default();
+        circle.radius = 8.0;
+        let handle = document.add_entity(EntityType::Circle(circle)).unwrap();
+        let source_ids = vec![format!("{handle}")];
+        let before = manufacturing_geometry(
+            &document,
+            ocs_cam_core::OperationKind::OutsideProfile,
+            &source_ids,
+        )
+        .unwrap()
+        .fingerprint()
+        .unwrap();
+
+        document
+            .add_entity(EntityType::Point(acadrust::entities::Point::from_coords(
+                100.0, 100.0, 0.0,
+            )))
+            .unwrap();
+        let after = manufacturing_geometry(
+            &document,
+            ocs_cam_core::OperationKind::OutsideProfile,
+            &source_ids,
+        )
+        .unwrap()
+        .fingerprint()
+        .unwrap();
+        assert_eq!(before, after);
+
+        let EntityType::Circle(circle) = document.get_entity_mut(handle).unwrap() else {
+            unreachable!()
+        };
+        circle.radius = 9.0;
+        let changed = manufacturing_geometry(
+            &document,
+            ocs_cam_core::OperationKind::OutsideProfile,
+            &source_ids,
+        )
+        .unwrap()
+        .fingerprint()
+        .unwrap();
+        assert_ne!(before, changed);
+    }
+
+    #[test]
+    fn arc_is_available_as_an_open_engraving_curve() {
+        let mut arc = acadrust::entities::Arc::default();
+        arc.radius = 5.0;
+        arc.start_angle = 0.0;
+        arc.end_angle = std::f64::consts::FRAC_PI_2;
+        let entity = EntityType::Arc(arc);
+        assert!(contour_from_entity(&entity, false).is_ok());
+        assert!(contour_from_entity(&entity, true).is_err());
     }
 }
