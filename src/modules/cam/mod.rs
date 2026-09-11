@@ -28,7 +28,10 @@ impl CadModule for CamModule {
             vec![
                 RibbonGroup {
                     title: "Setup",
-                    tools: vec![RibbonItem::LargeTool(tool("CAMINFO", "CAM Setup", "⚙"))],
+                    tools: vec![
+                        RibbonItem::LargeTool(tool("CAMINFO", "CAM Setup", "⚙")),
+                        RibbonItem::LargeTool(tool("CAMCLEAR", "Clear Job", "⌫")),
+                    ],
                 },
                 RibbonGroup {
                     title: "2D Toolpaths",
@@ -45,11 +48,10 @@ impl CadModule for CamModule {
                 },
                 RibbonGroup {
                     title: "Output",
-                    tools: vec![RibbonItem::LargeTool(tool(
-                        "CAMEXPORT",
-                        "Export G-code",
-                        "⇧",
-                    ))],
+                    tools: vec![
+                        RibbonItem::LargeTool(tool("CAMPREVIEW", "Preview", "▶")),
+                        RibbonItem::LargeTool(tool("CAMEXPORT", "Export G-code", "⇧")),
+                    ],
                 },
             ]
         })

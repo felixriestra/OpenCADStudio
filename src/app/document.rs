@@ -218,7 +218,8 @@ pub(super) struct DocumentTab {
     /// Most recently generated controller-ready CAM program for this drawing.
     /// Keeping it on the tab prevents an export from using another drawing's
     /// toolpath after a document switch.
-    pub(super) cam_program: Option<(u64, String)>,
+    pub(super) cam_job: ocs_cam_core::CamJob,
+    pub(super) cam_job_revision: Option<u64>,
 }
 
 impl DocumentTab {
@@ -623,7 +624,11 @@ impl DocumentTab {
             zoom_dynamic_mode: false,
             plugin_state: HashMap::new(),
             suspended_cmd: None,
-            cam_program: None,
+            cam_job: ocs_cam_core::CamJob::new(
+                format!("Drawing{n}"),
+                ocs_cam_core::Units::Millimeters,
+            ),
+            cam_job_revision: None,
         }
     }
 

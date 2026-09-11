@@ -35,8 +35,16 @@ G2/G3 instead of being unnecessarily flattened.
 - Multiple depth passes, tool-radius compensation, safe-Z moves, feed/plunge
   rates, spindle control, preserved arcs, program verification, and GRBL
   output.
+- Ordered operations, source entity handles, parameters, and tool definitions
+  live in a versioned `CamJob`. Jobs compile all enabled operations into one
+  verified program.
 - Generated output is document-scoped and tied to the drawing revision. A
-  drawing edit invalidates export until the path is regenerated.
+  drawing edit invalidates export until the path is regenerated. Export writes
+  both controller G-code and a same-name `.cam.json` job sidecar.
+- The GRBL parser accepts the postprocessor's supported motion subset and
+  rejects unknown or incomplete commands for round-trip validation.
+- Canonical rapid, line, and arc motions expand into typed preview segments;
+  full-circle bores are tessellated correctly for canvas playback.
 
 The command form is useful for repeatable testing and automation:
 
@@ -50,6 +58,8 @@ CAMSLOT tool=6 width=12 stepover=3 depth=5 stepdown=2 safe=5 feed=400 plunge=150
 CAMENGRAVE depth=0.5 stepdown=0.5 safe=5 feed=300 plunge=100 rpm=12000
 CAMDRILL depth=8 stepdown=2 safe=5 plunge=150 rpm=9000
 CAMINFO
+CAMCLEAR
+CAMPREVIEW
 CAMEXPORT
 ```
 

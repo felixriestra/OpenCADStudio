@@ -7,17 +7,51 @@ impl OpenCADStudio {
         let verb = cmd.split_whitespace().next().unwrap_or_default();
         match verb {
             "CAMINFO" => {
-                let detail = self.tabs[i].cam_program.as_ref().map_or_else(
-                    || "No generated program. Select one closed circle or polyline, then run CAMPROFILE.".to_string(),
-                    |(revision, program)| {
-                        if *revision == self.tabs[i].edit_revision {
-                            format!("Generated program ready: {} lines. Run CAMEXPORT to save it.", program.lines().count())
-                        } else {
-                            "The drawing changed after toolpath generation. Regenerate before export.".to_string()
-                        }
-                    },
-                );
+                let count = self.tabs[i].cam_job.operations.len();
+                let detail = if count == 0 {
+                    "No CAM operations. Select geometry and choose a CAM toolpath.".to_string()
+                } else if self.tabs[i].cam_job_revision != Some(self.tabs[i].edit_revision) {
+                    format!("{count} CAM operation(s), but the drawing changed. Regenerate before export.")
+                } else {
+                    format!("{count} CAM operation(s) ready. Run CAMEXPORT to save G-code and the job sidecar.")
+                };
                 self.command_line.push_output(&detail);
+            }
+            "CAMCLEAR" => {
+                let units =
+                    defaults_for_drawing_units(self.tabs[i].scene.document.header.insertion_units)
+                        .units;
+                self.tabs[i].cam_job =
+                    ocs_cam_core::CamJob::new(self.tabs[i].tab_title.clone(), units);
+                self.tabs[i].cam_job_revision = None;
+                self.command_line
+                    .push_output("CAMCLEAR: all CAM operations removed.");
+            }
+            "CAMPREVIEW" => {
+                if self.tabs[i].cam_job_revision != Some(self.tabs[i].edit_revision) {
+                    self.command_line
+                        .push_error("CAMPREVIEW: regenerate toolpaths after drawing changes.");
+                    return Some(Task::none());
+                }
+                let preview = self.tabs[i]
+                    .cam_job
+                    .compile()
+                    .and_then(|program| ocs_cam_core::preview_segments(&program));
+                match preview {
+                    Ok(segments) => {
+                        let cutting = segments
+                            .iter()
+                            .filter(|segment| segment.kind == ocs_cam_core::SegmentKind::Cut)
+                            .count();
+                        self.command_line.push_output(&format!(
+                            "CAMPREVIEW: {cutting} cutting segments and {} rapid segments are ready for canvas playback.",
+                            segments.len() - cutting
+                        ));
+                    }
+                    Err(error) => self
+                        .command_line
+                        .push_error(&format!("CAMPREVIEW: {error}")),
+                }
             }
             "CAMPROFILE" | "CAMINSIDE" | "CAMPOCKET" | "CAMFACE" | "CAMENGRAVE" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
@@ -62,19 +96,11 @@ impl OpenCADStudio {
                 };
                 match generated {
                     Ok(program) => {
-                        let motion_count = program.motions.len();
-                        let gcode = match ocs_cam_core::post_grbl_checked(&program) {
-                            Ok(gcode) => gcode,
-                            Err(error) => {
-                                self.command_line.push_error(&format!("{verb}: {error}"));
-                                return Some(Task::none());
-                            }
-                        };
-                        let line_count = gcode.lines().count();
-                        self.tabs[i].cam_program = Some((self.tabs[i].edit_revision, gcode));
-                        self.command_line.push_output(&format!(
-                            "{verb}: generated {motion_count} motions / {line_count} G-code lines. Run CAMEXPORT to save."
-                        ));
+                        if let Err(error) =
+                            self.record_cam_operation(i, verb, &handles, parameters, program)
+                        {
+                            self.command_line.push_error(&format!("{verb}: {error}"));
+                        }
                     }
                     Err(error) => self.command_line.push_error(&format!("{verb}: {error}")),
                 }
@@ -140,17 +166,10 @@ impl OpenCADStudio {
                 };
                 match generated {
                     Ok(program) => {
-                        let motion_count = program.motions.len();
-                        match ocs_cam_core::post_grbl_checked(&program) {
-                            Ok(gcode) => {
-                                let line_count = gcode.lines().count();
-                                self.tabs[i].cam_program =
-                                    Some((self.tabs[i].edit_revision, gcode));
-                                self.command_line.push_output(&format!(
-                                    "{verb}: generated {motion_count} motions / {line_count} G-code lines. Run CAMEXPORT to save."
-                                ));
-                            }
-                            Err(error) => self.command_line.push_error(&format!("{verb}: {error}")),
+                        if let Err(error) =
+                            self.record_cam_operation(i, verb, &handles, parameters, program)
+                        {
+                            self.command_line.push_error(&format!("{verb}: {error}"));
                         }
                     }
                     Err(error) => self.command_line.push_error(&format!("{verb}: {error}")),
@@ -183,40 +202,118 @@ impl OpenCADStudio {
                 }
                 match ocs_cam_core::drill(&points, parameters) {
                     Ok(program) => {
-                        let motion_count = program.motions.len();
-                        let gcode = match ocs_cam_core::post_grbl_checked(&program) {
-                            Ok(gcode) => gcode,
-                            Err(error) => {
-                                self.command_line.push_error(&format!("CAMDRILL: {error}"));
-                                return Some(Task::none());
-                            }
-                        };
-                        let line_count = gcode.lines().count();
-                        self.tabs[i].cam_program = Some((self.tabs[i].edit_revision, gcode));
-                        self.command_line.push_output(&format!(
-                            "CAMDRILL: generated {motion_count} motions / {line_count} G-code lines. Run CAMEXPORT to save."
-                        ));
+                        if let Err(error) =
+                            self.record_cam_operation(i, verb, &handles, parameters, program)
+                        {
+                            self.command_line.push_error(&format!("CAMDRILL: {error}"));
+                        }
                     }
                     Err(error) => self.command_line.push_error(&format!("CAMDRILL: {error}")),
                 }
             }
             "CAMEXPORT" => {
-                let Some((revision, program)) = self.tabs[i].cam_program.clone() else {
+                if self.tabs[i].cam_job.operations.is_empty() {
                     self.command_line
                         .push_error("CAMEXPORT: generate a toolpath with CAMPROFILE first.");
                     return Some(Task::none());
-                };
-                if revision != self.tabs[i].edit_revision {
+                }
+                if self.tabs[i].cam_job_revision != Some(self.tabs[i].edit_revision) {
                     self.command_line.push_error(
                         "CAMEXPORT: the drawing changed; regenerate the toolpath before export.",
                     );
                     return Some(Task::none());
                 }
-                return Some(Task::done(Message::CamExport(program)));
+                let program = match self.tabs[i].cam_job.compile() {
+                    Ok(program) => program,
+                    Err(error) => {
+                        self.command_line.push_error(&format!("CAMEXPORT: {error}"));
+                        return Some(Task::none());
+                    }
+                };
+                let gcode = match ocs_cam_core::post_grbl_checked(&program) {
+                    Ok(gcode) => gcode,
+                    Err(error) => {
+                        self.command_line.push_error(&format!("CAMEXPORT: {error}"));
+                        return Some(Task::none());
+                    }
+                };
+                let job = match self.tabs[i].cam_job.to_json_pretty() {
+                    Ok(job) => job,
+                    Err(error) => {
+                        self.command_line.push_error(&format!("CAMEXPORT: {error}"));
+                        return Some(Task::none());
+                    }
+                };
+                return Some(Task::done(Message::CamExport(gcode, job)));
             }
             _ => return None,
         }
         Some(Task::none())
+    }
+
+    fn record_cam_operation(
+        &mut self,
+        i: usize,
+        verb: &str,
+        handles: &[acadrust::Handle],
+        parameters: ProfileParameters,
+        program: ocs_cam_core::Program,
+    ) -> Result<(), String> {
+        let kind = match verb {
+            "CAMPROFILE" => ocs_cam_core::OperationKind::OutsideProfile,
+            "CAMINSIDE" => ocs_cam_core::OperationKind::InsideProfile,
+            "CAMPOCKET" => ocs_cam_core::OperationKind::Pocket,
+            "CAMFACE" => ocs_cam_core::OperationKind::Facing,
+            "CAMBORE" => ocs_cam_core::OperationKind::Bore,
+            "CAMSLOT" => ocs_cam_core::OperationKind::Slot,
+            "CAMENGRAVE" => ocs_cam_core::OperationKind::Engrave,
+            "CAMDRILL" => ocs_cam_core::OperationKind::Drill,
+            _ => return Err("unknown operation type".to_string()),
+        };
+        let revision = self.tabs[i].edit_revision;
+        if self.tabs[i].cam_job_revision.is_some()
+            && self.tabs[i].cam_job_revision != Some(revision)
+        {
+            self.tabs[i].cam_job =
+                ocs_cam_core::CamJob::new(self.tabs[i].tab_title.clone(), parameters.units);
+        }
+        if self.tabs[i].cam_job.operations.is_empty() {
+            self.tabs[i].cam_job.units = parameters.units;
+            self.tabs[i].cam_job.name = self.tabs[i].tab_title.clone();
+        }
+        let sequence = self.tabs[i].cam_job.operations.len() + 1;
+        let operation = ocs_cam_core::CamOperation {
+            id: format!("{verb}-{sequence}"),
+            name: program.name.clone(),
+            kind,
+            enabled: true,
+            source_ids: handles.iter().map(|handle| format!("{handle}")).collect(),
+            tool: ocs_cam_core::ToolDefinition::from_parameters(
+                format!("tool-{:.4}", parameters.tool_diameter),
+                parameters,
+            ),
+            parameters,
+            program,
+        };
+        self.tabs[i]
+            .cam_job
+            .add_operation(operation)
+            .map_err(|error| error.to_string())?;
+        self.tabs[i].cam_job_revision = Some(revision);
+        let compiled = self.tabs[i]
+            .cam_job
+            .compile()
+            .map_err(|error| error.to_string())?;
+        let motion_count = compiled.motions.len();
+        let line_count = ocs_cam_core::post_grbl_checked(&compiled)
+            .map_err(|error| error.to_string())?
+            .lines()
+            .count();
+        let operation_count = self.tabs[i].cam_job.operations.len();
+        self.command_line.push_output(&format!(
+            "{verb}: job now has {operation_count} operation(s), {motion_count} motions / {line_count} G-code lines."
+        ));
+        Ok(())
     }
 }
 

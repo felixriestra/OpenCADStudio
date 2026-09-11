@@ -8,6 +8,13 @@ use cadkernel::geom2d::{offset_polyline, BulgeArc, Polyline, PolylineVertex};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+mod job;
+pub use job::{CamJob, CamOperation, OperationKind, ToolDefinition};
+mod gcode;
+pub use gcode::parse_grbl;
+mod preview;
+pub use preview::{preview_segments, Point3, PreviewSegment, SegmentKind};
+
 const EPSILON: f64 = 1.0e-9;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -302,6 +309,9 @@ pub enum CamError {
     OffsetCollapsed,
     NoDrillPoints,
     InvalidProgram,
+    InvalidJob,
+    MixedUnits,
+    ParseError,
 }
 
 impl fmt::Display for CamError {
@@ -314,6 +324,9 @@ impl fmt::Display for CamError {
             Self::OffsetCollapsed => "cutter compensation did not produce a usable contour",
             Self::NoDrillPoints => "no drill points were selected",
             Self::InvalidProgram => "the generated toolpath failed safety validation",
+            Self::InvalidJob => "the CAM job data is invalid",
+            Self::MixedUnits => "all operations in a CAM job must use the same units",
+            Self::ParseError => "the G-code could not be parsed safely",
         })
     }
 }

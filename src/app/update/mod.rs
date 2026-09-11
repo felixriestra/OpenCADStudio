@@ -1340,7 +1340,7 @@ impl OpenCADStudio {
                 }
                 Task::none()
             }
-            Message::CamExport(program) => Task::perform(
+            Message::CamExport(program, job) => Task::perform(
                 async move {
                     let path = crate::sys::file_dialog()
                         .set_title("Export G-code")
@@ -1350,16 +1350,20 @@ impl OpenCADStudio {
                         .save_file()
                         .await
                         .map(|handle| crate::sys::handle_path(&handle));
-                    (program, path)
+                    (program, job, path)
                 },
-                |(program, path)| Message::CamExportResult(program, path),
+                |(program, job, path)| Message::CamExportResult(program, job, path),
             ),
-            Message::CamExportResult(program, Some(path)) => {
-                match std::fs::write(&path, program.as_bytes()) {
+            Message::CamExportResult(program, job, Some(path)) => {
+                let job_path = path.with_extension("cam.json");
+                match std::fs::write(&path, program.as_bytes())
+                    .and_then(|()| std::fs::write(&job_path, job.as_bytes()))
+                {
                     Ok(()) => self.command_line.push_output(&format!(
-                        "CAMEXPORT: saved {} G-code lines to \"{}\".",
+                        "CAMEXPORT: saved {} G-code lines to \"{}\" and job data to \"{}\".",
                         program.lines().count(),
-                        path.display()
+                        path.display(),
+                        job_path.display()
                     )),
                     Err(error) => self
                         .command_line
@@ -1367,7 +1371,7 @@ impl OpenCADStudio {
                 }
                 Task::none()
             }
-            Message::CamExportResult(_, None) => Task::none(),
+            Message::CamExportResult(_, _, None) => Task::none(),
 
             // ── Document tabs ─────────────────────────────────────────────
             Message::TabNew => {
