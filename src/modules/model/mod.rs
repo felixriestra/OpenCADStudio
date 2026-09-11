@@ -1,5 +1,5 @@
 // Legacy solid-command implementations are kept temporarily for DWG import
-// compatibility, but OCS2Cam does not register a solid-modelling ribbon or
+// compatibility, but Mac2CAM does not register a solid-modelling ribbon or
 // expose these commands.
 pub mod boolean_cmd;
 pub mod cylinder_cmd;

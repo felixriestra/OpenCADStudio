@@ -3248,7 +3248,7 @@ fn start_page_content<'a>(
     let welcome = container(
         column![
             Space::new().height(Fill),
-            text("OCS2Cam").size(40).style(start_primary_style),
+            text("Mac2CAM").size(40).style(start_primary_style),
             Space::new().height(iced::Length::Fixed(10.0)),
             text("CAD drawing and CNC toolpaths in one workspace.")
                 .size(15)

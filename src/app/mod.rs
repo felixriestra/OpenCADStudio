@@ -4074,13 +4074,13 @@ pub fn run() -> iced::Result {
             let dot = if tab.dirty { "● " } else { "" };
             let name = tab.tab_display_name();
             format!(
-                "{}OCS2Cam {} - {}",
+                "{}Mac2CAM {} - {}",
                 dot,
                 env!("OCS_APP_VERSION"),
                 name
             )
         } else {
-            concat!("OCS2Cam ", env!("OCS_APP_VERSION")).to_string()
+            concat!("Mac2CAM ", env!("OCS_APP_VERSION")).to_string()
         }
     })
     .theme(|state: &OpenCADStudio, _| state.active_theme.clone())
@@ -4114,7 +4114,7 @@ pub fn run_web() -> iced::Result {
     .subscription(OpenCADStudio::subscription)
     .scale_factor(|state: &OpenCADStudio| state.ui_scale as f32 / 100.0)
     .title(|_state: &OpenCADStudio| {
-        concat!("OCS2Cam ", env!("OCS_APP_VERSION")).to_string()
+        concat!("Mac2CAM ", env!("OCS_APP_VERSION")).to_string()
     })
     .theme(|state: &OpenCADStudio| state.active_theme.clone())
     .backend(iced::Backend::Hardware(iced::backend::Api::OpenGL))

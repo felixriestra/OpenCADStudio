@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a self-contained, ad-hoc signed OCS2Cam.app for the current Mac.
+# Build a self-contained, ad-hoc signed Mac2CAM.app for the current Mac.
 # This follows build_macos_signed.sh's launcher, icon, Quick Look, and signing
 # layout while intentionally omitting DMG creation and notarization.
 set -euo pipefail
@@ -8,18 +8,18 @@ cd "$(dirname "$0")/.."
 TARGET="aarch64-apple-darwin"
 VERSION="${VERSION:-$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)}"
 DIST="dist"
-STAGE="target/ocs2cam-package"
-APP="$DIST/OCS2Cam.app"
-APP_ID="com.twodcam.ocs2cam"
+STAGE="target/mac2cam-package"
+APP="$DIST/Mac2CAM.app"
+APP_ID="com.twodcam.mac2cam"
 
-echo "==> Building OCS2Cam $VERSION for $TARGET"
+echo "==> Building Mac2CAM $VERSION for $TARGET"
 cargo build --release --target "$TARGET" --bin OpenCADStudio --bin ocs_launcher
 cargo build --release --target "$TARGET" -p dwg-thumbnailer
 
 echo "==> Creating application and document icons"
 rm -rf "$STAGE"
 mkdir -p "$STAGE" "$DIST"
-ICONSET="$STAGE/OCS2Cam.iconset"
+ICONSET="$STAGE/Mac2CAM.iconset"
 mkdir -p "$ICONSET"
 for SIZE in 16 32 64 128 256 512 1024; do
     rsvg-convert -w "$SIZE" -h "$SIZE" assets/logo.svg -o "$ICONSET/icon_${SIZE}x${SIZE}.png"
@@ -60,21 +60,21 @@ swiftc \
     -o "$EXT/Contents/MacOS/DWGThumbnail"
 sed \
     -e "s/__VERSION__/$VERSION/g" \
-    -e 's/io.github.HakanSeven12.OpenCadStudio.DWGThumbnail/com.twodcam.ocs2cam.DWGThumbnail/g' \
+    -e 's/io.github.HakanSeven12.OpenCadStudio.DWGThumbnail/com.twodcam.mac2cam.DWGThumbnail/g' \
     crates/dwg-thumbnailer/macos/Info.plist > "$EXT/Contents/Info.plist"
 
 echo "==> Assembling $APP"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/PlugIns"
-cp "target/$TARGET/release/ocs_launcher" "$APP/Contents/MacOS/OCS2Cam"
+cp "target/$TARGET/release/ocs_launcher" "$APP/Contents/MacOS/Mac2CAM"
 cp "target/$TARGET/release/OpenCADStudio" "$APP/Contents/MacOS/OpenCADStudio-App"
-chmod +x "$APP/Contents/MacOS/OCS2Cam" "$APP/Contents/MacOS/OpenCADStudio-App"
+chmod +x "$APP/Contents/MacOS/Mac2CAM" "$APP/Contents/MacOS/OpenCADStudio-App"
 cp "$STAGE/AppIcon.icns" "$STAGE/DWG.icns" "$STAGE/DXF.icns" "$APP/Contents/Resources/"
 cp -R "$EXT" "$APP/Contents/PlugIns/"
 sed \
     -e "s/__VERSION__/$VERSION/g" \
-    -e 's/OCS-__BUILD_STAMP__/OCS2Cam/g' \
-    -e 's#<string>OpenCADStudio</string>#<string>OCS2Cam</string>#' \
+    -e 's/OCS-__BUILD_STAMP__/Mac2CAM/g' \
+    -e 's#<string>OpenCADStudio</string>#<string>Mac2CAM</string>#' \
     -e "s/io.github.HakanSeven12.OpenCadStudio/$APP_ID/g" \
     packaging/Info.plist > "$APP/Contents/Info.plist"
 

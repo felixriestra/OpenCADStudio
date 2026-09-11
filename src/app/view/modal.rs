@@ -1925,10 +1925,10 @@ fn default_assoc_dialog_window(
 ) -> Element<'static, Message> {
     container(
         column![
-            text(t!("Make OCS2Cam your default CAD app?"))
+            text(t!("Make Mac2CAM your default CAD app?"))
                 .size(15),
             iced::widget::Space::new().height(10),
-            text(t!("Open .dwg and .dxf drawings in OCS2Cam by default. You can change this later in your system settings."))
+            text(t!("Open .dwg and .dxf drawings in Mac2CAM by default. You can change this later in your system settings."))
                 .size(12)
                 .style(dialog_muted_text_style),
             iced::widget::Space::new().height(22),

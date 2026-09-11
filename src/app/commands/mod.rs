@@ -68,7 +68,7 @@ impl OpenCADStudio {
         let cmd = resolved.as_deref().unwrap_or(cmd);
         if is_removed_solid_command(cmd) {
             self.command_line.push_info(
-                crate::t!("Solid modelling commands are not available in OCS2Cam.").as_ref(),
+                crate::t!("Solid modelling commands are not available in Mac2CAM.").as_ref(),
             );
             return Task::none();
         }
@@ -271,7 +271,7 @@ impl OpenCADStudio {
     }
 }
 
-/// OCS2Cam is a 2.5D CAD/CAM product. It can still read and display solid
+/// Mac2CAM is a 2.5D CAD/CAM product. It can still read and display solid
 /// entities found in imported drawings, but it does not expose solid-authoring
 /// commands.
 fn is_removed_solid_command(command: &str) -> bool {
@@ -320,7 +320,7 @@ fn is_removed_solid_command(command: &str) -> bool {
 }
 
 #[cfg(test)]
-mod ocs2cam_scope_tests {
+mod mac2cam_scope_tests {
     use super::is_removed_solid_command;
 
     #[test]
