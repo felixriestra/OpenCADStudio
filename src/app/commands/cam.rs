@@ -485,6 +485,15 @@ impl OpenCADStudio {
             .cam_job
             .add_operation(operation)
             .map_err(|error| error.to_string())?;
+        // The operation editor is selection-driven. Newly-created toolpaths
+        // must become active immediately so Face, Pocket, Profile, etc. expose
+        // their own parameters instead of leaving the panel in its empty
+        // "select an operation" state.
+        let new_operation_index = self.tabs[i].cam_job.operations.len() - 1;
+        self.cam_selected_operation = Some(new_operation_index);
+        self.cam_editor.clear_operation();
+        self.show_cam_panel = true;
+        self.dock_expanded = Some(crate::ui::dock::PanelId::Cam);
         self.tabs[i].cam_job_revision = Some(self.tabs[i].edit_revision);
         let compiled = self.tabs[i]
             .cam_job
