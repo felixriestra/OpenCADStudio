@@ -392,6 +392,36 @@ pub fn engrave(source: &Contour, parameters: ProfileParameters) -> Result<Progra
     profile_program("Engrave", source, parameters)
 }
 
+pub fn pocket(
+    source: &Contour,
+    parameters: ProfileParameters,
+    step_over: f64,
+) -> Result<Program, CamError> {
+    source.validate_closed()?;
+    parameters.validate()?;
+    if !step_over.is_finite() || step_over <= 0.0 || step_over > parameters.tool_diameter {
+        return Err(CamError::InvalidParameters);
+    }
+
+    let mut contours = Vec::new();
+    let mut current = offset_contour(source, parameters.tool_diameter * 0.5, true)?;
+    loop {
+        let current_area = current.signed_area().abs();
+        contours.push(current.clone());
+        if contours.len() >= 10_000 {
+            return Err(CamError::InvalidProgram);
+        }
+        let Ok(next) = offset_contour(&current, step_over, true) else {
+            break;
+        };
+        if next.signed_area().abs() >= current_area - EPSILON {
+            break;
+        }
+        current = next;
+    }
+    pocket_program(&contours, parameters)
+}
+
 pub fn drill(points: &[Point2], parameters: ProfileParameters) -> Result<Program, CamError> {
     parameters.validate()?;
     if points.is_empty() {
@@ -509,6 +539,55 @@ fn profile_program(
 
     Ok(Program {
         name: name.to_string(),
+        units: parameters.units,
+        motions,
+    })
+}
+
+fn pocket_program(
+    contours: &[Contour],
+    parameters: ProfileParameters,
+) -> Result<Program, CamError> {
+    if contours.is_empty() {
+        return Err(CamError::OffsetCollapsed);
+    }
+    let mut motions = vec![
+        Motion::SpindleOn {
+            rpm: parameters.spindle_rpm,
+        },
+        Motion::Rapid {
+            x: None,
+            y: None,
+            z: Some(parameters.safe_z),
+        },
+    ];
+    let mut reached = 0.0;
+    while reached + EPSILON < parameters.depth {
+        reached = (reached + parameters.step_down).min(parameters.depth);
+        for contour in contours {
+            let start = contour.vertices[0].point;
+            motions.push(Motion::Rapid {
+                x: Some(start.x),
+                y: Some(start.y),
+                z: None,
+            });
+            motions.push(Motion::Linear {
+                x: None,
+                y: None,
+                z: Some(parameters.stock_top - reached),
+                feed: parameters.plunge_feed,
+            });
+            append_contour_motions(&mut motions, contour, parameters.feed);
+            motions.push(Motion::Rapid {
+                x: None,
+                y: None,
+                z: Some(parameters.safe_z),
+            });
+        }
+    }
+    motions.extend([Motion::SpindleOff, Motion::End]);
+    Ok(Program {
+        name: "Pocket".to_string(),
         units: parameters.units,
         motions,
     })
@@ -715,6 +794,24 @@ mod tests {
             .count();
         assert_eq!(plunges, 6);
         assert_eq!(drill(&[], parameters), Err(CamError::NoDrillPoints));
+    }
+
+    #[test]
+    fn pocket_clears_with_multiple_concentric_passes() {
+        let parameters = ProfileParameters {
+            tool_diameter: 6.0,
+            depth: 1.0,
+            step_down: 1.0,
+            ..ProfileParameters::default()
+        };
+        let program = pocket(&rectangle(), parameters, 3.0).unwrap();
+        verify_program(&program).unwrap();
+        let plunges = program
+            .motions
+            .iter()
+            .filter(|motion| matches!(motion, Motion::Linear { z: Some(_), .. }))
+            .count();
+        assert!(plunges >= 3, "expected several clearing loops: {program:?}");
     }
 
     #[test]

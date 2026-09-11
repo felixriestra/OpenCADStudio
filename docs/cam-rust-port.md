@@ -25,6 +25,7 @@ G2/G3 instead of being unnecessarily flattened.
 - A dedicated `CAM` ribbon tab with Setup, 2D Toolpaths, and Output groups.
 - Outside profile of a selected closed LWPOLYLINE or CIRCLE.
 - Inside profile of a selected closed LWPOLYLINE or CIRCLE.
+- Concentric pocket clearing of a selected closed LWPOLYLINE or CIRCLE.
 - Engraving of a selected LINE, open/closed LWPOLYLINE, or CIRCLE.
 - Peck drilling at selected POINT and CIRCLE centers.
 - Millimeter and inch output based on drawing insertion units.
@@ -39,6 +40,7 @@ The command form is useful for repeatable testing and automation:
 ```text
 CAMPROFILE tool=6 depth=3 stepdown=1 safe=5 feed=500 plunge=200 rpm=12000
 CAMINSIDE tool=6 depth=3 stepdown=1 safe=5 feed=500 plunge=200 rpm=12000
+CAMPOCKET tool=6 stepover=3 depth=3 stepdown=1 safe=5 feed=500 plunge=200 rpm=12000
 CAMENGRAVE depth=0.5 stepdown=0.5 safe=5 feed=300 plunge=100 rpm=12000
 CAMDRILL depth=8 stepdown=2 safe=5 plunge=150 rpm=9000
 CAMINFO
@@ -56,7 +58,8 @@ into `ocs_cam_core` in this order:
 
 1. Persistent operation records and a tool/material library.
 2. Canvas toolpath overlay plus operation editing panel.
-3. Pocket, facing, bore, slot, and tabs/ramp/lead controls.
+3. Facing, bore, slot, and tabs/ramp/lead controls; extend pocketing with
+   islands, entry ramps, and adaptive clearing.
 4. G-code parser, round-trip validation, and configurable machine posts.
 5. Playback and stock-removal simulation.
 6. Relief/STL and bitmap-derived machining, after the 2D pipeline is stable.

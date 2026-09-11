@@ -35,6 +35,7 @@ impl CadModule for CamModule {
                     tools: vec![
                         RibbonItem::LargeTool(tool("CAMPROFILE", "Outside Profile", "◎")),
                         RibbonItem::LargeTool(tool("CAMINSIDE", "Inside Profile", "◉")),
+                        RibbonItem::LargeTool(tool("CAMPOCKET", "Pocket", "▣")),
                         RibbonItem::LargeTool(tool("CAMENGRAVE", "Engrave", "⌁")),
                         RibbonItem::LargeTool(tool("CAMDRILL", "Drill", "⊙")),
                     ],

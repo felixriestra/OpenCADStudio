@@ -324,6 +324,7 @@ inventory::submit!(crate::command::CommandRegistration {
         "CAMINFO",
         "CAMPROFILE",
         "CAMINSIDE",
+        "CAMPOCKET",
         "CAMENGRAVE",
         "CAMDRILL",
         "CAMEXPORT",

@@ -19,7 +19,7 @@ impl OpenCADStudio {
                 );
                 self.command_line.push_output(&detail);
             }
-            "CAMPROFILE" | "CAMINSIDE" | "CAMENGRAVE" => {
+            "CAMPROFILE" | "CAMINSIDE" | "CAMPOCKET" | "CAMENGRAVE" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
                 if handles.len() != 1 {
                     self.command_line.push_error(
@@ -41,12 +41,16 @@ impl OpenCADStudio {
                 };
                 let mut parameters =
                     defaults_for_drawing_units(self.tabs[i].scene.document.header.insertion_units);
-                if let Err(error) = apply_profile_arguments(&mut parameters, cmd) {
-                    self.command_line.push_error(&format!("{verb}: {error}"));
-                    return Some(Task::none());
-                }
+                let step_over = match apply_profile_arguments(&mut parameters, cmd) {
+                    Ok(step_over) => step_over.unwrap_or(parameters.tool_diameter * 0.5),
+                    Err(error) => {
+                        self.command_line.push_error(&format!("{verb}: {error}"));
+                        return Some(Task::none());
+                    }
+                };
                 let generated = match verb {
                     "CAMINSIDE" => ocs_cam_core::inside_profile(&contour, parameters),
+                    "CAMPOCKET" => ocs_cam_core::pocket(&contour, parameters, step_over),
                     "CAMENGRAVE" => ocs_cam_core::engrave(&contour, parameters),
                     _ => ocs_cam_core::outside_profile(&contour, parameters),
                 };
@@ -235,7 +239,11 @@ fn defaults_for_drawing_units(insertion_units: i16) -> ProfileParameters {
     }
 }
 
-fn apply_profile_arguments(parameters: &mut ProfileParameters, cmd: &str) -> Result<(), String> {
+fn apply_profile_arguments(
+    parameters: &mut ProfileParameters,
+    cmd: &str,
+) -> Result<Option<f64>, String> {
+    let mut step_over = None;
     for argument in cmd.split_whitespace().skip(1) {
         let Some((key, value)) = argument.split_once('=') else {
             return Err(format!("expected key=value, got '{argument}'"));
@@ -245,6 +253,7 @@ fn apply_profile_arguments(parameters: &mut ProfileParameters, cmd: &str) -> Res
             "top" => parameters.stock_top = parse_number(key, value)?,
             "depth" => parameters.depth = parse_number(key, value)?,
             "stepdown" | "doc" => parameters.step_down = parse_number(key, value)?,
+            "stepover" => step_over = Some(parse_number(key, value)?),
             "safe" => parameters.safe_z = parse_number(key, value)?,
             "feed" => parameters.feed = parse_number(key, value)?,
             "plunge" => parameters.plunge_feed = parse_number(key, value)?,
@@ -256,7 +265,8 @@ fn apply_profile_arguments(parameters: &mut ProfileParameters, cmd: &str) -> Res
             _ => return Err(format!("unknown parameter '{key}'")),
         }
     }
-    parameters.validate().map_err(|error| error.to_string())
+    parameters.validate().map_err(|error| error.to_string())?;
+    Ok(step_over)
 }
 
 fn parse_number(key: &str, value: &str) -> Result<f64, String> {
