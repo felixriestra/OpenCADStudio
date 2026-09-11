@@ -1607,12 +1607,28 @@ impl OpenCADStudio {
                         }
                     }
                     A::PreviewAll => {
-                        let program = self.tabs[i].cam_job.compile();
-                        match program.and_then(|program| ocs_cam_core::preview_segments(&program)) {
+                        // Preview is diagnostic and must remain available when
+                        // the job setup is unsafe. Export/compile still applies
+                        // machine, stock-thickness, feed, and RPM validation.
+                        let segments = self.tabs[i]
+                            .cam_job
+                            .operations
+                            .iter()
+                            .filter(|operation| operation.enabled)
+                            .try_fold(Vec::new(), |mut all, operation| {
+                                all.extend(ocs_cam_core::preview_segments(&operation.program)?);
+                                Ok::<_, ocs_cam_core::CamError>(all)
+                            });
+                        match segments {
                             Ok(segments) => {
                                 self.cam_preview_step = None;
                                 self.tabs[i].scene.set_preview_wires(cam_preview_wires(&segments));
                                 self.cam_preview_segments = segments;
+                                if let Err(error) = self.tabs[i].cam_job.validate() {
+                                    self.command_line.push_output(&format!(
+                                        "CAM preview displayed; fix the Job Setup safety warning before export: {error}"
+                                    ));
+                                }
                             }
                             Err(error) => self.command_line.push_error(&format!("CAM preview: {error}")),
                         }
