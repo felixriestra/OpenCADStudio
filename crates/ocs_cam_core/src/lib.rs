@@ -10,6 +10,11 @@ use std::fmt;
 
 mod job;
 pub use job::{CamJob, CamOperation, OperationKind, ToolDefinition};
+mod manufacturing_geometry;
+pub use manufacturing_geometry::{
+    DrillLocation, EngravingPath, GeometrySource, MachiningRegion, ManufacturingGeometry,
+    MANUFACTURING_GEOMETRY_SCHEMA_VERSION,
+};
 mod gcode;
 pub use gcode::parse_grbl;
 mod preview;

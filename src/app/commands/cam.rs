@@ -271,6 +271,57 @@ impl OpenCADStudio {
             _ => return Err("unknown operation type".to_string()),
         };
         let revision = self.tabs[i].edit_revision;
+        let mut geometry = ocs_cam_core::ManufacturingGeometry::new(
+            handles
+                .iter()
+                .map(|handle| ocs_cam_core::GeometrySource {
+                    id: format!("{handle}"),
+                    document_revision: revision,
+                })
+                .collect(),
+        );
+        match verb {
+            "CAMDRILL" => {
+                for handle in handles {
+                    let entity = self.tabs[i]
+                        .scene
+                        .document
+                        .get_entity(*handle)
+                        .ok_or_else(|| "CAM source entity no longer exists".to_string())?;
+                    geometry.drill_locations.push(ocs_cam_core::DrillLocation {
+                        source_id: format!("{handle}"),
+                        point: drill_point_from_entity(entity).map_err(str::to_string)?,
+                    });
+                }
+            }
+            "CAMENGRAVE" | "CAMSLOT" => {
+                for handle in handles {
+                    let entity = self.tabs[i]
+                        .scene
+                        .document
+                        .get_entity(*handle)
+                        .ok_or_else(|| "CAM source entity no longer exists".to_string())?;
+                    geometry.engraving_paths.push(ocs_cam_core::EngravingPath {
+                        source_ids: vec![format!("{handle}")],
+                        contour: contour_from_entity(entity, false).map_err(str::to_string)?,
+                    });
+                }
+            }
+            _ => {
+                for handle in handles {
+                    let entity = self.tabs[i]
+                        .scene
+                        .document
+                        .get_entity(*handle)
+                        .ok_or_else(|| "CAM source entity no longer exists".to_string())?;
+                    geometry.regions.push(ocs_cam_core::MachiningRegion {
+                        outer: contour_from_entity(entity, true).map_err(str::to_string)?,
+                        islands: Vec::new(),
+                    });
+                }
+            }
+        }
+        let geometry_fingerprint = geometry.fingerprint().map_err(|error| error.to_string())?;
         if self.tabs[i].cam_job_revision.is_some()
             && self.tabs[i].cam_job_revision != Some(revision)
         {
@@ -288,6 +339,8 @@ impl OpenCADStudio {
             kind,
             enabled: true,
             source_ids: handles.iter().map(|handle| format!("{handle}")).collect(),
+            geometry: Some(geometry),
+            geometry_fingerprint: Some(geometry_fingerprint),
             tool: ocs_cam_core::ToolDefinition::from_parameters(
                 format!("tool-{:.4}", parameters.tool_diameter),
                 parameters,

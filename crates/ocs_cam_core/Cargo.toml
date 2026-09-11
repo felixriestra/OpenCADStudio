@@ -8,3 +8,4 @@ license = "GPL-3.0-or-later"
 cadkernel = { git = "https://github.com/HakanSeven12/cadkernel.git", rev = "0507b720fef47bd7da0d4f777f97f1743a4f4038", features = ["offset"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"

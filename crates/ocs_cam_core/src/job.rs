@@ -1,4 +1,6 @@
-use crate::{verify_program, CamError, Motion, ProfileParameters, Program, Units};
+use crate::{
+    verify_program, CamError, ManufacturingGeometry, Motion, ProfileParameters, Program, Units,
+};
 use serde::{Deserialize, Serialize};
 
 pub const CAM_JOB_SCHEMA_VERSION: u32 = 1;
@@ -57,6 +59,10 @@ pub struct CamOperation {
     pub kind: OperationKind,
     pub enabled: bool,
     pub source_ids: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub geometry: Option<ManufacturingGeometry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub geometry_fingerprint: Option<String>,
     pub tool: ToolDefinition,
     pub parameters: ProfileParameters,
     pub program: Program,
@@ -71,6 +77,16 @@ impl CamOperation {
             || self.parameters.units != self.program.units
         {
             return Err(CamError::InvalidJob);
+        }
+        match (&self.geometry, &self.geometry_fingerprint) {
+            (Some(geometry), Some(fingerprint)) => {
+                geometry.validate()?;
+                if geometry.fingerprint()? != *fingerprint {
+                    return Err(CamError::InvalidJob);
+                }
+            }
+            (None, None) => {}
+            _ => return Err(CamError::InvalidJob),
         }
         self.parameters.validate()?;
         verify_program(&self.program)
@@ -189,6 +205,8 @@ mod tests {
             kind: OperationKind::OutsideProfile,
             enabled: true,
             source_ids: vec!["AB".to_string()],
+            geometry: None,
+            geometry_fingerprint: None,
             tool: ToolDefinition::from_parameters("tool-1", parameters),
             parameters,
             program: outside_profile(&contour, parameters).unwrap(),
@@ -212,6 +230,17 @@ mod tests {
                 .count(),
             1
         );
+    }
+
+    #[test]
+    fn legacy_operation_json_without_geometry_snapshot_still_loads() {
+        let mut job = CamJob::new("Legacy", Units::Millimeters);
+        job.add_operation(operation("legacy-op")).unwrap();
+        let json = job.to_json_pretty().unwrap();
+        assert!(!json.contains("geometry_fingerprint"));
+        assert!(!json.contains("\"geometry\""));
+        let restored = CamJob::from_json(&json).unwrap();
+        assert!(restored.operations[0].geometry.is_none());
     }
 
     #[test]
