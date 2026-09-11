@@ -844,6 +844,9 @@ impl OpenCADStudio {
             "IMPORTOBJ" | "OBJIMPORT" => {
                 return Some(Task::done(Message::ObjImport));
             }
+            "IMPORTSVG" | "SVGIN" => {
+                return Some(Task::done(Message::SvgImport));
+            }
 
             // ── STL export ────────────────────────────────────────────────
             "STLOUT" | "EXPORTSTL" => {

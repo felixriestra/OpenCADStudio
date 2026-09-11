@@ -1,0 +1,9 @@
+[package]
+name = "ocs_import"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+usvg = { version = "0.45", default-features = false }
+tiny-skia-path = "0.11"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "tiff"] }

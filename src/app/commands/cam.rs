@@ -289,6 +289,11 @@ impl OpenCADStudio {
             name: program.name.clone(),
             kind,
             enabled: true,
+            setup_id: self.tabs[i]
+                .cam_job
+                .setups
+                .first()
+                .map(|setup| setup.id.clone()),
             source_ids,
             geometry: Some(geometry),
             geometry_fingerprint: Some(geometry_fingerprint),

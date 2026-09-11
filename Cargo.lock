@@ -41,6 +41,7 @@ dependencies = [
  "ocs_cam_core",
  "ocs_doc_api",
  "ocs_gcs",
+ "ocs_import",
  "ocs_plugin_api",
  "open",
  "printpdf",
@@ -3983,6 +3984,15 @@ name = "ocs_gcs"
 version = "0.1.0"
 dependencies = [
  "nalgebra",
+]
+
+[[package]]
+name = "ocs_import"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "tiny-skia-path",
+ "usvg",
 ]
 
 [[package]]

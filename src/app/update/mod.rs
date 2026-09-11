@@ -1201,6 +1201,75 @@ impl OpenCADStudio {
                 Task::none()
             }
 
+            Message::SvgImport => Task::perform(
+                async {
+                    crate::sys::file_dialog()
+                        .set_title("Import SVG as CAD Geometry")
+                        .add_filter("Scalable Vector Graphics", &["svg", "SVG"])
+                        .add_filter(crate::t!("All Files").as_ref(), &["*"])
+                        .pick_file()
+                        .await
+                        .map(|handle| crate::sys::handle_path(&handle))
+                },
+                Message::SvgImportPath,
+            ),
+
+            Message::SvgImportPath(Some(path)) => {
+                let tab_id = self.tabs[self.active_tab].id;
+                let worker_path = path.clone();
+                Task::perform(
+                    async move {
+                        std::fs::read(&worker_path)
+                            .map_err(|error| error.to_string())
+                            .and_then(|bytes| ocs_import::import_svg(&bytes))
+                    },
+                    move |result| Message::SvgImportFinished(tab_id, path, result),
+                )
+            }
+
+            Message::SvgImportPath(None) => Task::none(),
+
+            Message::SvgImportFinished(tab_id, path, result) => {
+                match result {
+                    Err(error) => self.command_line.push_error(&format!("IMPORTSVG: {error}")),
+                    Ok(imported) => {
+                        let Some(i) = self.tabs.iter().position(|tab| tab.id == tab_id) else {
+                            self.command_line.push_info("IMPORTSVG: target drawing was closed.");
+                            return Task::none();
+                        };
+                        self.push_undo_snapshot(i, "IMPORTSVG");
+                        let mut added = 0usize;
+                        for imported_path in imported.paths {
+                            let mut polyline = acadrust::entities::LwPolyline::new();
+                            polyline.is_closed = imported_path.closed;
+                            polyline.vertices = imported_path
+                                .points_mm
+                                .into_iter()
+                                .map(|point| acadrust::entities::LwVertex::new(
+                                    acadrust::types::Vector2::new(point[0], point[1]),
+                                ))
+                                .collect();
+                            if !self.tabs[i]
+                                .scene
+                                .add_entity(acadrust::EntityType::LwPolyline(polyline))
+                                .is_null()
+                            {
+                                added += 1;
+                            }
+                        }
+                        self.tabs[i].dirty |= added > 0;
+                        self.command_line.push_output(&format!(
+                            "IMPORTSVG: imported {added} editable path(s) from \"{}\".",
+                            path.display()
+                        ));
+                        for warning in imported.warnings {
+                            self.command_line.push_info(&format!("IMPORTSVG: {warning}"));
+                        }
+                    }
+                }
+                Task::none()
+            }
+
             Message::SaveFile => self.on_save_file(),
 
             Message::SaveAs => {

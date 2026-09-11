@@ -1,5 +1,6 @@
 use crate::{
-    verify_program, CamError, ManufacturingGeometry, Motion, ProfileParameters, Program, Units,
+    verify_program, CamError, CamSetup, ManufacturingGeometry, Motion, ProfileParameters, Program,
+    Units,
 };
 use serde::{Deserialize, Serialize};
 
@@ -58,6 +59,8 @@ pub struct CamOperation {
     pub name: String,
     pub kind: OperationKind,
     pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup_id: Option<String>,
     pub source_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub geometry: Option<ManufacturingGeometry>,
@@ -98,6 +101,8 @@ pub struct CamJob {
     pub schema_version: u32,
     pub name: String,
     pub units: Units,
+    #[serde(default)]
+    pub setups: Vec<CamSetup>,
     pub operations: Vec<CamOperation>,
 }
 
@@ -107,6 +112,7 @@ impl CamJob {
             schema_version: CAM_JOB_SCHEMA_VERSION,
             name: name.into(),
             units,
+            setups: vec![CamSetup::default_for(units)],
             operations: Vec::new(),
         }
     }
@@ -137,6 +143,20 @@ impl CamJob {
                 return Err(CamError::MixedUnits);
             }
             operation.validate()?;
+            if let Some(setup_id) = &operation.setup_id {
+                let setup = self
+                    .setups
+                    .iter()
+                    .find(|setup| setup.id == *setup_id)
+                    .ok_or(CamError::InvalidJob)?;
+                verify_operation_envelope(operation, setup)?;
+            }
+        }
+        for setup in &self.setups {
+            setup.validate()?;
+            if setup.units != self.units {
+                return Err(CamError::MixedUnits);
+            }
         }
         Ok(())
     }
@@ -179,6 +199,28 @@ impl CamJob {
     }
 }
 
+fn verify_operation_envelope(operation: &CamOperation, setup: &CamSetup) -> Result<(), CamError> {
+    if operation.tool.spindle_rpm > setup.machine.maximum_spindle_rpm
+        || operation.parameters.feed > setup.machine.maximum_feed
+        || operation.parameters.plunge_feed > setup.machine.maximum_feed
+    {
+        return Err(CamError::InvalidProgram);
+    }
+    let segments = crate::preview_segments(&operation.program)?;
+    if segments
+        .iter()
+        .flat_map(|segment| [segment.start, segment.end])
+        .any(|point| {
+            (point.x - setup.work_origin.x).abs() > setup.machine.travel_x
+                || (point.y - setup.work_origin.y).abs() > setup.machine.travel_y
+                || point.z.abs() > setup.machine.travel_z
+        })
+    {
+        return Err(CamError::InvalidProgram);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,6 +246,7 @@ mod tests {
             name: "Profile".to_string(),
             kind: OperationKind::OutsideProfile,
             enabled: true,
+            setup_id: None,
             source_ids: vec!["AB".to_string()],
             geometry: None,
             geometry_fingerprint: None,

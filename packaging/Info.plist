@@ -32,6 +32,18 @@
     <array>
         <dict>
             <key>CFBundleTypeName</key>
+            <string>Mac2CAM Project</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>com.twodcam.mac2cam.project</string>
+            </array>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
             <string>AutoCAD Drawing</string>
             <key>CFBundleTypeRole</key>
             <string>Editor</string>
@@ -62,6 +74,26 @@
             </array>
             <key>LSHandlerRank</key>
             <string>Alternate</string>
+        </dict>
+    </array>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.twodcam.mac2cam.project</string>
+            <key>UTTypeDescription</key>
+            <string>Mac2CAM Project</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array><string>mac2cam</string></array>
+                <key>public.mime-type</key>
+                <array><string>application/x-mac2cam-project</string></array>
+            </dict>
         </dict>
     </array>
     <!-- Declare (import) the DWG/DXF UTIs we claim above. Without a

@@ -19,6 +19,10 @@ mod gcode;
 pub use gcode::parse_grbl;
 mod preview;
 pub use preview::{preview_segments, Point3, PreviewSegment, SegmentKind};
+mod setup;
+pub use setup::{CamSetup, MachineEnvelope, MaterialPreset, StockDefinition};
+mod simulation;
+pub use simulation::{simulate_stock, StockHeightField};
 
 const EPSILON: f64 = 1.0e-9;
 

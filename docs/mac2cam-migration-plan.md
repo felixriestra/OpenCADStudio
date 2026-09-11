@@ -152,3 +152,28 @@ sole maintained application.
   - Wired native Open, Save, Save As, recent-file handling, and CAM restoration
     to the package format; new drawings now default to Mac2CAM projects while
     DWG and DXF remain explicit interchange formats.
+- 2026-09-11: Phase 3 import foundation complete.
+  - Added a headless Rust SVG importer with input limits, XML entity rejection,
+    physical-unit conversion, nested transform flattening, primitive/path
+    normalization, curve sampling, multi-subpath handling, and tests.
+  - Added `IMPORTSVG` to the CAM ribbon; imports are native editable CAD
+    polylines committed as one undoable drawing edit.
+  - Exposed native bitmap attachment in the CAM ribbon and added normalized
+    grayscale height-field decoding for the relief workflow.
+- 2026-09-11: Phase 4 setup foundation complete.
+  - Added persistent stock, work origin, material, clearance, machine travel,
+    maximum feed/spindle, and per-operation setup references.
+  - Tool definitions are deduplicated into `tools.json` in project packages.
+- 2026-09-11: Phase 5 baseline is operational.
+  - Outside/inside profile, pocket, facing, boring, slotting, engraving, and
+    drilling all generate canonical Rust toolpaths and ordered job operations.
+- 2026-09-11: Phase 6 safety foundation complete.
+  - Canonical motion validation and GRBL round-trip parsing are active.
+  - Setup-aware validation blocks jobs exceeding feed, spindle, XYZ travel, or
+    malformed motion constraints before export.
+- 2026-09-11: Phase 7 simulation foundation complete.
+  - Existing canonical preview segments now feed a headless stock height-field
+    removal simulator with deterministic tests.
+- 2026-09-11: Phase 8 relief foundation complete.
+  - Bitmap grayscale data is decoded into bounded, normalized relief fields;
+    it remains manufacturing data and never becomes editable solid geometry.

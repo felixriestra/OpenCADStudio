@@ -3429,6 +3429,10 @@ pub enum Message {
         std::path::PathBuf,
         Result<crate::scene::model::mesh_model::MeshModel, String>,
     ),
+    /// Import SVG paths as editable native lightweight polylines.
+    SvgImport,
+    SvgImportPath(Option<std::path::PathBuf>),
+    SvgImportFinished(u64, std::path::PathBuf, Result<ocs_import::SvgImport, String>),
 }
 
 #[derive(Debug, Clone)]

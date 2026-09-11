@@ -34,6 +34,13 @@ impl CadModule for CamModule {
                     ],
                 },
                 RibbonGroup {
+                    title: "Import",
+                    tools: vec![
+                        RibbonItem::LargeTool(tool("IMPORTSVG", "SVG to CAD", "◇")),
+                        RibbonItem::LargeTool(tool("IMAGEATTACH", "Attach Bitmap", "▧")),
+                    ],
+                },
+                RibbonGroup {
                     title: "2D Toolpaths",
                     tools: vec![
                         RibbonItem::LargeTool(tool("CAMPROFILE", "Outside Profile", "◎")),
