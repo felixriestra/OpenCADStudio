@@ -183,51 +183,55 @@ impl OpenCADStudio {
             }
             "CAMPROFILE" | "CAMINSIDE" | "CAMPOCKET" | "CAMFACE" | "CAMENGRAVE" => {
                 let handles = self.tabs[i].scene.selected_handles_in_order();
-                if handles.is_empty() || (verb != "CAMPOCKET" && handles.len() != 1) {
-                    self.command_line.push_error(if verb == "CAMPOCKET" {
-                        "CAMPOCKET: select an outer boundary, then any island contours."
-                    } else {
-                        "CAM: select exactly one planar CAD curve."
-                    });
+                if handles.is_empty() {
+                    self.command_line.push_error(
+                        "CAM: select a closed planar curve or connected planar line group.",
+                    );
                     return Some(Task::none());
                 }
-                let Some(entity) = self.tabs[i].scene.document.get_entity(handles[0]) else {
-                    self.command_line
-                        .push_error("CAM: the selected entity no longer exists.");
-                    return Some(Task::none());
-                };
-                let contour = match contour_from_entity(entity, verb != "CAMENGRAVE") {
-                    Ok(contour) => contour,
-                    Err(error) => {
-                        self.command_line.push_error(&format!("{verb}: {error}"));
+                let (contour, pocket_region) = if verb == "CAMENGRAVE" {
+                    if handles.len() != 1 {
+                        self.command_line
+                            .push_error("CAMENGRAVE: select exactly one planar path.");
                         return Some(Task::none());
                     }
-                };
-                let pocket_region = if verb == "CAMPOCKET" {
-                    let islands = handles
-                        .iter()
-                        .skip(1)
-                        .map(|handle| {
-                            self.tabs[i]
-                                .scene
-                                .document
-                                .get_entity(*handle)
-                                .ok_or("a selected pocket island no longer exists")
-                                .and_then(|entity| contour_from_entity(entity, true))
-                        })
-                        .collect::<Result<Vec<_>, _>>();
-                    match islands {
-                        Ok(islands) => Some(ocs_cam_core::MachiningRegion {
-                            outer: contour.clone(),
-                            islands,
-                        }),
+                    let Some(entity) = self.tabs[i].scene.document.get_entity(handles[0]) else {
+                        self.command_line
+                            .push_error("CAM: the selected entity no longer exists.");
+                        return Some(Task::none());
+                    };
+                    match contour_from_entity(entity, false) {
+                        Ok(contour) => (contour, None),
                         Err(error) => {
-                            self.command_line.push_error(&format!("CAMPOCKET: {error}"));
+                            self.command_line.push_error(&format!("{verb}: {error}"));
                             return Some(Task::none());
                         }
                     }
                 } else {
-                    None
+                    let contours = match closed_contours_from_selection(
+                        &self.tabs[i].scene.document,
+                        &handles,
+                    ) {
+                        Ok(contours) => contours,
+                        Err(error) => {
+                            self.command_line.push_error(&format!("{verb}: {error}"));
+                            return Some(Task::none());
+                        }
+                    };
+                    if verb != "CAMPOCKET" && contours.len() != 1 {
+                        self.command_line.push_error(&format!(
+                            "{verb}: selection contains {} separate closed contours; select one.",
+                            contours.len()
+                        ));
+                        return Some(Task::none());
+                    }
+                    let mut contours = contours.into_iter();
+                    let outer = contours.next().expect("closed contour selection is non-empty");
+                    let region = (verb == "CAMPOCKET").then(|| ocs_cam_core::MachiningRegion {
+                        outer: outer.clone(),
+                        islands: contours.collect(),
+                    });
+                    (outer, region)
                 };
                 let mut parameters =
                     defaults_for_drawing_units(self.tabs[i].scene.document.header.insertion_units);
@@ -496,20 +500,33 @@ fn manufacturing_geometry(
             .map(|id| ocs_cam_core::GeometrySource { id })
             .collect(),
     );
-    if kind == ocs_cam_core::OperationKind::Pocket {
-        let mut contours = Vec::new();
-        for source_id in source_ids {
-            let value = u64::from_str_radix(source_id.trim_start_matches("0x"), 16)
-                .map_err(|_| format!("invalid CAM source handle '{source_id}'"))?;
-            let entity = document
-                .get_entity(Handle::new(value))
-                .ok_or_else(|| format!("CAM source entity {source_id} no longer exists"))?;
-            contours.push(contour_from_entity(entity, true).map_err(str::to_string)?);
+    if matches!(
+        kind,
+        ocs_cam_core::OperationKind::OutsideProfile
+            | ocs_cam_core::OperationKind::InsideProfile
+            | ocs_cam_core::OperationKind::Pocket
+            | ocs_cam_core::OperationKind::Facing
+    ) {
+        let handles = source_ids
+            .iter()
+            .map(|source_id| {
+                u64::from_str_radix(source_id.trim_start_matches("0x"), 16)
+                    .map(Handle::new)
+                    .map_err(|_| format!("invalid CAM source handle '{source_id}'"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let contours = closed_contours_from_selection(document, &handles)?;
+        if kind != ocs_cam_core::OperationKind::Pocket && contours.len() != 1 {
+            return Err("CAM operation requires one closed contour".to_string());
         }
         let mut contours = contours.into_iter();
         geometry.regions.push(ocs_cam_core::MachiningRegion {
-            outer: contours.next().ok_or("pocket has no outer boundary")?,
-            islands: contours.collect(),
+            outer: contours.next().ok_or("CAM selection has no closed boundary")?,
+            islands: if kind == ocs_cam_core::OperationKind::Pocket {
+                contours.collect()
+            } else {
+                Vec::new()
+            },
         });
         geometry.validate().map_err(|error| error.to_string())?;
         return Ok(geometry);
@@ -550,6 +567,85 @@ fn first_stale_operation(document: &CadDocument, job: &ocs_cam_core::CamJob) -> 
             .and_then(|geometry| geometry.fingerprint().map_err(|error| error.to_string()));
         (current.as_ref() != Ok(expected)).then(|| operation.name.clone())
     })
+}
+
+fn closed_contours_from_selection(
+    document: &CadDocument,
+    handles: &[Handle],
+) -> Result<Vec<Contour>, String> {
+    let mut contours = Vec::<(usize, Contour)>::new();
+    let mut lines = Vec::<(usize, ocs_cam_core::Point2, ocs_cam_core::Point2)>::new();
+    for (order, handle) in handles.iter().enumerate() {
+        let entity = document
+            .get_entity(*handle)
+            .ok_or_else(|| format!("CAM source entity {handle} no longer exists"))?;
+        if let EntityType::Line(line) = entity {
+            if line.start.z.abs() > 1.0e-6 || line.end.z.abs() > 1.0e-6 {
+                return Err("connected CAM lines must lie in the world XY plane".to_string());
+            }
+            lines.push((
+                order,
+                ocs_cam_core::Point2::new(line.start.x, line.start.y),
+                ocs_cam_core::Point2::new(line.end.x, line.end.y),
+            ));
+        } else {
+            contours.push((
+                order,
+                contour_from_entity(entity, true).map_err(str::to_string)?,
+            ));
+        }
+    }
+
+    while !lines.is_empty() {
+        let (first_order, start, mut current) = lines.remove(0);
+        let mut order = first_order;
+        let mut vertices = vec![ContourVertex::line(start.x, start.y)];
+        while !cam_points_match(current, start) {
+            vertices.push(ContourVertex::line(current.x, current.y));
+            let Some(index) = lines.iter().position(|(_, a, b)| {
+                cam_points_match(*a, current) || cam_points_match(*b, current)
+            }) else {
+                return Err(
+                    "selected lines do not form a closed, endpoint-connected contour".to_string(),
+                );
+            };
+            let (segment_order, a, b) = lines.remove(index);
+            order = order.min(segment_order);
+            current = if cam_points_match(a, current) { b } else { a };
+            if vertices.len() > handles.len() + 1 {
+                return Err("selected lines contain an ambiguous branch".to_string());
+            }
+        }
+        if vertices.len() < 3 {
+            return Err("a CAM boundary needs at least three connected line segments".to_string());
+        }
+        let contour = Contour {
+            closed: true,
+            vertices,
+        };
+        contour
+            .validate_closed()
+            .map_err(|error| error.to_string())?;
+        contours.push((order, contour));
+    }
+
+    contours.sort_by_key(|(order, _)| *order);
+    if contours.is_empty() {
+        return Err("CAM selection has no closed planar contour".to_string());
+    }
+    Ok(contours.into_iter().map(|(_, contour)| contour).collect())
+}
+
+fn cam_points_match(a: ocs_cam_core::Point2, b: ocs_cam_core::Point2) -> bool {
+    let scale = a
+        .x
+        .abs()
+        .max(a.y.abs())
+        .max(b.x.abs())
+        .max(b.y.abs())
+        .max(1.0);
+    let tolerance = scale * 1.0e-8;
+    (a.x - b.x).hypot(a.y - b.y) <= tolerance
 }
 
 fn contour_from_entity(entity: &EntityType, require_closed: bool) -> Result<Contour, &'static str> {
@@ -930,6 +1026,48 @@ mod tests {
         ));
         assert!(contour_from_entity(&line, false).is_ok());
         assert!(contour_from_entity(&line, true).is_err());
+    }
+
+    #[test]
+    fn connected_line_group_becomes_one_closed_cam_contour() {
+        let mut document = CadDocument::default();
+        let lines = [
+            acadrust::entities::Line::from_coords(10.0, 0.0, 0.0, 5.0, 8.0, 0.0),
+            acadrust::entities::Line::from_coords(0.0, 0.0, 0.0, 10.0, 0.0, 0.0),
+            acadrust::entities::Line::from_coords(5.0, 8.0, 0.0, 0.0, 0.0, 0.0),
+        ];
+        let handles = lines
+            .into_iter()
+            .map(|line| document.add_entity(EntityType::Line(line)).unwrap())
+            .collect::<Vec<_>>();
+        let contours = closed_contours_from_selection(&document, &handles).unwrap();
+        assert_eq!(contours.len(), 1);
+        assert_eq!(contours[0].vertices.len(), 3);
+        assert!(contours[0].validate_closed().is_ok());
+
+        let source_ids = handles.iter().map(|handle| format!("{handle}")).collect::<Vec<_>>();
+        let geometry = manufacturing_geometry(
+            &document,
+            ocs_cam_core::OperationKind::InsideProfile,
+            &source_ids,
+        )
+        .unwrap();
+        assert_eq!(geometry.regions.len(), 1);
+        assert_eq!(geometry.regions[0].outer.vertices.len(), 3);
+    }
+
+    #[test]
+    fn open_line_group_reports_a_specific_cam_error() {
+        let mut document = CadDocument::default();
+        let handles = [
+            acadrust::entities::Line::from_coords(0.0, 0.0, 0.0, 10.0, 0.0, 0.0),
+            acadrust::entities::Line::from_coords(10.0, 0.0, 0.0, 5.0, 8.0, 0.0),
+        ]
+        .into_iter()
+        .map(|line| document.add_entity(EntityType::Line(line)).unwrap())
+        .collect::<Vec<_>>();
+        let error = closed_contours_from_selection(&document, &handles).unwrap_err();
+        assert!(error.contains("closed"), "{error}");
     }
 
     #[test]
