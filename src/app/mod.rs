@@ -672,6 +672,8 @@ pub(super) struct OpenCADStudio {
     /// Docked Insert Block panel visibility.
     pub(crate) show_block_palette: bool,
     pub(crate) show_cam_panel: bool,
+    pub(crate) show_cam_setup_panel: bool,
+    pub(crate) cam_editor: crate::ui::window::cam_panel::CamEditorState,
     pub(crate) cam_selected_operation: Option<usize>,
     pub(crate) cam_preview_segments: Vec<ocs_cam_core::PreviewSegment>,
     pub(crate) cam_preview_step: Option<usize>,
@@ -3587,6 +3589,8 @@ impl OpenCADStudio {
             show_properties: true,
             show_block_palette: false,
             show_cam_panel: true,
+            show_cam_setup_panel: true,
+            cam_editor: Default::default(),
             cam_selected_operation: None,
             cam_preview_segments: Vec::new(),
             cam_preview_step: None,

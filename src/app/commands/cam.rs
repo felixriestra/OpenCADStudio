@@ -23,8 +23,13 @@ impl OpenCADStudio {
 
     pub(super) fn dispatch_cam(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         let verb = cmd.split_whitespace().next().unwrap_or_default();
-        self.show_cam_panel = true;
-        self.dock_expanded = Some(crate::ui::dock::PanelId::Cam);
+        if verb == "CAMSETUP" {
+            self.show_cam_setup_panel = true;
+            self.dock_expanded = Some(crate::ui::dock::PanelId::CamSetup);
+        } else {
+            self.show_cam_panel = true;
+            self.dock_expanded = Some(crate::ui::dock::PanelId::Cam);
+        }
         match verb {
             "CAMINFO" => {
                 let count = self.tabs[i].cam_job.operations.len();
@@ -245,6 +250,10 @@ impl OpenCADStudio {
                 let step_over = overrides
                     .step_over
                     .unwrap_or(parameters.tool_diameter * 0.5);
+                let mut advanced = ocs_cam_core::AdvancedParameters::default();
+                if matches!(verb, "CAMPOCKET" | "CAMFACE") {
+                    advanced.step_over = step_over;
+                }
                 let generated = match verb {
                     "CAMINSIDE" => ocs_cam_core::inside_profile(&contour, parameters),
                     "CAMPOCKET" => ocs_cam_core::pocket_region(
@@ -262,7 +271,7 @@ impl OpenCADStudio {
                 match generated {
                     Ok(program) => {
                         if let Err(error) =
-                            self.record_cam_operation(i, verb, &handles, parameters, program)
+                            self.record_cam_operation(i, verb, &handles, parameters, advanced, program)
                         {
                             self.command_line.push_error(&format!("{verb}: {error}"));
                         }
@@ -329,10 +338,15 @@ impl OpenCADStudio {
                         return Some(Task::none());
                     }
                 };
+                let mut advanced = ocs_cam_core::AdvancedParameters::default();
+                if verb == "CAMSLOT" {
+                    advanced.slot_width = overrides.width.unwrap_or(parameters.tool_diameter);
+                    advanced.step_over = overrides.step_over.unwrap_or(parameters.tool_diameter * 0.6);
+                }
                 match generated {
                     Ok(program) => {
                         if let Err(error) =
-                            self.record_cam_operation(i, verb, &handles, parameters, program)
+                            self.record_cam_operation(i, verb, &handles, parameters, advanced, program)
                         {
                             self.command_line.push_error(&format!("{verb}: {error}"));
                         }
@@ -368,7 +382,7 @@ impl OpenCADStudio {
                 match ocs_cam_core::drill(&points, parameters) {
                     Ok(program) => {
                         if let Err(error) =
-                            self.record_cam_operation(i, verb, &handles, parameters, program)
+                            self.record_cam_operation(i, verb, &handles, parameters, ocs_cam_core::AdvancedParameters::default(), program)
                         {
                             self.command_line.push_error(&format!("CAMDRILL: {error}"));
                         }
@@ -424,6 +438,7 @@ impl OpenCADStudio {
         verb: &str,
         handles: &[acadrust::Handle],
         parameters: ProfileParameters,
+        advanced: ocs_cam_core::AdvancedParameters,
         program: ocs_cam_core::Program,
     ) -> Result<(), String> {
         let kind = match verb {
@@ -463,7 +478,7 @@ impl OpenCADStudio {
                 parameters,
             ),
             parameters,
-            advanced: ocs_cam_core::AdvancedParameters::default(),
+            advanced,
             program,
         };
         self.tabs[i]
@@ -890,13 +905,13 @@ pub(crate) fn regenerate_cam_operation(
                 .first()
                 .ok_or_else(|| "operation has no closed region".to_string())?,
             parameters,
-            parameters.tool_diameter * 0.5,
+            if operation.advanced.step_over > 0.0 { operation.advanced.step_over } else { parameters.tool_diameter * 0.5 },
             operation.advanced.preserve_pocket_islands,
         ),
         ocs_cam_core::OperationKind::Facing => ocs_cam_core::facing(
             contour_bounds(first_region()?),
             parameters,
-            parameters.tool_diameter * 0.5,
+            if operation.advanced.step_over > 0.0 { operation.advanced.step_over } else { parameters.tool_diameter * 0.5 },
         ),
         ocs_cam_core::OperationKind::Engrave => {
             ocs_cam_core::engrave(first_path()?, parameters)
@@ -925,9 +940,9 @@ pub(crate) fn regenerate_cam_operation(
             ocs_cam_core::slot(
                 start,
                 end,
-                parameters.tool_diameter,
+                if operation.advanced.slot_width > 0.0 { operation.advanced.slot_width } else { parameters.tool_diameter },
                 parameters,
-                parameters.tool_diameter * 0.6,
+                if operation.advanced.step_over > 0.0 { operation.advanced.step_over } else { parameters.tool_diameter * 0.6 },
             )
         }
     }

@@ -1488,12 +1488,83 @@ impl OpenCADStudio {
 
             Message::CamPanel(action) => {
                 use crate::ui::window::cam_panel::{
-                    AdvancedField, CamPanelMsg as A, SetupField, ToolField,
+                    AdvancedField, CamPanelMsg as A, NumericField, OperationField, SetupField,
+                    SetupTemplate, ToolField,
                 };
                 let i = self.active_tab;
                 let count = self.tabs[i].cam_job.operations.len();
                 match action {
-                    A::Select(index) if index < count => self.cam_selected_operation = Some(index),
+                    A::Select(index) if index < count => {
+                        self.cam_selected_operation = Some(index);
+                        self.cam_editor.clear_operation();
+                    }
+                    A::EditNumber(field, input) => {
+                        self.cam_editor.edit(field, input.clone());
+                        if let Ok(value) = input.parse::<f64>() {
+                            match field {
+                                NumericField::Setup(field) => {
+                                    if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
+                                        match field {
+                                            SetupField::StockWidth => setup.stock.width = value.max(0.001),
+                                            SetupField::StockHeight => setup.stock.height = value.max(0.001),
+                                            SetupField::StockThickness => setup.stock.thickness = value.max(0.001),
+                                            SetupField::Clearance => setup.clearance_z = value.max(0.001),
+                                            SetupField::OriginX => setup.work_origin.x = value,
+                                            SetupField::OriginY => setup.work_origin.y = value,
+                                            SetupField::TravelX => setup.machine.travel_x = value.max(0.001),
+                                            SetupField::TravelY => setup.machine.travel_y = value.max(0.001),
+                                            SetupField::TravelZ => setup.machine.travel_z = value.max(0.001),
+                                            SetupField::MaximumFeed => setup.machine.maximum_feed = value.max(0.001),
+                                            SetupField::MaximumRpm => setup.machine.maximum_spindle_rpm = value.max(1.0) as u32,
+                                        }
+                                        self.tabs[i].dirty = true;
+                                    }
+                                }
+                                NumericField::Tool(_) | NumericField::Operation(_) | NumericField::Advanced(_) => {
+                                    if let Some(operation) = self.cam_selected_operation.and_then(|index| self.tabs[i].cam_job.operations.get_mut(index)) {
+                                        match field {
+                                            NumericField::Tool(ToolField::Diameter) => operation.parameters.tool_diameter = value.max(0.001),
+                                            NumericField::Tool(ToolField::Feed) => operation.parameters.feed = value.max(0.001),
+                                            NumericField::Tool(ToolField::Plunge) => operation.parameters.plunge_feed = value.max(0.001),
+                                            NumericField::Tool(ToolField::Rpm) => operation.parameters.spindle_rpm = value.max(1.0) as u32,
+                                            NumericField::Operation(OperationField::Depth) => operation.parameters.depth = value.max(0.001),
+                                            NumericField::Operation(OperationField::StepDown) => operation.parameters.step_down = value.max(0.001),
+                                            NumericField::Operation(OperationField::StepOver) => operation.advanced.step_over = value.max(0.001),
+                                            NumericField::Operation(OperationField::SlotWidth) => operation.advanced.slot_width = value.max(0.001),
+                                            NumericField::Advanced(AdvancedField::Tabs) => operation.advanced.tab_count = value.max(0.0) as u32,
+                                            NumericField::Advanced(AdvancedField::TabHeight) => operation.advanced.tab_height = value.max(0.0),
+                                            NumericField::Advanced(AdvancedField::LeadIn) => operation.advanced.lead_in = value.max(0.0),
+                                            NumericField::Advanced(AdvancedField::LeadOut) => operation.advanced.lead_out = value.max(0.0),
+                                            NumericField::Advanced(AdvancedField::RampLength) => operation.advanced.ramp_length = value.max(0.0),
+                                            NumericField::Advanced(AdvancedField::FinishAllowance) => operation.advanced.finish_allowance = value.max(0.0),
+                                            NumericField::Setup(_) => unreachable!(),
+                                        }
+                                        match crate::app::commands::regenerate_cam_operation(operation) {
+                                            Ok(()) => self.tabs[i].dirty = true,
+                                            Err(error) => self.command_line.push_error(&format!("CAM regeneration failed: {error}")),
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    A::ApplySetupTemplate(template) => {
+                        let scale = if self.tabs[i].cam_job.units == ocs_cam_core::Units::Inches { 1.0 / 25.4 } else { 1.0 };
+                        if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
+                            let (width, height, thickness, travel_x, travel_y) = match template {
+                                SetupTemplate::Small => (100.0, 75.0, 20.0, 300.0, 180.0),
+                                SetupTemplate::Medium => (300.0, 200.0, 25.0, 600.0, 400.0),
+                                SetupTemplate::DesktopRouter => (300.0, 180.0, 18.0, 300.0, 180.0),
+                            };
+                            setup.stock.width = width * scale;
+                            setup.stock.height = height * scale;
+                            setup.stock.thickness = thickness * scale;
+                            setup.machine.travel_x = travel_x * scale;
+                            setup.machine.travel_y = travel_y * scale;
+                            self.tabs[i].dirty = true;
+                            self.cam_editor = Default::default();
+                        }
+                    }
                     A::Toggle(index) if index < count => {
                         let operation = &mut self.tabs[i].cam_job.operations[index];
                         operation.enabled = !operation.enabled;
@@ -1561,8 +1632,30 @@ impl OpenCADStudio {
                             }
                         }
                     }
+                    A::SimulateSelected => {
+                        let operation = self.cam_selected_operation
+                            .and_then(|index| self.tabs[i].cam_job.operations.get(index))
+                            .cloned();
+                        let stock = self.tabs[i].cam_job.setups.first().map(|setup| setup.stock.clone());
+                        match (operation, stock) {
+                            (Some(operation), Some(stock)) => {
+                                let cell_size = (operation.tool.diameter * 0.25)
+                                    .max(stock.width.max(stock.height) / 500.0)
+                                    .max(0.05);
+                                match ocs_cam_core::simulate_stock(&operation.program, &stock, operation.tool.diameter, cell_size) {
+                                    Ok(field) => {
+                                        self.tabs[i].scene.set_cam_stock_preview(Some(&field), Some(&stock));
+                                        self.command_line.push_output("CAM 3D preview: simulated remaining stock. Orbit the Model viewport to inspect it.");
+                                    }
+                                    Err(error) => self.command_line.push_error(&format!("CAM simulation failed: {error}")),
+                                }
+                            }
+                            _ => self.command_line.push_error("CAM 3D preview: select an operation and define a job setup."),
+                        }
+                    }
                     A::ClearPreview => {
                         self.tabs[i].scene.set_preview_wires(Vec::new());
+                        self.tabs[i].scene.set_cam_stock_preview(None, None);
                         self.cam_preview_segments.clear();
                         self.cam_preview_step = None;
                     }

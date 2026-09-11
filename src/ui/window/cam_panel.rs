@@ -1,9 +1,10 @@
 use crate::app::Message;
 use crate::ui::dock::{DockMsg, PanelId};
-use iced::widget::{button, column, container, row, scrollable, text};
+use iced::widget::{button, column, container, row, scrollable, text, text_input};
 use iced::{Element, Fill, Length};
+use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SetupField {
     StockWidth,
     StockHeight,
@@ -17,16 +18,21 @@ pub enum SetupField {
     MaximumFeed,
     MaximumRpm,
 }
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ToolField {
     Diameter,
     Feed,
     Plunge,
     Rpm,
 }
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum OperationField {
+    Depth,
+    StepDown,
+    StepOver,
+    SlotWidth,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AdvancedField {
     Tabs,
     TabHeight,
@@ -34,6 +40,39 @@ pub enum AdvancedField {
     LeadOut,
     RampLength,
     FinishAllowance,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NumericField {
+    Setup(SetupField),
+    Tool(ToolField),
+    Operation(OperationField),
+    Advanced(AdvancedField),
+}
+#[derive(Debug, Clone, Copy)]
+pub enum SetupTemplate {
+    Small,
+    Medium,
+    DesktopRouter,
+}
+
+#[derive(Debug, Default)]
+pub struct CamEditorState {
+    drafts: BTreeMap<NumericField, String>,
+}
+impl CamEditorState {
+    pub fn edit(&mut self, field: NumericField, value: String) {
+        self.drafts.insert(field, value);
+    }
+    pub fn clear_operation(&mut self) {
+        self.drafts
+            .retain(|field, _| matches!(field, NumericField::Setup(_)));
+    }
+    fn value(&self, field: NumericField, value: f64) -> String {
+        self.drafts
+            .get(&field)
+            .cloned()
+            .unwrap_or_else(|| format_number(value))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -47,14 +86,20 @@ pub enum CamPanelMsg {
     Regenerate(usize),
     PreviewAll,
     PreviewSelected,
+    SimulateSelected,
     ClearPreview,
     PreviewFirst,
     PreviewPrevious,
     PreviewNext,
     PreviewLast,
-    AdjustSetup(SetupField, f64),
-    AdjustTool(ToolField, f64),
+    EditNumber(NumericField, String),
+    ApplySetupTemplate(SetupTemplate),
     ApplyLibraryTool(usize),
+    #[doc(hidden)]
+    AdjustSetup(SetupField, f64),
+    #[doc(hidden)]
+    AdjustTool(ToolField, f64),
+    #[doc(hidden)]
     AdjustAdvanced(AdvancedField, f64),
     ToggleFinishPass,
     TogglePocketIslands,
@@ -62,22 +107,15 @@ pub enum CamPanelMsg {
     CycleMaterial,
 }
 
-pub fn view<'a>(
+pub fn operations_view<'a>(
     job: &'a ocs_cam_core::CamJob,
     selected: Option<usize>,
+    editor: &'a CamEditorState,
     preview_len: usize,
     preview_step: Option<usize>,
     width: f32,
     auto_collapse: bool,
 ) -> Element<'a, Message> {
-    let header = row![
-        text("CAM Job").size(16).width(Fill),
-        button(if auto_collapse { "Unpin" } else { "Pin" })
-            .on_press(Message::Dock(DockMsg::AutoCollapseToggle(PanelId::Cam))),
-        button("×").on_press(Message::Dock(DockMsg::Close(PanelId::Cam))),
-    ]
-    .spacing(6);
-
     let mut operations = column![text("Operations").size(14)].spacing(5);
     if job.operations.is_empty() {
         operations = operations.push(text(
@@ -92,101 +130,178 @@ pub fn view<'a>(
             index + 1,
             operation.name
         );
-        let card = column![
-            button(text(if active { format!("> {title}") } else { title }))
-                .width(Fill)
-                .on_press(Message::CamPanel(CamPanelMsg::Select(index))),
-            row![
-                button("↑").on_press(Message::CamPanel(CamPanelMsg::MoveUp(index))),
-                button("↓").on_press(Message::CamPanel(CamPanelMsg::MoveDown(index))),
-                button(if operation.enabled {
-                    "Disable"
-                } else {
-                    "Enable"
-                })
-                .on_press(Message::CamPanel(CamPanelMsg::Toggle(index))),
-                button("Copy").on_press(Message::CamPanel(CamPanelMsg::Duplicate(index))),
-                button("Regen").on_press(Message::CamPanel(CamPanelMsg::Regenerate(index))),
-                button("Delete").on_press(Message::CamPanel(CamPanelMsg::Delete(index))),
-            ]
-            .spacing(3),
-        ]
-        .spacing(3);
-        operations = operations.push(container(card).padding(5).width(Fill));
+        operations = operations.push(
+            container(
+                column![
+                    button(text(if active { format!("> {title}") } else { title }))
+                        .width(Fill)
+                        .on_press(Message::CamPanel(CamPanelMsg::Select(index))),
+                    row![
+                        button("↑").on_press(Message::CamPanel(CamPanelMsg::MoveUp(index))),
+                        button("↓").on_press(Message::CamPanel(CamPanelMsg::MoveDown(index))),
+                        button(if operation.enabled {
+                            "Disable"
+                        } else {
+                            "Enable"
+                        })
+                        .on_press(Message::CamPanel(CamPanelMsg::Toggle(index))),
+                        button("Copy").on_press(Message::CamPanel(CamPanelMsg::Duplicate(index))),
+                        button("Regen").on_press(Message::CamPanel(CamPanelMsg::Regenerate(index))),
+                        button("Delete").on_press(Message::CamPanel(CamPanelMsg::Delete(index))),
+                    ]
+                    .spacing(3),
+                ]
+                .spacing(3),
+            )
+            .padding(5)
+            .width(Fill),
+        );
     }
 
-    let setup_section: Element<'_, Message> = if let Some(setup) = job.setups.first() {
-        column![
-            text("Setup & Stock").size(14),
-            adjust_row("Width", setup.stock.width, SetupField::StockWidth, 5.0),
-            adjust_row("Height", setup.stock.height, SetupField::StockHeight, 5.0),
-            adjust_row(
-                "Thickness",
-                setup.stock.thickness,
-                SetupField::StockThickness,
-                1.0
-            ),
-            adjust_row("Clearance Z", setup.clearance_z, SetupField::Clearance, 1.0),
-            adjust_row("Origin X", setup.work_origin.x, SetupField::OriginX, 1.0),
-            adjust_row("Origin Y", setup.work_origin.y, SetupField::OriginY, 1.0),
-            button(text(format!("Material: {}", setup.material.name)))
-                .on_press(Message::CamPanel(CamPanelMsg::CycleMaterial)),
-            text("Machine Limits").size(14),
-            adjust_row(
-                "Travel X",
-                setup.machine.travel_x,
-                SetupField::TravelX,
-                10.0
-            ),
-            adjust_row(
-                "Travel Y",
-                setup.machine.travel_y,
-                SetupField::TravelY,
-                10.0
-            ),
-            adjust_row("Travel Z", setup.machine.travel_z, SetupField::TravelZ, 5.0),
-            adjust_row(
-                "Max feed",
-                setup.machine.maximum_feed,
-                SetupField::MaximumFeed,
-                100.0
-            ),
-            adjust_row(
-                "Max RPM",
-                setup.machine.maximum_spindle_rpm as f64,
-                SetupField::MaximumRpm,
-                1000.0
-            ),
-        ]
-        .spacing(4)
-        .into()
-    } else {
-        text("No setup").into()
-    };
+    let parameters: Element<'_, Message> = selected
+        .and_then(|index| job.operations.get(index))
+        .map(|operation| {
+            let advanced = operation.advanced;
+            let mut fields = column![
+                text(format!("{:?} parameters", operation.kind)).size(14),
+                number_row(
+                    "Depth",
+                    NumericField::Operation(OperationField::Depth),
+                    operation.parameters.depth,
+                    editor
+                ),
+                number_row(
+                    "Step-down",
+                    NumericField::Operation(OperationField::StepDown),
+                    operation.parameters.step_down,
+                    editor
+                ),
+            ]
+            .spacing(4);
+            if matches!(
+                operation.kind,
+                ocs_cam_core::OperationKind::Pocket
+                    | ocs_cam_core::OperationKind::Facing
+                    | ocs_cam_core::OperationKind::Slot
+            ) {
+                fields = fields.push(number_row(
+                    "Stepover",
+                    NumericField::Operation(OperationField::StepOver),
+                    advanced.step_over,
+                    editor,
+                ));
+            }
+            if operation.kind == ocs_cam_core::OperationKind::Slot {
+                fields = fields.push(number_row(
+                    "Slot width",
+                    NumericField::Operation(OperationField::SlotWidth),
+                    advanced.slot_width,
+                    editor,
+                ));
+            }
+            if matches!(
+                operation.kind,
+                ocs_cam_core::OperationKind::OutsideProfile
+                    | ocs_cam_core::OperationKind::InsideProfile
+            ) {
+                fields = fields
+                    .push(number_row(
+                        "Tabs",
+                        NumericField::Advanced(AdvancedField::Tabs),
+                        advanced.tab_count as f64,
+                        editor,
+                    ))
+                    .push(number_row(
+                        "Tab height",
+                        NumericField::Advanced(AdvancedField::TabHeight),
+                        advanced.tab_height,
+                        editor,
+                    ));
+            }
+            fields = fields
+                .push(number_row(
+                    "Lead in",
+                    NumericField::Advanced(AdvancedField::LeadIn),
+                    advanced.lead_in,
+                    editor,
+                ))
+                .push(number_row(
+                    "Lead out",
+                    NumericField::Advanced(AdvancedField::LeadOut),
+                    advanced.lead_out,
+                    editor,
+                ))
+                .push(number_row(
+                    "Ramp length",
+                    NumericField::Advanced(AdvancedField::RampLength),
+                    advanced.ramp_length,
+                    editor,
+                ))
+                .push(number_row(
+                    "Finish allowance",
+                    NumericField::Advanced(AdvancedField::FinishAllowance),
+                    advanced.finish_allowance,
+                    editor,
+                ))
+                .push(
+                    button(if advanced.finish_pass {
+                        "Finish pass: On"
+                    } else {
+                        "Finish pass: Off"
+                    })
+                    .on_press(Message::CamPanel(CamPanelMsg::ToggleFinishPass)),
+                );
+            if operation.kind == ocs_cam_core::OperationKind::Pocket {
+                fields = fields.push(
+                    button(if advanced.preserve_pocket_islands {
+                        "Pocket islands: Preserve"
+                    } else {
+                        "Pocket islands: Ignore"
+                    })
+                    .on_press(Message::CamPanel(CamPanelMsg::TogglePocketIslands)),
+                );
+            }
+            if operation.kind == ocs_cam_core::OperationKind::Drill {
+                fields = fields.push(
+                    button(match advanced.drill_cycle {
+                        ocs_cam_core::DrillCycle::Simple => "Drill cycle: Simple",
+                        ocs_cam_core::DrillCycle::Peck => "Drill cycle: Peck",
+                    })
+                    .on_press(Message::CamPanel(CamPanelMsg::ToggleDrillCycle)),
+                );
+            }
+            fields.into()
+        })
+        .unwrap_or_else(|| text("Select an operation to edit its machining parameters.").into());
 
-    let tool_section: Element<'_, Message> = selected
+    let tool: Element<'_, Message> = selected
         .and_then(|index| job.operations.get(index))
         .map(|operation| {
             column![
-                text("Selected Tool").size(14),
-                tool_row(
+                text("Tool for this operation").size(14),
+                number_row(
                     "Diameter",
+                    NumericField::Tool(ToolField::Diameter),
                     operation.tool.diameter,
-                    ToolField::Diameter,
-                    0.5
+                    editor
                 ),
-                tool_row("Feed", operation.tool.feed, ToolField::Feed, 50.0),
-                tool_row(
+                number_row(
+                    "Feed",
+                    NumericField::Tool(ToolField::Feed),
+                    operation.tool.feed,
+                    editor
+                ),
+                number_row(
                     "Plunge",
+                    NumericField::Tool(ToolField::Plunge),
                     operation.tool.plunge_feed,
-                    ToolField::Plunge,
-                    25.0
+                    editor
                 ),
-                tool_row(
+                number_row(
                     "RPM",
+                    NumericField::Tool(ToolField::Rpm),
                     operation.tool.spindle_rpm as f64,
-                    ToolField::Rpm,
-                    500.0
+                    editor
                 ),
             ]
             .spacing(4)
@@ -194,60 +309,7 @@ pub fn view<'a>(
         })
         .unwrap_or_else(|| text("Select an operation to edit its tool.").into());
 
-    let advanced_section: Element<'_, Message> = selected
-        .and_then(|index| job.operations.get(index))
-        .map(|operation| {
-            let advanced = operation.advanced;
-            column![
-                text("Advanced Toolpath").size(14),
-                advanced_row("Tabs", advanced.tab_count as f64, AdvancedField::Tabs, 1.0),
-                advanced_row(
-                    "Tab height",
-                    advanced.tab_height,
-                    AdvancedField::TabHeight,
-                    0.5
-                ),
-                advanced_row("Lead in", advanced.lead_in, AdvancedField::LeadIn, 0.5),
-                advanced_row("Lead out", advanced.lead_out, AdvancedField::LeadOut, 0.5),
-                advanced_row(
-                    "Ramp length",
-                    advanced.ramp_length,
-                    AdvancedField::RampLength,
-                    1.0
-                ),
-                advanced_row(
-                    "Finish allowance",
-                    advanced.finish_allowance,
-                    AdvancedField::FinishAllowance,
-                    0.1,
-                ),
-                button(if advanced.finish_pass {
-                    "Finish pass: On"
-                } else {
-                    "Finish pass: Off"
-                })
-                .on_press(Message::CamPanel(CamPanelMsg::ToggleFinishPass)),
-                button(if advanced.preserve_pocket_islands {
-                    "Pocket islands: Preserve"
-                } else {
-                    "Pocket islands: Ignore"
-                })
-                .on_press(Message::CamPanel(CamPanelMsg::TogglePocketIslands)),
-                button(match advanced.drill_cycle {
-                    ocs_cam_core::DrillCycle::Simple => "Drill cycle: Simple",
-                    ocs_cam_core::DrillCycle::Peck => "Drill cycle: Peck",
-                })
-                .on_press(Message::CamPanel(CamPanelMsg::ToggleDrillCycle)),
-            ]
-            .spacing(4)
-            .into()
-        })
-        .unwrap_or_else(|| text("Select an operation to edit its toolpath.").into());
-
     let mut library = column![text("Tool Library").size(14)].spacing(4);
-    if job.tool_library.is_empty() {
-        library = library.push(text("Tools used by operations will appear here."));
-    }
     for (index, tool) in job.tool_library.iter().enumerate() {
         library = library.push(
             row![
@@ -256,36 +318,35 @@ pub fn view<'a>(
                     tool.name, tool.diameter, tool.spindle_rpm
                 ))
                 .width(Fill),
-                button("Use").on_press(Message::CamPanel(CamPanelMsg::ApplyLibraryTool(index))),
+                button("Use").on_press(Message::CamPanel(CamPanelMsg::ApplyLibraryTool(index)))
             ]
             .spacing(4),
         );
     }
-
     let body = column![
-        header,
+        panel_header("CAM Operations", PanelId::Cam, auto_collapse),
         row![
             button("Preview All").on_press(Message::CamPanel(CamPanelMsg::PreviewAll)),
-            button("Selected").on_press(Message::CamPanel(CamPanelMsg::PreviewSelected)),
+            button("2D Selected").on_press(Message::CamPanel(CamPanelMsg::PreviewSelected)),
+            button("3D Stock").on_press(Message::CamPanel(CamPanelMsg::SimulateSelected)),
             button("Clear").on_press(Message::CamPanel(CamPanelMsg::ClearPreview)),
         ]
         .spacing(4),
         row![
             button("|◀").on_press(Message::CamPanel(CamPanelMsg::PreviewFirst)),
             button("◀").on_press(Message::CamPanel(CamPanelMsg::PreviewPrevious)),
-            text(match preview_step {
-                Some(step) => format!("{step}/{preview_len}"),
-                None => format!("All {preview_len}"),
-            })
+            text(preview_step.map_or_else(
+                || format!("All {preview_len}"),
+                |step| format!("{step}/{preview_len}")
+            ))
             .width(Fill),
             button("▶").on_press(Message::CamPanel(CamPanelMsg::PreviewNext)),
             button("▶|").on_press(Message::CamPanel(CamPanelMsg::PreviewLast)),
         ]
         .spacing(4),
         operations,
-        setup_section,
-        tool_section,
-        advanced_section,
+        parameters,
+        tool,
         library,
     ]
     .spacing(10)
@@ -296,47 +357,149 @@ pub fn view<'a>(
         .into()
 }
 
-fn adjust_row(
+pub fn setup_view<'a>(
+    job: &'a ocs_cam_core::CamJob,
+    editor: &'a CamEditorState,
+    width: f32,
+    auto_collapse: bool,
+) -> Element<'a, Message> {
+    let templates = column![
+        text("Stock templates").size(14),
+        row![
+            button("100 × 75 × 20").on_press(Message::CamPanel(CamPanelMsg::ApplySetupTemplate(
+                SetupTemplate::Small
+            ))),
+            button("300 × 200 × 25").on_press(Message::CamPanel(CamPanelMsg::ApplySetupTemplate(
+                SetupTemplate::Medium
+            ))),
+        ]
+        .spacing(4),
+        button("Desktop router 300 × 180 × 18").on_press(Message::CamPanel(
+            CamPanelMsg::ApplySetupTemplate(SetupTemplate::DesktopRouter)
+        )),
+    ]
+    .spacing(4);
+    let setup: Element<'_, Message> = job
+        .setups
+        .first()
+        .map(|setup| {
+            column![
+                text(format!("Job units: {:?}", job.units)),
+                text("Stock").size(14),
+                setup_number("Width", SetupField::StockWidth, setup.stock.width, editor),
+                setup_number(
+                    "Height",
+                    SetupField::StockHeight,
+                    setup.stock.height,
+                    editor
+                ),
+                setup_number(
+                    "Thickness",
+                    SetupField::StockThickness,
+                    setup.stock.thickness,
+                    editor
+                ),
+                setup_number(
+                    "Clearance Z",
+                    SetupField::Clearance,
+                    setup.clearance_z,
+                    editor
+                ),
+                setup_number("Origin X", SetupField::OriginX, setup.work_origin.x, editor),
+                setup_number("Origin Y", SetupField::OriginY, setup.work_origin.y, editor),
+                button(text(format!("Material: {}", setup.material.name)))
+                    .on_press(Message::CamPanel(CamPanelMsg::CycleMaterial)),
+                text("Machine limits").size(14),
+                setup_number(
+                    "Travel X",
+                    SetupField::TravelX,
+                    setup.machine.travel_x,
+                    editor
+                ),
+                setup_number(
+                    "Travel Y",
+                    SetupField::TravelY,
+                    setup.machine.travel_y,
+                    editor
+                ),
+                setup_number(
+                    "Travel Z",
+                    SetupField::TravelZ,
+                    setup.machine.travel_z,
+                    editor
+                ),
+                setup_number(
+                    "Maximum feed",
+                    SetupField::MaximumFeed,
+                    setup.machine.maximum_feed,
+                    editor
+                ),
+                setup_number(
+                    "Maximum RPM",
+                    SetupField::MaximumRpm,
+                    setup.machine.maximum_spindle_rpm as f64,
+                    editor
+                ),
+                text("This setup is shared by every CAM operation in the job."),
+            ]
+            .spacing(4)
+            .into()
+        })
+        .unwrap_or_else(|| text("No job setup is available.").into());
+    let body = column![
+        panel_header("Job Setup", PanelId::CamSetup, auto_collapse),
+        templates,
+        setup
+    ]
+    .spacing(10)
+    .padding(8);
+    container(scrollable(body).height(Fill))
+        .width(Length::Fixed(width))
+        .height(Fill)
+        .into()
+}
+
+fn panel_header<'a>(
+    title: &'static str,
+    panel: PanelId,
+    auto_collapse: bool,
+) -> Element<'a, Message> {
+    row![
+        text(title).size(16).width(Fill),
+        button(if auto_collapse { "Unpin" } else { "Pin" })
+            .on_press(Message::Dock(DockMsg::AutoCollapseToggle(panel))),
+        button("×").on_press(Message::Dock(DockMsg::Close(panel)))
+    ]
+    .spacing(6)
+    .into()
+}
+fn setup_number<'a>(
     label: &'static str,
-    value: f64,
     field: SetupField,
-    step: f64,
-) -> Element<'static, Message> {
+    value: f64,
+    editor: &'a CamEditorState,
+) -> Element<'a, Message> {
+    number_row(label, NumericField::Setup(field), value, editor)
+}
+fn number_row<'a>(
+    label: &'static str,
+    field: NumericField,
+    value: f64,
+    editor: &'a CamEditorState,
+) -> Element<'a, Message> {
     row![
-        text(format!("{label}: {value:.2}")).width(Fill),
-        button("−").on_press(Message::CamPanel(CamPanelMsg::AdjustSetup(field, -step))),
-        button("+").on_press(Message::CamPanel(CamPanelMsg::AdjustSetup(field, step))),
+        text(label).width(Fill),
+        text_input("0", &editor.value(field, value))
+            .on_input(move |value| Message::CamPanel(CamPanelMsg::EditNumber(field, value)))
+            .width(Length::Fixed(105.0))
     ]
-    .spacing(3)
+    .spacing(6)
     .into()
 }
-
-fn tool_row(
-    label: &'static str,
-    value: f64,
-    field: ToolField,
-    step: f64,
-) -> Element<'static, Message> {
-    row![
-        text(format!("{label}: {value:.2}")).width(Fill),
-        button("−").on_press(Message::CamPanel(CamPanelMsg::AdjustTool(field, -step))),
-        button("+").on_press(Message::CamPanel(CamPanelMsg::AdjustTool(field, step))),
-    ]
-    .spacing(3)
-    .into()
-}
-
-fn advanced_row(
-    label: &'static str,
-    value: f64,
-    field: AdvancedField,
-    step: f64,
-) -> Element<'static, Message> {
-    row![
-        text(format!("{label}: {value:.2}")).width(Fill),
-        button("−").on_press(Message::CamPanel(CamPanelMsg::AdjustAdvanced(field, -step))),
-        button("+").on_press(Message::CamPanel(CamPanelMsg::AdjustAdvanced(field, step))),
-    ]
-    .spacing(3)
-    .into()
+fn format_number(value: f64) -> String {
+    if value.fract().abs() < 1.0e-9 {
+        format!("{value:.0}")
+    } else {
+        format!("{value:.3}").trim_end_matches('0').to_string()
+    }
 }

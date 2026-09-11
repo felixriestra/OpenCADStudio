@@ -2,6 +2,85 @@
 use super::*;
 use crate::command::{AreaPreviewRegion, AreaPreviewSource};
 use crate::scene::model::hatch_model::HatchPattern;
+use crate::scene::model::mesh_model::MeshModel;
+
+fn cam_stock_mesh(
+    field: &ocs_cam_core::StockHeightField,
+    stock: &ocs_cam_core::StockDefinition,
+) -> MeshLodSet {
+    let mut verts = Vec::with_capacity(field.columns * field.rows * 4);
+    let mut normals = Vec::with_capacity(field.columns * field.rows * 4);
+    let mut indices = Vec::with_capacity(field.columns * field.rows * 6);
+    let mut quad = |points: [[f32; 3]; 4], normal: [f32; 3]| {
+        let base = verts.len() as u32;
+        verts.extend(points);
+        normals.extend([normal; 4]);
+        indices.extend([base, base + 1, base + 2, base, base + 2, base + 3]);
+    };
+    let ox = stock.origin.x as f32;
+    let oy = stock.origin.y as f32;
+    let max_x = (stock.origin.x + stock.width) as f32;
+    let max_y = (stock.origin.y + stock.height) as f32;
+    let cell = field.cell_size as f32;
+    let bottom = (stock.top_z - stock.thickness) as f32;
+    for row in 0..field.rows {
+        for column in 0..field.columns {
+            let x0 = ox + column as f32 * cell;
+            let y0 = oy + row as f32 * cell;
+            let x1 = (x0 + cell).min(max_x);
+            let y1 = (y0 + cell).min(max_y);
+            let z = field.heights[row * field.columns + column].max(bottom);
+            quad(
+                [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]],
+                [0.0, 0.0, 1.0],
+            );
+            if row == 0 {
+                quad(
+                    [[x0, y0, bottom], [x1, y0, bottom], [x1, y0, z], [x0, y0, z]],
+                    [0.0, -1.0, 0.0],
+                );
+            }
+            if row + 1 == field.rows {
+                quad(
+                    [[x0, y1, bottom], [x0, y1, z], [x1, y1, z], [x1, y1, bottom]],
+                    [0.0, 1.0, 0.0],
+                );
+            }
+            if column == 0 {
+                quad(
+                    [[x0, y0, bottom], [x0, y0, z], [x0, y1, z], [x0, y1, bottom]],
+                    [-1.0, 0.0, 0.0],
+                );
+            }
+            if column + 1 == field.columns {
+                quad(
+                    [[x1, y0, bottom], [x1, y1, bottom], [x1, y1, z], [x1, y0, z]],
+                    [1.0, 0.0, 0.0],
+                );
+            }
+        }
+    }
+    quad(
+        [
+            [ox, oy, bottom],
+            [ox, max_y, bottom],
+            [max_x, max_y, bottom],
+            [max_x, oy, bottom],
+        ],
+        [0.0, 0.0, -1.0],
+    );
+    MeshLodSet::from_single(MeshModel {
+        name: "cam-stock-preview".to_string(),
+        verts,
+        verts_low: Vec::new(),
+        normals,
+        indices,
+        triangle_material_handles: Vec::new(),
+        triangle_colors: Vec::new(),
+        color: [0.72, 0.50, 0.22, 0.92],
+        selected: false,
+    })
+}
 
 impl Scene {
     // ── Preview wire ──────────────────────────────────────────────────────
@@ -14,6 +93,18 @@ impl Scene {
         // forces a GPU wire re-upload on its own (the `has_overlay` content-id
         // path), and iced redraws after the message that set the preview.
         self.preview_wires = wires;
+    }
+
+    /// Display the remaining CAM stock as a shaded, orbitable 3D mesh.
+    pub fn set_cam_stock_preview(
+        &mut self,
+        field: Option<&ocs_cam_core::StockHeightField>,
+        stock: Option<&ocs_cam_core::StockDefinition>,
+    ) {
+        self.cam_preview_mesh = field
+            .zip(stock)
+            .map(|(field, stock)| cam_stock_mesh(field, stock));
+        self.bump_geometry();
     }
 
     /// Publish all edited hatches as one live fill overlay.
@@ -43,10 +134,9 @@ impl Scene {
                     }
                 }
                 AreaPreviewSource::Boundary(boundary) => {
-                    if let Some(model) = Self::area_preview_hatch(
-                        std::slice::from_ref(boundary),
-                        region.subtract,
-                    ) {
+                    if let Some(model) =
+                        Self::area_preview_hatch(std::slice::from_ref(boundary), region.subtract)
+                    {
                         models.push(model);
                     }
                 }
@@ -67,11 +157,8 @@ impl Scene {
             return;
         }
 
-        let direct_boundary = crate::scene::project::clip_boundary_polygon_for_document(
-            &self.document,
-            handle,
-            0.0,
-        );
+        let direct_boundary =
+            crate::scene::project::clip_boundary_polygon_for_document(&self.document, handle, 0.0);
         let mut rings = if direct_boundary.len() >= 3 {
             vec![direct_boundary
                 .into_iter()
@@ -110,12 +197,18 @@ impl Scene {
 
     fn push_area_preview_ring(rings: &mut Vec<Vec<[f64; 2]>>, ring: &mut Vec<[f64; 2]>) {
         if ring.len() >= 3 {
-            let min_x = ring.iter().map(|point| point[0]).fold(f64::INFINITY, f64::min);
+            let min_x = ring
+                .iter()
+                .map(|point| point[0])
+                .fold(f64::INFINITY, f64::min);
             let max_x = ring
                 .iter()
                 .map(|point| point[0])
                 .fold(f64::NEG_INFINITY, f64::max);
-            let min_y = ring.iter().map(|point| point[1]).fold(f64::INFINITY, f64::min);
+            let min_y = ring
+                .iter()
+                .map(|point| point[1])
+                .fold(f64::INFINITY, f64::min);
             let max_y = ring
                 .iter()
                 .map(|point| point[1])
@@ -220,8 +313,7 @@ impl Scene {
         if let EntityType::Hatch(hatch) = entity {
             if let Some(background) = crate::entities::hatch::background_color(hatch) {
                 let mut backdrop = model.clone();
-                backdrop.pattern =
-                    crate::scene::model::hatch_model::HatchPattern::Solid;
+                backdrop.pattern = crate::scene::model::hatch_model::HatchPattern::Solid;
                 let (background_color, background_aci) = match background {
                     acadrust::types::Color::ByLayer => {
                         let layer = self.document.layers.get(&hatch.common.layer);
@@ -247,10 +339,7 @@ impl Scene {
                         ),
                         index,
                     ),
-                    other => (
-                        crate::scene::convert::tess_util::aci_to_rgba(&other),
-                        0,
-                    ),
+                    other => (crate::scene::convert::tess_util::aci_to_rgba(&other), 0),
                 };
                 backdrop.color = background_color;
                 backdrop.aci = background_aci;
@@ -293,9 +382,7 @@ impl Scene {
                     // show the shape following the cursor. Build a live boundary
                     // from the current HatchModel — `apply_grip` keeps it in
                     // step, so the preview tracks a dragged grip in real time.
-                    Some(EntityType::Hatch(_)) => {
-                        self.hatch_outline_wire(*h).into_iter().collect()
-                    }
+                    Some(EntityType::Hatch(_)) => self.hatch_outline_wire(*h).into_iter().collect(),
                     Some(e) => self.tessellate_one(e),
                     None => Vec::new(),
                 }
@@ -389,12 +476,7 @@ impl Scene {
         if pts.len() < 2 {
             return None;
         }
-        let mut wire = WireModel::solid_f64(
-            handle.value().to_string(),
-            pts,
-            m.color,
-            false,
-        );
+        let mut wire = WireModel::solid_f64(handle.value().to_string(), pts, m.color, false);
         wire.aci = m.aci;
         wire.line_weight_px = m.line_weight_px;
         Some(wire)

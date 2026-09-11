@@ -1729,6 +1729,7 @@ bg={bg_ms:.1}ms n={view_count}"
                 crate::ui::dock::PanelId::Properties => self.show_properties,
                 crate::ui::dock::PanelId::BlockPalette => self.show_block_palette,
                 crate::ui::dock::PanelId::Cam => self.show_cam_panel,
+                crate::ui::dock::PanelId::CamSetup => self.show_cam_setup_panel,
             }
         };
         let edge_stack =
@@ -2769,11 +2770,18 @@ impl OpenCADStudio {
             crate::ui::dock::PanelId::BlockPalette => {
                 crate::ui::window::block_palette::view(&self.block_palette, width, auto_collapse)
             }
-            crate::ui::dock::PanelId::Cam => crate::ui::window::cam_panel::view(
+            crate::ui::dock::PanelId::Cam => crate::ui::window::cam_panel::operations_view(
                 &tab.cam_job,
                 self.cam_selected_operation,
+                &self.cam_editor,
                 self.cam_preview_segments.len(),
                 self.cam_preview_step,
+                width,
+                auto_collapse,
+            ),
+            crate::ui::dock::PanelId::CamSetup => crate::ui::window::cam_panel::setup_view(
+                &tab.cam_job,
+                &self.cam_editor,
                 width,
                 auto_collapse,
             ),

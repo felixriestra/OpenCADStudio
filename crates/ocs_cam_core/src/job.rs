@@ -63,6 +63,10 @@ pub enum DrillCycle {
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AdvancedParameters {
+    /// Lateral cut spacing. Zero means derive it from the selected tool.
+    pub step_over: f64,
+    /// Slot cut width. Zero means use the selected tool diameter.
+    pub slot_width: f64,
     pub tab_count: u32,
     pub tab_height: f64,
     pub lead_in: f64,
@@ -77,6 +81,8 @@ pub struct AdvancedParameters {
 impl Default for AdvancedParameters {
     fn default() -> Self {
         Self {
+            step_over: 0.0,
+            slot_width: 0.0,
             tab_count: 0,
             tab_height: 1.0,
             lead_in: 0.0,
@@ -93,6 +99,8 @@ impl Default for AdvancedParameters {
 impl AdvancedParameters {
     pub fn validate(self) -> Result<(), CamError> {
         if [
+            self.step_over,
+            self.slot_width,
             self.tab_height,
             self.lead_in,
             self.lead_out,
@@ -276,6 +284,7 @@ fn verify_operation_envelope(operation: &CamOperation, setup: &CamSetup) -> Resu
     if operation.tool.spindle_rpm > setup.machine.maximum_spindle_rpm
         || operation.parameters.feed > setup.machine.maximum_feed
         || operation.parameters.plunge_feed > setup.machine.maximum_feed
+        || operation.parameters.depth > setup.stock.thickness
     {
         return Err(CamError::InvalidProgram);
     }

@@ -42,6 +42,7 @@ pub enum PanelId {
     Properties,
     BlockPalette,
     Cam,
+    CamSetup,
 }
 
 impl PanelId {
@@ -50,7 +51,8 @@ impl PanelId {
         match self {
             PanelId::Properties => "Properties",
             PanelId::BlockPalette => "Block Palette",
-            PanelId::Cam => "CAM Job",
+            PanelId::Cam => "CAM Operations",
+            PanelId::CamSetup => "Job Setup",
         }
     }
 
@@ -60,6 +62,7 @@ impl PanelId {
             PanelId::Properties => 250.0,
             PanelId::BlockPalette => 260.0,
             PanelId::Cam => 310.0,
+            PanelId::CamSetup => 330.0,
         }
     }
 }
@@ -108,7 +111,7 @@ impl Default for DockState {
     fn default() -> Self {
         Self {
             left: vec![PanelId::Properties],
-            right: vec![PanelId::Cam, PanelId::BlockPalette],
+            right: vec![PanelId::Cam, PanelId::CamSetup, PanelId::BlockPalette],
             panels: BTreeMap::new(),
         }
     }
@@ -134,7 +137,12 @@ impl DockState {
     /// resize never hit a missing configuration. Also a cheap heal for configs
     /// written by an older version.
     pub fn ensure_settings(&mut self) {
-        for id in [PanelId::Properties, PanelId::BlockPalette, PanelId::Cam] {
+        for id in [
+            PanelId::Properties,
+            PanelId::BlockPalette,
+            PanelId::Cam,
+            PanelId::CamSetup,
+        ] {
             self.panels
                 .entry(id)
                 .or_insert_with(|| DockPanel::for_id(id));
@@ -145,6 +153,14 @@ impl DockState {
         // a user layout choice.
         if self.location(PanelId::Cam).is_none() {
             self.right.insert(0, PanelId::Cam);
+        }
+        if self.location(PanelId::CamSetup).is_none() {
+            let index = self
+                .right
+                .iter()
+                .position(|id| *id == PanelId::Cam)
+                .map_or(0, |i| i + 1);
+            self.right.insert(index, PanelId::CamSetup);
         }
     }
 
@@ -253,9 +269,13 @@ mod tests {
         );
         assert_eq!(
             state.location(PanelId::BlockPalette),
-            Some((DockSide::Right, 1))
+            Some((DockSide::Right, 2))
         );
         assert_eq!(state.location(PanelId::Cam), Some((DockSide::Right, 0)));
+        assert_eq!(
+            state.location(PanelId::CamSetup),
+            Some((DockSide::Right, 1))
+        );
     }
 
     #[test]
@@ -265,6 +285,7 @@ mod tests {
         assert_eq!(state.width(PanelId::Properties, 1600.0), 250.0);
         assert_eq!(state.width(PanelId::BlockPalette, 1600.0), 260.0);
         assert_eq!(state.width(PanelId::Cam, 1600.0), 310.0);
+        assert_eq!(state.width(PanelId::CamSetup, 1600.0), 330.0);
         assert!(!state.auto_collapse(PanelId::Properties));
     }
 
@@ -279,7 +300,7 @@ mod tests {
         assert_eq!(state.location(PanelId::Cam), Some((DockSide::Right, 0)));
         assert_eq!(
             state.location(PanelId::BlockPalette),
-            Some((DockSide::Right, 1))
+            Some((DockSide::Right, 2))
         );
     }
 
@@ -293,7 +314,7 @@ mod tests {
         );
         // It no longer occupies the left edge.
         assert!(state.left.is_empty());
-        assert_eq!(state.right.len(), 3);
+        assert_eq!(state.right.len(), 4);
     }
 
     #[test]
@@ -302,7 +323,7 @@ mod tests {
         assert!(state.dock(PanelId::Properties, DockSide::Right, 99));
         assert_eq!(
             state.location(PanelId::Properties),
-            Some((DockSide::Right, 2))
+            Some((DockSide::Right, 3))
         );
     }
 
