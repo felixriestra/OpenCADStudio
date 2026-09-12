@@ -690,6 +690,7 @@ pub(super) struct Mac2CAM {
     pub(crate) cam_playing: bool,
     pub(crate) cam_stock_simulation: Option<ocs_cam_core::StockSimulation>,
     pub(crate) cam_preview_window: Option<window::Id>,
+    pub(crate) cam_tool_library_window: Option<window::Id>,
     pub(crate) cam_library: cam_library::CamLibrary,
     pub(crate) cam_selected_template: Option<usize>,
     pub(crate) cam_selected_material: Option<usize>,
@@ -3613,6 +3614,7 @@ impl Mac2CAM {
             cam_playing: false,
             cam_stock_simulation: None,
             cam_preview_window: None,
+            cam_tool_library_window: None,
             cam_library: cam_library::load(),
             cam_selected_template: None,
             cam_selected_material: None,
@@ -4112,6 +4114,9 @@ pub fn run() -> iced::Result {
     .title(|state: &Mac2CAM, window_id: window::Id| {
         if state.cam_preview_window == Some(window_id) {
             return concat!("Mac2CAM_", env!("OCS_BUILD_STAMP"), " — 3D Machining Preview").to_string();
+        }
+        if state.cam_tool_library_window == Some(window_id) {
+            return concat!("Mac2CAM_", env!("OCS_BUILD_STAMP"), " — Tool Database").to_string();
         }
         if let Some(tab) = state.tabs.get(state.active_tab) {
             let dot = if tab.dirty { "● " } else { "" };

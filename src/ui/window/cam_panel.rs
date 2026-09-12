@@ -57,10 +57,12 @@ pub enum SetupTemplate {
 
 #[derive(Debug, Default)]
 pub struct CamEditorState {
-    drafts: BTreeMap<NumericField, String>,
+    pub(crate) drafts: BTreeMap<NumericField, String>,
     pub template_name: String,
     pub material_name: String,
     pub tool_name: String,
+    pub tool_search: String,
+    pub tool_trash: bool,
 }
 impl CamEditorState {
     pub fn edit(&mut self, field: NumericField, value: String) {
@@ -116,6 +118,12 @@ pub enum CamPanelMsg {
     ToolCreate,
     ToolUpdate,
     ToolDelete,
+    ToolDuplicate,
+    ToolSearch(String),
+    ToolValue(ToolField, String),
+    ToolToggleTrash,
+    ToolRestore(usize),
+    ToolPurge(usize),
     EditNumber(NumericField, String),
     ApplySetupTemplate(SetupTemplate),
     ApplyLibraryTool(usize),
@@ -142,6 +150,7 @@ pub fn operations_view<'a>(
     playing: bool,
     playback_speed: f64,
     saved_tools: &'a [ocs_cam_core::ToolDefinition],
+    trashed_tools: &'a [ocs_cam_core::ToolDefinition],
     selected_tool: Option<usize>,
     width: f32,
     auto_collapse: bool,
@@ -400,30 +409,69 @@ pub fn operations_view<'a>(
         parameters,
         tool,
         library,
-        text("Saved Tool Library").size(14),
-        saved_tools
-            .iter()
-            .enumerate()
-            .fold(column![].spacing(2), |column, (index, tool)| column.push(
-                button(text(if selected_tool == Some(index) {
-                    format!("> {}  Ø{:.2}", tool.name, tool.diameter)
-                } else {
-                    format!("{}  Ø{:.2}", tool.name, tool.diameter)
-                }))
-                .width(Fill)
-                .on_press(Message::CamPanel(CamPanelMsg::ToolSelect(index)))
-            )),
+        row![
+            text("Tool Database").size(14).width(Fill),
+            button(if editor.tool_trash { "Tools" } else { "Trash" })
+                .on_press(Message::CamPanel(CamPanelMsg::ToolToggleTrash)),
+        ],
+        text_input("Search tools", &editor.tool_search)
+            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolSearch(value))),
+        if editor.tool_trash {
+            trashed_tools
+                .iter()
+                .enumerate()
+                .fold(column![].spacing(2), |column, (index, tool)| {
+                    column.push(
+                        row![
+                            text(format!("{}  Ø{:.2}", tool.name, tool.diameter)).width(Fill),
+                            button("Restore")
+                                .on_press(Message::CamPanel(CamPanelMsg::ToolRestore(index))),
+                            button("Delete")
+                                .on_press(Message::CamPanel(CamPanelMsg::ToolPurge(index))),
+                        ]
+                        .spacing(3),
+                    )
+                })
+        } else {
+            saved_tools
+                .iter()
+                .enumerate()
+                .filter(|(_, tool)| {
+                    editor.tool_search.trim().is_empty()
+                        || tool
+                            .name
+                            .to_lowercase()
+                            .contains(&editor.tool_search.trim().to_lowercase())
+                })
+                .fold(column![].spacing(2), |column, (index, tool)| {
+                    column.push(
+                        button(text(if selected_tool == Some(index) {
+                            format!("> {}  Ø{:.2}", tool.name, tool.diameter)
+                        } else {
+                            format!("{}  Ø{:.2}", tool.name, tool.diameter)
+                        }))
+                        .width(Fill)
+                        .on_press(Message::CamPanel(CamPanelMsg::ToolSelect(index))),
+                    )
+                })
+        },
         text_input("Tool name", &editor.tool_name)
             .on_input(|value| Message::CamPanel(CamPanelMsg::ToolName(value))),
         row![
             button("Create").on_press(Message::CamPanel(CamPanelMsg::ToolCreate)),
             button("Save edits").on_press(Message::CamPanel(CamPanelMsg::ToolUpdate)),
-            button("Delete").on_press(Message::CamPanel(CamPanelMsg::ToolDelete)),
+            button("Duplicate").on_press(Message::CamPanel(CamPanelMsg::ToolDuplicate)),
+            button("To Trash").on_press(Message::CamPanel(CamPanelMsg::ToolDelete)),
         ]
         .spacing(4),
     ]
     .spacing(10)
-    .padding(8);
+    .padding(iced::Padding {
+        top: 8.0,
+        right: 20.0,
+        bottom: 8.0,
+        left: 8.0,
+    });
     container(scrollable(body).height(Fill))
         .width(Length::Fixed(width))
         .height(Fill)
@@ -571,7 +619,12 @@ pub fn setup_view<'a>(
         setup
     ]
     .spacing(10)
-    .padding(8);
+    .padding(iced::Padding {
+        top: 8.0,
+        right: 20.0,
+        bottom: 8.0,
+        left: 8.0,
+    });
     container(scrollable(body).height(Fill))
         .width(Length::Fixed(width))
         .height(Fill)
@@ -616,6 +669,105 @@ fn material_rows<'a>(
                 .on_press(Message::CamPanel(CamPanelMsg::MaterialSelect(index))),
             )
         })
+}
+
+/// Dedicated application-level tool database window. CAM operations only keep
+/// a copy of the selected cutter; management, search and Trash live here.
+pub fn tool_library_view<'a>(
+    editor: &'a CamEditorState,
+    tools: &'a [ocs_cam_core::ToolDefinition],
+    trash: &'a [ocs_cam_core::ToolDefinition],
+    selected: Option<usize>,
+) -> Element<'a, Message> {
+    let query = editor.tool_search.trim().to_lowercase();
+    let list: Element<'a, Message> = if editor.tool_trash {
+        trash
+            .iter()
+            .enumerate()
+            .fold(column![].spacing(5), |column, (index, tool)| {
+                column.push(
+                    row![
+                        text(format!(
+                            "{}   Ø{:.3}   {} rpm",
+                            tool.name, tool.diameter, tool.spindle_rpm
+                        ))
+                        .width(Fill),
+                        button("Restore")
+                            .on_press(Message::CamPanel(CamPanelMsg::ToolRestore(index))),
+                        button("Delete permanently")
+                            .on_press(Message::CamPanel(CamPanelMsg::ToolPurge(index))),
+                    ]
+                    .spacing(6),
+                )
+            })
+            .into()
+    } else {
+        tools
+            .iter()
+            .enumerate()
+            .filter(|(_, tool)| query.is_empty() || tool.name.to_lowercase().contains(&query))
+            .fold(column![].spacing(5), |column, (index, tool)| {
+                column.push(
+                    button(text(format!(
+                        "{}{}   Ø{:.3}   feed {:.0}   plunge {:.0}   {} rpm",
+                        if selected == Some(index) { "> " } else { "" },
+                        tool.name,
+                        tool.diameter,
+                        tool.feed,
+                        tool.plunge_feed,
+                        tool.spindle_rpm
+                    )))
+                    .width(Fill)
+                    .on_press(Message::CamPanel(CamPanelMsg::ToolSelect(index))),
+                )
+            })
+            .into()
+    };
+    let body = column![
+        row![
+            text("Tool Database").size(22).width(Fill),
+            button(if editor.tool_trash { "Back to Tools" } else { "Trash" })
+                .on_press(Message::CamPanel(CamPanelMsg::ToolToggleTrash)),
+        ].align_y(iced::Center),
+        text("Reusable cutters are stored at application level. Selecting one copies it into the current CAM operation."),
+        text_input("Search by tool name", &editor.tool_search)
+            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolSearch(value))),
+        scrollable(list).height(Fill),
+        text_input("Tool name", &editor.tool_name)
+            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolName(value))),
+        row![
+            library_number("Diameter", ToolField::Diameter, selected.and_then(|i| tools.get(i)).map(|t| t.diameter).unwrap_or(6.0), editor),
+            library_number("Feed", ToolField::Feed, selected.and_then(|i| tools.get(i)).map(|t| t.feed).unwrap_or(800.0), editor),
+        ].spacing(8),
+        row![
+            library_number("Plunge", ToolField::Plunge, selected.and_then(|i| tools.get(i)).map(|t| t.plunge_feed).unwrap_or(250.0), editor),
+            library_number("RPM", ToolField::Rpm, selected.and_then(|i| tools.get(i)).map(|t| t.spindle_rpm as f64).unwrap_or(18_000.0), editor),
+        ].spacing(8),
+        row![
+            button("New from operation").on_press(Message::CamPanel(CamPanelMsg::ToolCreate)),
+            button("Save edits").on_press(Message::CamPanel(CamPanelMsg::ToolUpdate)),
+            button("Duplicate").on_press(Message::CamPanel(CamPanelMsg::ToolDuplicate)),
+            button("Move to Trash").on_press(Message::CamPanel(CamPanelMsg::ToolDelete)),
+        ].spacing(8),
+        text("Storage is updated atomically and the previous database snapshot is retained as a backup.").size(12),
+    ].spacing(12).padding(16);
+    container(body).width(Fill).height(Fill).into()
+}
+
+fn library_number<'a>(
+    label: &'static str,
+    field: ToolField,
+    value: f64,
+    editor: &'a CamEditorState,
+) -> Element<'a, Message> {
+    row![
+        text(label).width(Length::Fixed(70.0)),
+        text_input("", &editor.value(NumericField::Tool(field), value))
+            .on_input(move |input| Message::CamPanel(CamPanelMsg::ToolValue(field, input)))
+            .width(Fill),
+    ]
+    .align_y(iced::Center)
+    .into()
 }
 
 fn panel_header<'a>(

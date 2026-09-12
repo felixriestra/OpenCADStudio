@@ -1547,6 +1547,12 @@ impl Mac2CAM {
                     A::TemplateName(value) => self.cam_editor.template_name = value,
                     A::MaterialName(value) => self.cam_editor.material_name = value,
                     A::ToolName(value) => self.cam_editor.tool_name = value,
+                    A::ToolSearch(value) => self.cam_editor.tool_search = value,
+                    A::ToolValue(field, value) => self.cam_editor.edit(NumericField::Tool(field), value),
+                    A::ToolToggleTrash => {
+                        self.cam_editor.tool_trash = !self.cam_editor.tool_trash;
+                        self.cam_selected_tool = None;
+                    }
                     A::TemplateSelect(index) if index < self.cam_library.templates.len() => {
                         let template = self.cam_library.templates[index].clone();
                         self.cam_selected_template = Some(index);
@@ -1613,6 +1619,11 @@ impl Mac2CAM {
                     A::MaterialDelete => { if let Some(index) = self.cam_selected_material.take().filter(|index| *index < self.cam_library.materials.len()) { self.cam_library.materials.remove(index); let _ = super::cam_library::save(&self.cam_library); } }
                     A::ToolSelect(index) if index < self.cam_library.tools.len() => {
                         self.cam_selected_tool = Some(index); self.cam_editor.tool_name = self.cam_library.tools[index].name.clone();
+                        let tool = &self.cam_library.tools[index];
+                        self.cam_editor.edit(NumericField::Tool(ToolField::Diameter), tool.diameter.to_string());
+                        self.cam_editor.edit(NumericField::Tool(ToolField::Feed), tool.feed.to_string());
+                        self.cam_editor.edit(NumericField::Tool(ToolField::Plunge), tool.plunge_feed.to_string());
+                        self.cam_editor.edit(NumericField::Tool(ToolField::Rpm), tool.spindle_rpm.to_string());
                         if let Some(operation) = self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get_mut(op)) { operation.tool = self.cam_library.tools[index].clone(); operation.parameters.tool_diameter = operation.tool.diameter; operation.parameters.feed = operation.tool.feed; operation.parameters.plunge_feed = operation.tool.plunge_feed; operation.parameters.spindle_rpm = operation.tool.spindle_rpm; }
                     }
                     A::ToolCreate => {
@@ -1620,9 +1631,45 @@ impl Mac2CAM {
                         if !name.is_empty() { let parameters = self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get(op)).map(|op| op.parameters).unwrap_or_default(); let mut tool = ocs_cam_core::ToolDefinition::from_parameters(super::cam_library::unique_id("tool"), parameters); tool.name = name.into(); self.cam_library.tools.push(tool); self.cam_selected_tool = Some(self.cam_library.tools.len()-1); let _ = super::cam_library::save(&self.cam_library); }
                     }
                     A::ToolUpdate => {
-                        if let Some(index) = self.cam_selected_tool { if let (Some(saved), Some(operation)) = (self.cam_library.tools.get_mut(index), self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get(op))) { *saved = operation.tool.clone(); if !self.cam_editor.tool_name.trim().is_empty() { saved.name = self.cam_editor.tool_name.trim().into(); } let _ = super::cam_library::save(&self.cam_library); } }
+                        if let Some(index) = self.cam_selected_tool {
+                            if let Some(saved) = self.cam_library.tools.get_mut(index) {
+                                if !self.cam_editor.tool_name.trim().is_empty() { saved.name = self.cam_editor.tool_name.trim().into(); }
+                                let value = |field, fallback| self.cam_editor.drafts.get(&NumericField::Tool(field)).and_then(|s| s.parse::<f64>().ok()).unwrap_or(fallback);
+                                saved.diameter = value(ToolField::Diameter, saved.diameter).max(0.001);
+                                saved.feed = value(ToolField::Feed, saved.feed).max(0.001);
+                                saved.plunge_feed = value(ToolField::Plunge, saved.plunge_feed).max(0.001);
+                                saved.spindle_rpm = value(ToolField::Rpm, saved.spindle_rpm as f64).max(1.0) as u32;
+                                let _ = super::cam_library::save(&self.cam_library);
+                            }
+                        }
                     }
-                    A::ToolDelete => { if let Some(index) = self.cam_selected_tool.take().filter(|index| *index < self.cam_library.tools.len()) { self.cam_library.tools.remove(index); let _ = super::cam_library::save(&self.cam_library); } }
+                    A::ToolDuplicate => {
+                        if let Some(index) = self.cam_selected_tool.filter(|index| *index < self.cam_library.tools.len()) {
+                            let mut copy = self.cam_library.tools[index].clone();
+                            copy.id = super::cam_library::unique_id("tool");
+                            copy.name = format!("{} copy", copy.name);
+                            self.cam_library.tools.insert(index + 1, copy);
+                            self.cam_selected_tool = Some(index + 1);
+                            let _ = super::cam_library::save(&self.cam_library);
+                        }
+                    }
+                    A::ToolDelete => {
+                        if let Some(index) = self.cam_selected_tool.take().filter(|index| *index < self.cam_library.tools.len()) {
+                            let removed = self.cam_library.tools.remove(index);
+                            self.cam_library.trashed_tools.push(removed);
+                            let _ = super::cam_library::save(&self.cam_library);
+                            self.command_line.push_output("Tool moved to Trash. It can be restored.");
+                        }
+                    }
+                    A::ToolRestore(index) if index < self.cam_library.trashed_tools.len() => {
+                        let restored = self.cam_library.trashed_tools.remove(index);
+                        self.cam_library.tools.push(restored);
+                        let _ = super::cam_library::save(&self.cam_library);
+                    }
+                    A::ToolPurge(index) if index < self.cam_library.trashed_tools.len() => {
+                        self.cam_library.trashed_tools.remove(index);
+                        let _ = super::cam_library::save(&self.cam_library);
+                    }
                     A::ImportGcode => {
                         return Task::perform(async {
                             let handle = rfd::AsyncFileDialog::new()
@@ -3250,6 +3297,10 @@ impl Mac2CAM {
                     self.cam_preview_window = None;
                     return window::close(id);
                 }
+                if self.cam_tool_library_window == Some(id) {
+                    self.cam_tool_library_window = None;
+                    return window::close(id);
+                }
                 if self.main_window == Some(id) {
                     if self.tabs.iter().any(|t| t.dirty) {
                         self.pending_close = Some(super::PendingClose::Quit);
@@ -3263,6 +3314,10 @@ impl Mac2CAM {
             Message::OsWindowClosed(id) => {
                 if self.cam_preview_window == Some(id) {
                     self.cam_preview_window = None;
+                    return Task::none();
+                }
+                if self.cam_tool_library_window == Some(id) {
+                    self.cam_tool_library_window = None;
                     return Task::none();
                 }
                 // Only the main window exists now; all dialogs are in-canvas

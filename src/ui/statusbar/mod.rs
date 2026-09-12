@@ -243,7 +243,10 @@ impl StatusBar {
         // when the width can't hold them all on one line.
         let vis = |p: StatusPill| config.is_visible(p);
         let mut pills: Vec<Element<'_, Message>> = Vec::new();
-        if vis(StatusPill::Coords) {
+        // Mac2CAM always exposes live pointer coordinates: locating CAD/CAM
+        // geometry relative to stock must not depend on a hidden preference
+        // inherited from the upstream application's status-bar defaults.
+        {
             let coords_label = format_coords(cursor_world, last_point, coords_mode, picking);
             pills.push(
                 tip(

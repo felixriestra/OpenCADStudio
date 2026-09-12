@@ -61,42 +61,42 @@ impl CadModule for CamModule {
                 RibbonGroup {
                     title: "2D Toolpaths",
                     tools: vec![
-                        RibbonItem::LargeTool(svg_tool(
+                        RibbonItem::Tool(svg_tool(
                             "CAMPROFILE",
                             "Outside Profile",
                             include_bytes!("../../../assets/icons/cam_profile.svg"),
                         )),
-                        RibbonItem::LargeTool(svg_tool(
+                        RibbonItem::Tool(svg_tool(
                             "CAMINSIDE",
                             "Inside Profile",
                             include_bytes!("../../../assets/icons/cam_inside.svg"),
                         )),
-                        RibbonItem::LargeTool(svg_tool(
+                        RibbonItem::Tool(svg_tool(
                             "CAMPOCKET",
                             "Pocket",
                             include_bytes!("../../../assets/icons/cam_pocket.svg"),
                         )),
-                        RibbonItem::LargeTool(svg_tool(
+                        RibbonItem::Tool(svg_tool(
                             "CAMFACE",
                             "Face",
                             include_bytes!("../../../assets/icons/cam_face.svg"),
                         )),
-                        RibbonItem::LargeTool(svg_tool(
+                        RibbonItem::Tool(svg_tool(
                             "CAMBORE",
                             "Bore",
                             include_bytes!("../../../assets/icons/cam_bore.svg"),
                         )),
-                        RibbonItem::LargeTool(svg_tool(
+                        RibbonItem::Tool(svg_tool(
                             "CAMSLOT",
                             "Slot",
                             include_bytes!("../../../assets/icons/cam_slot.svg"),
                         )),
-                        RibbonItem::LargeTool(svg_tool(
+                        RibbonItem::Tool(svg_tool(
                             "CAMENGRAVE",
                             "Engrave",
                             include_bytes!("../../../assets/icons/cam_engrave.svg"),
                         )),
-                        RibbonItem::LargeTool(svg_tool(
+                        RibbonItem::Tool(svg_tool(
                             "CAMDRILL",
                             "Drill",
                             include_bytes!("../../../assets/icons/cam_drill.svg"),

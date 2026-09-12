@@ -110,7 +110,6 @@ impl StatusPill {
             StatusPill::CleanScreen => "Clean Screen",
         }
     }
-
 }
 
 /// Tracks which pills the user has hidden. Serialized as the "statusbar" section
@@ -128,7 +127,6 @@ impl Default for StatusBarConfig {
     /// (Ortho, Polar, Otrack, Osnap, …) stay visible.
     fn default() -> Self {
         let hidden = [
-            StatusPill::Coords,
             StatusPill::Lwt,
             StatusPill::Dyn,
             StatusPill::Space,

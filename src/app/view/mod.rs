@@ -177,6 +177,14 @@ impl Mac2CAM {
                 self.cam_preview_segments.len(),
             );
         }
+        if self.cam_tool_library_window == Some(window_id) {
+            return crate::ui::window::cam_panel::tool_library_view(
+                &self.cam_editor,
+                &self.cam_library.tools,
+                &self.cam_library.trashed_tools,
+                self.cam_selected_tool,
+            );
+        }
         // ── Floating panel windows ─────────────────────────────────────────
         // All dialogs are in-canvas modals now (Plan B); view_main stacks the
         // active one. `window_id` is unused — there is only the main window.
@@ -1976,7 +1984,10 @@ bg={bg_ms:.1}ms n={view_count}"
         );
         let center_stack: Element<'_, Message> = if thumbnail_capture_clean {
             workspace
-        } else if tab.is_start {
+        } else {
+            // Command input owns a row below the complete workspace. Docked
+            // palettes therefore end at the canvas edge and can never extend
+            // behind or into the command-line area.
             column![
                 workspace,
                 iced::widget::container(command_line)
@@ -1992,22 +2003,6 @@ bg={bg_ms:.1}ms n={view_count}"
             .width(Fill)
             .height(Fill)
             .into()
-        } else {
-            let command_line_overlay = iced::widget::container(command_line)
-                .width(Fill)
-                .height(Fill)
-                .align_x(iced::alignment::Horizontal::Center)
-                .align_y(iced::alignment::Vertical::Bottom)
-                .padding(iced::Padding {
-                    top: 0.0,
-                    right: 0.0,
-                    bottom: 2.0,
-                    left: 0.0,
-                });
-            iced::widget::stack![workspace, command_line_overlay]
-                .width(Fill)
-                .height(Fill)
-                .into()
         };
 
         let center_stack: Element<'_, Message> = if self.command_history_resizing {
@@ -2802,8 +2797,9 @@ impl Mac2CAM {
                     .copied(),
                 self.cam_playing,
                 self.cam_playback_speed,
-                &self.cam_library.tools,
-                self.cam_selected_tool,
+                    &self.cam_library.tools,
+                    &self.cam_library.trashed_tools,
+                    self.cam_selected_tool,
                 width,
                 auto_collapse,
             ),

@@ -23,6 +23,18 @@ impl Mac2CAM {
 
     pub(super) fn dispatch_cam(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         let verb = cmd.split_whitespace().next().unwrap_or_default();
+        if verb == "CAMTOOLS" {
+            if let Some(id) = self.cam_tool_library_window {
+                return Some(iced::window::gain_focus(id));
+            }
+            let (id, task) = iced::window::open(iced::window::Settings {
+                size: iced::Size::new(760.0, 620.0),
+                exit_on_close_request: false,
+                ..Default::default()
+            });
+            self.cam_tool_library_window = Some(id);
+            return Some(task.map(|_| Message::Noop));
+        }
         if verb == "CAMSETUP" {
             self.show_cam_setup_panel = true;
             self.dock_expanded = Some(crate::ui::dock::PanelId::CamSetup);
@@ -34,9 +46,6 @@ impl Mac2CAM {
             self.dock_expanded = Some(crate::ui::dock::PanelId::Cam);
         }
         match verb {
-            "CAMTOOLS" => {
-                self.command_line.push_output("CAMTOOLS: tool library opened.");
-            }
             "CAMINFO" => {
                 let count = self.tabs[i].cam_job.operations.len();
                 let detail = if count == 0 {
