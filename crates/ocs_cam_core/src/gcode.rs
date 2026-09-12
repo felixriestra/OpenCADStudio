@@ -1,9 +1,21 @@
 use crate::{verify_program, CamError, Motion, Point2, Program, Units};
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParsedGCode {
+    pub program: Program,
+    /// One-based source line for every motion in `program`.
+    pub motion_lines: Vec<usize>,
+}
+
 pub fn parse_grbl(source: &str) -> Result<Program, CamError> {
+    Ok(parse_grbl_with_lines(source)?.program)
+}
+
+pub fn parse_grbl_with_lines(source: &str) -> Result<ParsedGCode, CamError> {
     let mut units = None;
     let mut motions = Vec::new();
-    for raw_line in source.lines() {
+    let mut motion_lines = Vec::new();
+    for (line_index, raw_line) in source.lines().enumerate() {
         let line = raw_line.trim();
         if line.is_empty() || line.starts_with('(') {
             continue;
@@ -22,17 +34,21 @@ pub fn parse_grbl(source: &str) -> Result<Program, CamError> {
                 .and_then(|value| value.parse().ok())
                 .ok_or(CamError::ParseError)?;
             motions.push(Motion::SpindleOn { rpm });
+            motion_lines.push(line_index + 1);
             continue;
         }
         if words.contains(&"M5") {
             motions.push(Motion::SpindleOff);
+            motion_lines.push(line_index + 1);
             continue;
         }
         if words.contains(&"M30") {
             motions.push(Motion::End);
+            motion_lines.push(line_index + 1);
             continue;
         }
         let code = words.first().copied().unwrap_or_default();
+        let before = motions.len();
         match code {
             "G0" | "G00" => motions.push(Motion::Rapid {
                 x: axis(&words, 'X')?,
@@ -59,6 +75,9 @@ pub fn parse_grbl(source: &str) -> Result<Program, CamError> {
                 .all(|word| matches!(*word, "G17" | "G90" | "G94" | "G20" | "G21")) => {}
             _ => return Err(CamError::ParseError),
         }
+        if motions.len() != before {
+            motion_lines.push(line_index + 1);
+        }
     }
     let program = Program {
         name: "Imported GRBL program".to_string(),
@@ -66,7 +85,10 @@ pub fn parse_grbl(source: &str) -> Result<Program, CamError> {
         motions,
     };
     verify_program(&program)?;
-    Ok(program)
+    Ok(ParsedGCode {
+        program,
+        motion_lines,
+    })
 }
 
 fn axis(words: &[&str], letter: char) -> Result<Option<f64>, CamError> {

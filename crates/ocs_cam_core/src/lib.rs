@@ -18,13 +18,13 @@ pub use manufacturing_geometry::{
     MANUFACTURING_GEOMETRY_SCHEMA_VERSION,
 };
 mod gcode;
-pub use gcode::parse_grbl;
+pub use gcode::{parse_grbl, parse_grbl_with_lines, ParsedGCode};
 mod preview;
 pub use preview::{preview_segments, Point3, PreviewSegment, SegmentKind};
 mod setup;
 pub use setup::{CamSetup, MachineEnvelope, MaterialPreset, StockDefinition};
 mod simulation;
-pub use simulation::{simulate_stock, StockHeightField};
+pub use simulation::{simulate_stock, StockHeightField, StockSimulation};
 
 const EPSILON: f64 = 1.0e-9;
 

@@ -169,10 +169,16 @@ impl std::fmt::Display for RenderModeChoice {
 impl Mac2CAM {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn view(&self, window_id: window::Id) -> Element<'_, Message> {
+        if self.cam_preview_window == Some(window_id) {
+            return crate::ui::window::cam_preview::view(
+                self.cam_stock_simulation.as_ref().map(|simulation| &simulation.field),
+                self.cam_preview_step.unwrap_or(0),
+                self.cam_preview_segments.len(),
+            );
+        }
         // ── Floating panel windows ─────────────────────────────────────────
         // All dialogs are in-canvas modals now (Plan B); view_main stacks the
         // active one. `window_id` is unused — there is only the main window.
-        let _ = window_id;
         // Pan latency on a large drawing is ~120 ms while `update`, `prepare`
         // and `encode` together account for ~1 ms of it, the GPU sits at 0-8%,
         // and encoding no scene at all changes nothing. Widget-tree
@@ -2394,6 +2400,12 @@ impl Mac2CAM {
         } else {
             Subscription::none()
         };
+        let cam_playback = if self.cam_playing {
+            iced::time::every(std::time::Duration::from_millis(35))
+                .map(|_| Message::CamPlaybackTick)
+        } else {
+            Subscription::none()
+        };
         // Blink the MText preview caret while the editor is open.
         let caret_blink = if self.mtext_editor.is_some() {
             iced::time::every(std::time::Duration::from_millis(530))
@@ -2596,6 +2608,7 @@ impl Mac2CAM {
             hover_dwell,
             nav_settle,
             thumbnail_capture,
+            cam_playback,
             caret_blink,
             web_fonts,
             autosave,
@@ -2776,6 +2789,12 @@ impl Mac2CAM {
                 &self.cam_editor,
                 self.cam_preview_segments.len(),
                 self.cam_preview_step,
+                &self.cam_gcode_lines,
+                self.cam_preview_step
+                    .and_then(|step| self.cam_preview_segments.get(step.saturating_sub(1)))
+                    .and_then(|segment| self.cam_motion_lines.get(segment.motion_index))
+                    .copied(),
+                self.cam_playing,
                 width,
                 auto_collapse,
             ),

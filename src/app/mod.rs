@@ -683,6 +683,12 @@ pub(super) struct Mac2CAM {
     pub(crate) cam_selected_operation: Option<usize>,
     pub(crate) cam_preview_segments: Vec<ocs_cam_core::PreviewSegment>,
     pub(crate) cam_preview_step: Option<usize>,
+    pub(crate) cam_gcode_source: String,
+    pub(crate) cam_gcode_lines: Vec<String>,
+    pub(crate) cam_motion_lines: Vec<usize>,
+    pub(crate) cam_playing: bool,
+    pub(crate) cam_stock_simulation: Option<ocs_cam_core::StockSimulation>,
+    pub(crate) cam_preview_window: Option<window::Id>,
     /// General edge-stack dock layout for the side panels.
     pub(crate) dock: crate::ui::dock::DockState,
     /// Which panel is currently floated at full height (hovered, or a pinned
@@ -2158,6 +2164,9 @@ pub enum Message {
     CamExport(String, String),
     CamExportResult(String, String, Option<std::path::PathBuf>),
     CamPanel(crate::ui::window::cam_panel::CamPanelMsg),
+    CamGcodeLoaded(Option<(String, String)>),
+    CamGcodePasted(Option<String>),
+    CamPlaybackTick,
     // ── Document tabs ──────────────────────────────────────────────────────
     /// Create a new empty document tab.
     TabNew,
@@ -3592,6 +3601,12 @@ impl Mac2CAM {
             cam_selected_operation: None,
             cam_preview_segments: Vec::new(),
             cam_preview_step: None,
+            cam_gcode_source: String::new(),
+            cam_gcode_lines: Vec::new(),
+            cam_motion_lines: Vec::new(),
+            cam_playing: false,
+            cam_stock_simulation: None,
+            cam_preview_window: None,
             block_palette: Default::default(),
             dock: Default::default(),
             dock_expanded: None,
@@ -4084,7 +4099,9 @@ pub fn run() -> iced::Result {
     .subscription(Mac2CAM::subscription)
     .scale_factor(|state: &Mac2CAM, _window: window::Id| state.ui_scale as f32 / 100.0)
     .title(|state: &Mac2CAM, window_id: window::Id| {
-        let _ = window_id; // all dialogs are in-canvas modals now
+        if state.cam_preview_window == Some(window_id) {
+            return concat!("Mac2CAM_", env!("OCS_BUILD_STAMP"), " — 3D Machining Preview").to_string();
+        }
         if let Some(tab) = state.tabs.get(state.active_tab) {
             let dot = if tab.dirty { "● " } else { "" };
             let name = tab.tab_display_name();

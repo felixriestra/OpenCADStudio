@@ -2,6 +2,7 @@ use super::{ArrowKey, Message, Mac2CAM, TextEntryMode};
 use crate::scene::VIEWCUBE_DRAW_PX;
 use crate::ui::PropertiesPanel;
 use iced::time::Instant;
+use iced::window;
 use iced::Task;
 
 /// Keystroke-derived messages that an open modal dialog must swallow so the
@@ -147,6 +148,42 @@ fn cam_preview_wires(
 }
 
 impl Mac2CAM {
+    fn install_cam_playback(&mut self, source_name: &str, source: String) -> Result<(), ocs_cam_core::CamError> {
+        let parsed = ocs_cam_core::parse_grbl_with_lines(&source)?;
+        let segments = ocs_cam_core::preview_segments(&parsed.program)?;
+        self.cam_gcode_source = source;
+        self.cam_gcode_lines = self.cam_gcode_source.lines().map(str::to_owned).collect();
+        self.cam_motion_lines = parsed.motion_lines;
+        self.cam_preview_step = Some(1.min(segments.len()));
+        self.cam_playing = false;
+        self.tabs[self.active_tab].scene.set_preview_wires(cam_preview_wires(&segments[..self.cam_preview_step.unwrap_or(0)]));
+        self.cam_preview_segments = segments;
+        self.cam_stock_simulation = None;
+        if let (Some(setup), Some(tool)) = (
+            self.tabs[self.active_tab].cam_job.setups.first(),
+            self.cam_selected_operation.and_then(|index| self.tabs[self.active_tab].cam_job.operations.get(index)).map(|op| &op.tool),
+        ) {
+            let cell_size = (tool.diameter * 0.25).max(setup.stock.width.max(setup.stock.height) / 500.0).max(0.05);
+            self.cam_stock_simulation = Some(ocs_cam_core::StockSimulation::new(&parsed.program, &setup.stock, tool.diameter, cell_size)?);
+        }
+        self.command_line.push_output(&format!("CAM playback loaded: {source_name} ({} toolpath segments).", self.cam_preview_segments.len()));
+        Ok(())
+    }
+
+    fn set_cam_playback_step(&mut self, step: usize) {
+        let step = step.min(self.cam_preview_segments.len());
+        self.cam_preview_step = Some(step);
+        self.tabs[self.active_tab].scene.set_preview_wires(cam_preview_wires(&self.cam_preview_segments[..step]));
+        if let Some(simulation) = self.cam_stock_simulation.as_mut() {
+            if step >= simulation.position() {
+                simulation.advance_to(step);
+                if let Some(stock) = self.tabs[self.active_tab].cam_job.setups.first().map(|setup| setup.stock.clone()) {
+                    self.tabs[self.active_tab].scene.set_cam_stock_preview(Some(&simulation.field), Some(&stock));
+                }
+            }
+        }
+    }
+
     pub(in crate::app) fn reset_modal_geometry(&mut self) {
         self.modal_offset = iced::Vector::ZERO;
         self.modal_resize = iced::Vector::ZERO;
@@ -1463,6 +1500,38 @@ impl Mac2CAM {
             }
             Message::CamExportResult(_, _, None) => Task::none(),
 
+            Message::CamGcodeLoaded(Some((name, source))) => {
+                if let Err(error) = self.install_cam_playback(&name, source) {
+                    self.command_line.push_error(&format!("CAM import failed: {error}"));
+                }
+                Task::none()
+            }
+            Message::CamGcodeLoaded(None) => Task::none(),
+            Message::CamGcodePasted(Some(source)) => {
+                if source.trim().is_empty() {
+                    self.command_line.push_error("CAM paste: the clipboard does not contain text.");
+                } else if let Err(error) = self.install_cam_playback("Clipboard", source) {
+                    self.command_line.push_error(&format!("CAM paste failed: {error}"));
+                }
+                Task::none()
+            }
+            Message::CamGcodePasted(None) => {
+                self.command_line.push_error("CAM paste: the clipboard does not contain text.");
+                Task::none()
+            }
+            Message::CamPlaybackTick => {
+                if self.cam_playing {
+                    let next = self.cam_preview_step.unwrap_or(0) + 1;
+                    if next >= self.cam_preview_segments.len() {
+                        self.set_cam_playback_step(self.cam_preview_segments.len());
+                        self.cam_playing = false;
+                    } else {
+                        self.set_cam_playback_step(next);
+                    }
+                }
+                Task::none()
+            }
+
             Message::CamPanel(action) => {
                 use crate::ui::window::cam_panel::{
                     AdvancedField, CamPanelMsg as A, NumericField, OperationField, SetupField,
@@ -1471,6 +1540,44 @@ impl Mac2CAM {
                 let i = self.active_tab;
                 let count = self.tabs[i].cam_job.operations.len();
                 match action {
+                    A::ImportGcode => {
+                        return Task::perform(async {
+                            let handle = rfd::AsyncFileDialog::new()
+                                .add_filter("G-code", &["nc", "gcode", "tap", "cnc"])
+                                .pick_file().await?;
+                            let name = handle.file_name();
+                            let bytes = handle.read().await;
+                            String::from_utf8(bytes).ok().map(|source| (name, source))
+                        }, Message::CamGcodeLoaded);
+                    }
+                    A::PasteGcode => {
+                        return iced::clipboard::read_text().map(|result| {
+                            Message::CamGcodePasted(result.ok().map(|text| text.as_ref().clone()))
+                        });
+                    }
+                    A::TogglePlayback => {
+                        if !self.cam_preview_segments.is_empty() {
+                            if self.cam_preview_step.unwrap_or(0) >= self.cam_preview_segments.len() {
+                                if !self.cam_gcode_source.is_empty() {
+                                    let source = self.cam_gcode_source.clone();
+                                    let _ = self.install_cam_playback("Replay", source);
+                                }
+                            }
+                            self.cam_playing = !self.cam_playing;
+                        }
+                    }
+                    A::Open3dPreview => {
+                        if let Some(id) = self.cam_preview_window {
+                            return window::gain_focus(id);
+                        }
+                        let (id, task) = window::open(window::Settings {
+                            size: iced::Size::new(900.0, 650.0),
+                            exit_on_close_request: false,
+                            ..Default::default()
+                        });
+                        self.cam_preview_window = Some(id);
+                        return task.map(|_| Message::Noop);
+                    }
                     A::Select(index) if index < count => {
                         self.cam_selected_operation = Some(index);
                         self.cam_editor.clear_operation();
@@ -1602,9 +1709,15 @@ impl Mac2CAM {
                             });
                         match segments {
                             Ok(segments) => {
-                                self.cam_preview_step = None;
-                                self.tabs[i].scene.set_preview_wires(cam_preview_wires(&segments));
-                                self.cam_preview_segments = segments;
+                                let mut motions = self.tabs[i].cam_job.operations.iter().filter(|op| op.enabled)
+                                    .flat_map(|op| op.program.motions.iter().filter(|motion| !matches!(motion, ocs_cam_core::Motion::End)).cloned())
+                                    .collect::<Vec<_>>();
+                                motions.push(ocs_cam_core::Motion::End);
+                                let program = ocs_cam_core::Program { name: "All enabled operations".into(), units: self.tabs[i].cam_job.units, motions };
+                                let source = ocs_cam_core::post_grbl(&program);
+                                if self.install_cam_playback("All enabled operations", source).is_ok() {
+                                    self.set_cam_playback_step(segments.len());
+                                }
                                 if let Err(error) = self.tabs[i].cam_job.validate() {
                                     self.command_line.push_output(&format!(
                                         "CAM preview displayed; fix the Job Setup safety warning before export: {error}"
@@ -1619,13 +1732,10 @@ impl Mac2CAM {
                             .cam_selected_operation
                             .and_then(|index| self.tabs[i].cam_job.operations.get(index))
                         {
-                            match ocs_cam_core::preview_segments(&operation.program) {
-                                Ok(segments) => {
-                                    self.cam_preview_step = None;
-                                    self.tabs[i].scene.set_preview_wires(cam_preview_wires(&segments));
-                                    self.cam_preview_segments = segments;
-                                }
-                                Err(error) => self.command_line.push_error(&format!("CAM preview: {error}")),
+                            let source = ocs_cam_core::post_grbl(&operation.program);
+                            let name = operation.name.clone();
+                            if let Err(error) = self.install_cam_playback(&name, source) {
+                                self.command_line.push_error(&format!("CAM preview: {error}"));
                             }
                         }
                     }
@@ -1635,14 +1745,12 @@ impl Mac2CAM {
                             .cloned();
                         let stock = self.tabs[i].cam_job.setups.first().map(|setup| setup.stock.clone());
                         match (operation, stock) {
-                            (Some(operation), Some(stock)) => {
-                                let cell_size = (operation.tool.diameter * 0.25)
-                                    .max(stock.width.max(stock.height) / 500.0)
-                                    .max(0.05);
-                                match ocs_cam_core::simulate_stock(&operation.program, &stock, operation.tool.diameter, cell_size) {
-                                    Ok(field) => {
-                                        self.tabs[i].scene.set_cam_stock_preview(Some(&field), Some(&stock));
-                                        self.command_line.push_output("CAM 3D preview: simulated remaining stock. Orbit the Model viewport to inspect it.");
+                            (Some(operation), Some(_stock)) => {
+                                let name = operation.name.clone();
+                                match self.install_cam_playback(&name, ocs_cam_core::post_grbl(&operation.program)) {
+                                    Ok(()) => {
+                                        self.set_cam_playback_step(self.cam_preview_segments.len());
+                                        self.command_line.push_output("CAM 3D preview: simulated remaining stock. Use 3D Window for the detached view.");
                                     }
                                     Err(error) => self.command_line.push_error(&format!("CAM simulation failed: {error}")),
                                 }
@@ -1655,13 +1763,19 @@ impl Mac2CAM {
                         self.tabs[i].scene.set_cam_stock_preview(None, None);
                         self.cam_preview_segments.clear();
                         self.cam_preview_step = None;
+                        self.cam_gcode_source.clear();
+                        self.cam_gcode_lines.clear();
+                        self.cam_motion_lines.clear();
+                        self.cam_playing = false;
+                        self.cam_stock_simulation = None;
                     }
                     A::PreviewFirst => {
                         if !self.cam_preview_segments.is_empty() {
-                            self.cam_preview_step = Some(1);
-                            self.tabs[i].scene.set_preview_wires(cam_preview_wires(
-                                &self.cam_preview_segments[..1],
-                            ));
+                            if !self.cam_gcode_source.is_empty() {
+                                let source = self.cam_gcode_source.clone();
+                                let _ = self.install_cam_playback("Restart", source);
+                            }
+                            self.set_cam_playback_step(1);
                         }
                     }
                     A::PreviewPrevious => {
@@ -1671,10 +1785,11 @@ impl Mac2CAM {
                                 .unwrap_or(self.cam_preview_segments.len())
                                 .saturating_sub(1)
                                 .max(1);
-                            self.cam_preview_step = Some(step);
-                            self.tabs[i].scene.set_preview_wires(cam_preview_wires(
-                                &self.cam_preview_segments[..step],
-                            ));
+                            if step < self.cam_stock_simulation.as_ref().map_or(0, |s| s.position()) && !self.cam_gcode_source.is_empty() {
+                                let source = self.cam_gcode_source.clone();
+                                let _ = self.install_cam_playback("Rewind", source);
+                            }
+                            self.set_cam_playback_step(step);
                         }
                     }
                     A::PreviewNext => {
@@ -1685,17 +1800,11 @@ impl Mac2CAM {
                                 .saturating_add(1)
                                 .min(self.cam_preview_segments.len())
                                 .max(1);
-                            self.cam_preview_step = Some(step);
-                            self.tabs[i].scene.set_preview_wires(cam_preview_wires(
-                                &self.cam_preview_segments[..step],
-                            ));
+                            self.set_cam_playback_step(step);
                         }
                     }
                     A::PreviewLast => {
-                        self.cam_preview_step = None;
-                        self.tabs[i].scene.set_preview_wires(cam_preview_wires(
-                            &self.cam_preview_segments,
-                        ));
+                        self.set_cam_playback_step(self.cam_preview_segments.len());
                     }
                     A::AdjustSetup(field, delta) => {
                         if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
@@ -3053,6 +3162,10 @@ impl Mac2CAM {
             }
 
             Message::WindowCloseRequested(id) => {
+                if self.cam_preview_window == Some(id) {
+                    self.cam_preview_window = None;
+                    return window::close(id);
+                }
                 if self.main_window == Some(id) {
                     if self.tabs.iter().any(|t| t.dirty) {
                         self.pending_close = Some(super::PendingClose::Quit);
@@ -3064,6 +3177,10 @@ impl Mac2CAM {
             }
 
             Message::OsWindowClosed(id) => {
+                if self.cam_preview_window == Some(id) {
+                    self.cam_preview_window = None;
+                    return Task::none();
+                }
                 // Only the main window exists now; all dialogs are in-canvas
                 // modals (Plan B). Closing it exits.
                 if self.main_window == Some(id) {

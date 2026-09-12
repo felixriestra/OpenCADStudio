@@ -19,6 +19,9 @@ pub struct PreviewSegment {
     pub start: Point3,
     pub end: Point3,
     pub kind: SegmentKind,
+    /// Index of the motion that produced this segment. Arcs can produce many
+    /// segments, all mapped to the same G-code source line.
+    pub motion_index: usize,
 }
 
 pub fn preview_segments(program: &Program) -> Result<Vec<PreviewSegment>, CamError> {
@@ -29,7 +32,7 @@ pub fn preview_segments(program: &Program) -> Result<Vec<PreviewSegment>, CamErr
         z: 0.0,
     };
     let mut segments = Vec::new();
-    for motion in &program.motions {
+    for (motion_index, motion) in program.motions.iter().enumerate() {
         match motion {
             Motion::Rapid { x, y, z } => {
                 let end = resolve(current, *x, *y, *z);
@@ -37,6 +40,7 @@ pub fn preview_segments(program: &Program) -> Result<Vec<PreviewSegment>, CamErr
                     start: current,
                     end,
                     kind: SegmentKind::Rapid,
+                    motion_index,
                 });
                 current = end;
             }
@@ -46,6 +50,7 @@ pub fn preview_segments(program: &Program) -> Result<Vec<PreviewSegment>, CamErr
                     start: current,
                     end,
                     kind: SegmentKind::Cut,
+                    motion_index,
                 });
                 current = end;
             }
@@ -89,6 +94,7 @@ pub fn preview_segments(program: &Program) -> Result<Vec<PreviewSegment>, CamErr
                         start: current,
                         end: next,
                         kind: SegmentKind::Cut,
+                        motion_index,
                     });
                     current = next;
                 }

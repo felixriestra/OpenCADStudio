@@ -92,6 +92,10 @@ pub enum CamPanelMsg {
     PreviewPrevious,
     PreviewNext,
     PreviewLast,
+    TogglePlayback,
+    ImportGcode,
+    PasteGcode,
+    Open3dPreview,
     EditNumber(NumericField, String),
     ApplySetupTemplate(SetupTemplate),
     ApplyLibraryTool(usize),
@@ -113,6 +117,9 @@ pub fn operations_view<'a>(
     editor: &'a CamEditorState,
     preview_len: usize,
     preview_step: Option<usize>,
+    gcode_lines: &'a [String],
+    active_gcode_line: Option<usize>,
+    playing: bool,
     width: f32,
     auto_collapse: bool,
 ) -> Element<'a, Message> {
@@ -336,15 +343,23 @@ pub fn operations_view<'a>(
     let body = column![
         panel_header("CAM Operations", PanelId::Cam, auto_collapse),
         row![
+            button("Import G-code").on_press(Message::CamPanel(CamPanelMsg::ImportGcode)),
+            button("Paste G-code").on_press(Message::CamPanel(CamPanelMsg::PasteGcode)),
+        ]
+        .spacing(4),
+        row![
             button("Preview All").on_press(Message::CamPanel(CamPanelMsg::PreviewAll)),
             button("2D Selected").on_press(Message::CamPanel(CamPanelMsg::PreviewSelected)),
             button("3D Stock").on_press(Message::CamPanel(CamPanelMsg::SimulateSelected)),
+            button("3D Window").on_press(Message::CamPanel(CamPanelMsg::Open3dPreview)),
             button("Clear").on_press(Message::CamPanel(CamPanelMsg::ClearPreview)),
         ]
         .spacing(4),
         row![
             button("|◀").on_press(Message::CamPanel(CamPanelMsg::PreviewFirst)),
             button("◀").on_press(Message::CamPanel(CamPanelMsg::PreviewPrevious)),
+            button(if playing { "Pause" } else { "Play" })
+                .on_press(Message::CamPanel(CamPanelMsg::TogglePlayback)),
             text(preview_step.map_or_else(
                 || format!("All {preview_len}"),
                 |step| format!("{step}/{preview_len}")
@@ -354,6 +369,7 @@ pub fn operations_view<'a>(
             button("▶|").on_press(Message::CamPanel(CamPanelMsg::PreviewLast)),
         ]
         .spacing(4),
+        gcode_view(gcode_lines, active_gcode_line),
         operations,
         parameters,
         tool,
@@ -365,6 +381,28 @@ pub fn operations_view<'a>(
         .width(Length::Fixed(width))
         .height(Fill)
         .into()
+}
+
+fn gcode_view<'a>(lines: &'a [String], active: Option<usize>) -> iced::widget::Column<'a, Message> {
+    if lines.is_empty() {
+        return column![text("No G-code loaded or generated.")];
+    }
+    let start = active.unwrap_or(1).saturating_sub(8);
+    let end = (start + 18).min(lines.len());
+    let mut code = column![text("G-code").size(14)].spacing(1);
+    for (offset, line) in lines[start..end].iter().enumerate() {
+        let number = start + offset + 1;
+        code = code.push(
+            text(format!(
+                "{} {:04}  {}",
+                if Some(number) == active { ">" } else { " " },
+                number,
+                line
+            ))
+            .size(11),
+        );
+    }
+    code
 }
 
 pub fn setup_view<'a>(

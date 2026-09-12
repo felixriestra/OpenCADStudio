@@ -1,6 +1,7 @@
 pub mod about;
 pub mod block_palette;
 pub mod cam_panel;
+pub mod cam_preview;
 pub mod layout_manager;
 pub mod layer_state_manager;
 pub mod drawing_units;
