@@ -1,6 +1,72 @@
 use super::*;
 
 impl Mac2CAM {
+    fn align_selected_bounds(&mut self, i: usize, command: &str) {
+        use crate::command::EntityTransform;
+        use glam::DVec3;
+
+        let handles: Vec<_> = self.tabs[i]
+            .scene
+            .selected_handles_in_order()
+            .into_iter()
+            .filter(|handle| !self.tabs[i].scene.is_layer_locked(*handle))
+            .collect();
+        if handles.len() < 2 {
+            self.command_line
+                .push_info(crate::t!("Select at least two unlocked objects to align.").as_ref());
+            return;
+        }
+
+        let bounds: Vec<_> = handles
+            .iter()
+            .filter_map(|handle| {
+                let entity = self.tabs[i].scene.document.get_entity(*handle)?;
+                let bb = entity.as_entity().bounding_box();
+                [bb.min.x, bb.min.y, bb.max.x, bb.max.y]
+                    .iter()
+                    .all(|value| value.is_finite())
+                    .then_some((*handle, bb))
+            })
+            .collect();
+        if bounds.len() < 2 {
+            self.command_line
+                .push_info(crate::t!("The selected objects do not provide usable bounds.").as_ref());
+            return;
+        }
+
+        let min_x = bounds.iter().map(|(_, bb)| bb.min.x).fold(f64::INFINITY, f64::min);
+        let min_y = bounds.iter().map(|(_, bb)| bb.min.y).fold(f64::INFINITY, f64::min);
+        let max_x = bounds.iter().map(|(_, bb)| bb.max.x).fold(f64::NEG_INFINITY, f64::max);
+        let max_y = bounds.iter().map(|(_, bb)| bb.max.y).fold(f64::NEG_INFINITY, f64::max);
+        let center_x = (min_x + max_x) * 0.5;
+        let center_y = (min_y + max_y) * 0.5;
+
+        let pending = self.begin_undo(i, command, bounds.len(), true);
+        for (handle, bb) in &bounds {
+            let (dx, dy) = match command {
+                "ALIGNLEFT" => (min_x - bb.min.x, 0.0),
+                "ALIGNHCENTER" => (center_x - (bb.min.x + bb.max.x) * 0.5, 0.0),
+                "ALIGNRIGHT" => (max_x - bb.max.x, 0.0),
+                "ALIGNTOP" => (0.0, max_y - bb.max.y),
+                "ALIGNVCENTER" => (0.0, center_y - (bb.min.y + bb.max.y) * 0.5),
+                "ALIGNBOTTOM" => (0.0, min_y - bb.min.y),
+                _ => (0.0, 0.0),
+            };
+            self.tabs[i].scene.transform_entities(
+                &[*handle],
+                &EntityTransform::Translate(DVec3::new(dx, dy, 0.0)),
+            );
+        }
+        self.tabs[i].dirty = true;
+        self.refresh_properties();
+        if let Some(pending) = pending {
+            self.commit_undo_delta(i, pending);
+        }
+        self.command_line.push_output(
+            crate::tf!("{command}: aligned {} object(s).", bounds.len()).as_ref(),
+        );
+    }
+
     pub(super) fn dispatch_inquiry(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
             "3DORBIT" => {
@@ -965,6 +1031,9 @@ impl Mac2CAM {
                 self.command_line.push_info(&cmd.prompt());
                 self.tabs[i].active_cmd = Some(Box::new(cmd));
             }
+
+            "ALIGNLEFT" | "ALIGNHCENTER" | "ALIGNRIGHT" | "ALIGNTOP"
+            | "ALIGNVCENTER" | "ALIGNBOTTOM" => self.align_selected_bounds(i, cmd),
 
             "LENGTHEN" => {
                 use crate::modules::draw::modify::lengthen::LengthenCommand;

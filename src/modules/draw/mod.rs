@@ -44,7 +44,7 @@ impl CadModule for DrawModule {
             match_layer, panel,
         };
         use modify::{
-            array, copy, delete, explode, fillet, mirror, offset, rotate, scale, stretch,
+            align, array, copy, delete, explode, fillet, mirror, offset, rotate, scale, stretch,
             translate, trim,
         };
         use inquiry::{area, dist};
@@ -122,6 +122,34 @@ impl CadModule for DrawModule {
                         delete::tool().into(),
                         explode::tool().into(),
                         offset::tool().into(),
+                        RibbonItem::LargeDropdown {
+                            id: align::DROPDOWN_ID,
+                            label: "Align",
+                            icon: align::ICON,
+                            items: align::DROPDOWN_ITEMS.to_vec(),
+                            default: "ALIGNLEFT",
+                        },
+                    ],
+                },
+                RibbonGroup {
+                    title: "Clipboard",
+                    tools: vec![
+                        RibbonItem::LargeTool(cut::tool()),
+                        RibbonItem::LargeTool(copy_clip::tool()),
+                        RibbonItem::LargeDropdown {
+                            id: "PASTE_MENU",
+                            label: "Paste",
+                            icon: paste::ICON,
+                            items: paste::MENU_ITEMS.to_vec(),
+                            default: "PASTECLIP",
+                        },
+                    ],
+                },
+                RibbonGroup {
+                    title: "Groups",
+                    tools: vec![
+                        RibbonItem::LargeTool(group::tool()),
+                        RibbonItem::LargeTool(ungroup::tool()),
                     ],
                 },
                 RibbonGroup {
@@ -240,27 +268,6 @@ impl CadModule for DrawModule {
                     }],
                 },
                 RibbonGroup {
-                    title: "Groups",
-                    tools: vec![
-                        RibbonItem::LargeTool(group::tool()),
-                        RibbonItem::LargeTool(ungroup::tool()),
-                    ],
-                },
-                RibbonGroup {
-                    title: "Clipboard",
-                    tools: vec![
-                        RibbonItem::LargeDropdown {
-                            id: "PASTE_MENU",
-                            label: "Paste",
-                            icon: paste::ICON,
-                            items: paste::MENU_ITEMS.to_vec(),
-                            default: "PASTECLIP",
-                        },
-                        copy_clip::tool().into(),
-                        cut::tool().into(),
-                    ],
-                },
-                RibbonGroup {
                     title: "Measure",
                     tools: vec![
                         RibbonItem::LargeDropdown {
@@ -279,5 +286,40 @@ impl CadModule for DrawModule {
                 // start_page_view). Removed from the Draw ribbon to declutter.
             ]
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clipboard_and_groups_follow_modify_before_constraints() {
+        let titles: Vec<_> = DrawModule
+            .ribbon_groups()
+            .iter()
+            .map(|group| group.title)
+            .collect();
+        let modify = titles.iter().position(|title| *title == "Modify").unwrap();
+        assert_eq!(&titles[modify..modify + 4], &["Modify", "Clipboard", "Groups", "Constraints"]);
+    }
+
+    #[test]
+    fn modify_exposes_the_complete_object_align_menu() {
+        let modify = DrawModule
+            .ribbon_groups()
+            .iter()
+            .find(|group| group.title == "Modify")
+            .unwrap();
+        let commands = modify.tools.iter().find_map(|item| match item {
+            RibbonItem::LargeDropdown { id, items, .. } if *id == modify::align::DROPDOWN_ID => {
+                Some(items.iter().map(|item| item.0).collect::<Vec<_>>())
+            }
+            _ => None,
+        }).unwrap();
+        assert_eq!(commands, vec![
+            "ALIGNLEFT", "ALIGNHCENTER", "ALIGNRIGHT", "ALIGNTOP",
+            "ALIGNVCENTER", "ALIGNBOTTOM", "ALIGN",
+        ]);
     }
 }

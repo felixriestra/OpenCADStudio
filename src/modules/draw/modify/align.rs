@@ -16,6 +16,20 @@ use crate::t;
 use crate::command::{CadCommand, CmdResult, EntityTransform};
 use crate::scene::model::wire_model::WireModel;
 
+use crate::modules::IconKind;
+
+pub const DROPDOWN_ID: &str = "OBJECT_ALIGN_MENU";
+pub const ICON: IconKind = IconKind::Svg(include_bytes!("../../../../assets/icons/align.svg"));
+pub const DROPDOWN_ITEMS: &[(&str, &str, IconKind)] = &[
+    ("ALIGNLEFT", "Align Left", IconKind::Svg(include_bytes!("../../../../assets/icons/align_left.svg"))),
+    ("ALIGNHCENTER", "Align Horizontal Centers", IconKind::Svg(include_bytes!("../../../../assets/icons/align_hcenter.svg"))),
+    ("ALIGNRIGHT", "Align Right", IconKind::Svg(include_bytes!("../../../../assets/icons/align_right.svg"))),
+    ("ALIGNTOP", "Align Top", IconKind::Svg(include_bytes!("../../../../assets/icons/align_top.svg"))),
+    ("ALIGNVCENTER", "Align Vertical Centers", IconKind::Svg(include_bytes!("../../../../assets/icons/align_vcenter.svg"))),
+    ("ALIGNBOTTOM", "Align Bottom", IconKind::Svg(include_bytes!("../../../../assets/icons/align_bottom.svg"))),
+    ("ALIGN", "Align by Points", ICON),
+];
+
 pub struct AlignCommand {
     state: AlignState,
     handles: Vec<Handle>,
@@ -291,4 +305,9 @@ impl AlignCommand {
 
 
 // ── Autocomplete registry ─────────────────────────────────
-inventory::submit!(crate::command::CommandRegistration { names: &["ALIGN"] });  // AlignCommand
+inventory::submit!(crate::command::CommandRegistration {
+    names: &[
+        "ALIGN", "ALIGNLEFT", "ALIGNHCENTER", "ALIGNRIGHT", "ALIGNTOP",
+        "ALIGNVCENTER", "ALIGNBOTTOM",
+    ],
+});
