@@ -8,7 +8,7 @@ pub(crate) mod config;
 #[cfg(not(target_arch = "wasm32"))]
 pub use automation::{export_headless, serve};
 mod command_driver;
-mod cam_library;
+pub(crate) mod cam_library;
 pub(crate) mod commands;
 #[cfg(not(target_arch = "wasm32"))]
 mod doc_api;
@@ -691,6 +691,7 @@ pub(super) struct Mac2CAM {
     pub(crate) cam_stock_simulation: Option<ocs_cam_core::StockSimulation>,
     pub(crate) cam_preview_window: Option<window::Id>,
     pub(crate) cam_tool_library_window: Option<window::Id>,
+    pub(crate) cam_tool_import_plan: Option<cam_library::ToolImportPlan>,
     pub(crate) cam_library: cam_library::CamLibrary,
     pub(crate) cam_selected_template: Option<usize>,
     pub(crate) cam_selected_material: Option<usize>,
@@ -2172,6 +2173,7 @@ pub enum Message {
     CamExportResult(String, String, Option<std::path::PathBuf>),
     CamPanel(crate::ui::window::cam_panel::CamPanelMsg),
     CamGcodeLoaded(Option<(String, String)>),
+    CamToolCsvLoaded(Option<(String, String)>),
     CamGcodePasted(Option<String>),
     CamPlaybackTick,
     // ── Document tabs ──────────────────────────────────────────────────────
@@ -3615,6 +3617,7 @@ impl Mac2CAM {
             cam_stock_simulation: None,
             cam_preview_window: None,
             cam_tool_library_window: None,
+            cam_tool_import_plan: None,
             cam_library: cam_library::load(),
             cam_selected_template: None,
             cam_selected_material: None,

@@ -124,6 +124,11 @@ pub enum CamPanelMsg {
     ToolToggleTrash,
     ToolRestore(usize),
     ToolPurge(usize),
+    ToolImportCsv,
+    ToolImportCommit,
+    ToolImportCancel,
+    ToolApplyResolved,
+    ToolSavePreset,
     EditNumber(NumericField, String),
     ApplySetupTemplate(SetupTemplate),
     ApplyLibraryTool(usize),
@@ -678,6 +683,9 @@ pub fn tool_library_view<'a>(
     tools: &'a [ocs_cam_core::ToolDefinition],
     trash: &'a [ocs_cam_core::ToolDefinition],
     selected: Option<usize>,
+    setup: Option<&'a ocs_cam_core::CamSetup>,
+    resolved: Option<crate::app::cam_library::ResolvedCuttingData>,
+    import_plan: Option<&'a crate::app::cam_library::ToolImportPlan>,
 ) -> Element<'a, Message> {
     let query = editor.tool_search.trim().to_lowercase();
     let list: Element<'a, Message> = if editor.tool_trash {
@@ -723,6 +731,70 @@ pub fn tool_library_view<'a>(
             })
             .into()
     };
+    let cutting_data: Element<'a, Message> = match (setup, resolved) {
+        (Some(setup), Some(data)) => column![
+            text(format!(
+                "Cutting data for {} / current machine",
+                setup.material.name
+            ))
+            .size(15),
+            text(format!(
+                "Feed {:.0} · Plunge {:.0} · {} rpm · Stepdown {:.3} · Stepover {:.3}",
+                data.feed, data.plunge_feed, data.spindle_rpm, data.step_down, data.step_over
+            )),
+            text(format!(
+                "{}{}",
+                data.source,
+                if data.estimated {
+                    " — estimate; verify before cutting"
+                } else {
+                    " — saved preset"
+                }
+            ))
+            .size(12),
+            row![
+                button("Apply to operation")
+                    .on_press(Message::CamPanel(CamPanelMsg::ToolApplyResolved)),
+                button("Save preset").on_press(Message::CamPanel(CamPanelMsg::ToolSavePreset)),
+            ]
+            .spacing(8),
+        ]
+        .spacing(5)
+        .into(),
+        _ => {
+            text("Select a tool to resolve cutting data for the current job material and machine.")
+                .into()
+        }
+    };
+    let import_review: Element<'a, Message> = if let Some(plan) = import_plan {
+        column![
+            text(format!("Import review — {}", plan.source_name)).size(15),
+            text(format!(
+                "{} valid tools · {} rejected rows",
+                plan.tools.len(),
+                plan.rejected.len()
+            )),
+            text(
+                plan.rejected
+                    .iter()
+                    .take(3)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+            .size(12),
+            row![
+                button(text(format!("Import {} tools", plan.tools.len())))
+                    .on_press(Message::CamPanel(CamPanelMsg::ToolImportCommit)),
+                button("Cancel").on_press(Message::CamPanel(CamPanelMsg::ToolImportCancel)),
+            ]
+            .spacing(8),
+        ]
+        .spacing(5)
+        .into()
+    } else {
+        text("").into()
+    };
     let body = column![
         row![
             text("Tool Database").size(22).width(Fill),
@@ -733,6 +805,8 @@ pub fn tool_library_view<'a>(
         text_input("Search by tool name", &editor.tool_search)
             .on_input(|value| Message::CamPanel(CamPanelMsg::ToolSearch(value))),
         scrollable(list).height(Fill),
+        cutting_data,
+        import_review,
         text_input("Tool name", &editor.tool_name)
             .on_input(|value| Message::CamPanel(CamPanelMsg::ToolName(value))),
         row![
@@ -748,6 +822,7 @@ pub fn tool_library_view<'a>(
             button("Save edits").on_press(Message::CamPanel(CamPanelMsg::ToolUpdate)),
             button("Duplicate").on_press(Message::CamPanel(CamPanelMsg::ToolDuplicate)),
             button("Move to Trash").on_press(Message::CamPanel(CamPanelMsg::ToolDelete)),
+            button("Import CSV").on_press(Message::CamPanel(CamPanelMsg::ToolImportCsv)),
         ].spacing(8),
         text("Storage is updated atomically and the previous database snapshot is retained as a backup.").size(12),
     ].spacing(12).padding(16);

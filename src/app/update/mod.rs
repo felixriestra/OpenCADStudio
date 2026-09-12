@@ -1508,6 +1508,11 @@ impl Mac2CAM {
                 Task::none()
             }
             Message::CamGcodeLoaded(None) => Task::none(),
+            Message::CamToolCsvLoaded(Some((name, source))) => {
+                self.cam_tool_import_plan = Some(super::cam_library::plan_csv_import(name, &source));
+                Task::none()
+            }
+            Message::CamToolCsvLoaded(None) => Task::none(),
             Message::CamGcodePasted(Some(source)) => {
                 if source.trim().is_empty() {
                     self.command_line.push_error("CAM paste: the clipboard does not contain text.");
@@ -1669,6 +1674,76 @@ impl Mac2CAM {
                     A::ToolPurge(index) if index < self.cam_library.trashed_tools.len() => {
                         self.cam_library.trashed_tools.remove(index);
                         let _ = super::cam_library::save(&self.cam_library);
+                    }
+                    A::ToolImportCsv => {
+                        return Task::perform(async {
+                            let handle = rfd::AsyncFileDialog::new()
+                                .add_filter("Tool catalogue", &["csv", "txt"])
+                                .pick_file().await?;
+                            let name = handle.file_name();
+                            let bytes = handle.read().await;
+                            String::from_utf8(bytes).ok().map(|source| (name, source))
+                        }, Message::CamToolCsvLoaded);
+                    }
+                    A::ToolImportCommit => {
+                        if let Some(plan) = self.cam_tool_import_plan.take() {
+                            let count = plan.tools.len();
+                            self.cam_library.tools.extend(plan.tools);
+                            let _ = super::cam_library::save(&self.cam_library);
+                            self.command_line.push_output(&format!("Tool database: imported {count} tools; {} rows rejected.", plan.rejected.len()));
+                        }
+                    }
+                    A::ToolImportCancel => self.cam_tool_import_plan = None,
+                    A::ToolApplyResolved => {
+                        if let (Some(tool_index), Some(operation_index), Some(setup)) = (
+                            self.cam_selected_tool,
+                            self.cam_selected_operation,
+                            self.tabs[i].cam_job.setups.first(),
+                        ) {
+                            if let Some(tool) = self.cam_library.tools.get(tool_index).cloned() {
+                                let data = self.cam_library.resolve(&tool, &setup.material, &setup.machine);
+                                if let Some(operation) = self.tabs[i].cam_job.operations.get_mut(operation_index) {
+                                    operation.tool = tool;
+                                    operation.tool.feed = data.feed;
+                                    operation.tool.plunge_feed = data.plunge_feed;
+                                    operation.tool.spindle_rpm = data.spindle_rpm;
+                                    operation.parameters.tool_diameter = operation.tool.diameter;
+                                    operation.parameters.feed = data.feed;
+                                    operation.parameters.plunge_feed = data.plunge_feed;
+                                    operation.parameters.spindle_rpm = data.spindle_rpm;
+                                    operation.parameters.step_down = data.step_down;
+                                    operation.advanced.step_over = data.step_over;
+                                    let _ = crate::app::commands::regenerate_cam_operation(operation);
+                                    self.tabs[i].dirty = true;
+                                }
+                            }
+                        }
+                    }
+                    A::ToolSavePreset => {
+                        if let (Some(tool_index), Some(setup)) = (
+                            self.cam_selected_tool,
+                            self.tabs[i].cam_job.setups.first(),
+                        ) {
+                            if let Some(tool) = self.cam_library.tools.get(tool_index).cloned() {
+                                let data = self.cam_library.resolve(&tool, &setup.material, &setup.machine);
+                                self.cam_library.cutting_presets.retain(|preset| {
+                                    preset.tool_id != tool.id || !preset.material.eq_ignore_ascii_case(&setup.material.name)
+                                });
+                                self.cam_library.cutting_presets.push(super::cam_library::CuttingPreset {
+                                    id: super::cam_library::unique_id("cutting-preset"),
+                                    tool_id: tool.id,
+                                    material: setup.material.name.clone(),
+                                    name: format!("{} / {}", tool.name, setup.material.name),
+                                    feed: data.feed,
+                                    plunge_feed: data.plunge_feed,
+                                    spindle_rpm: data.spindle_rpm,
+                                    step_down: data.step_down,
+                                    step_over: data.step_over,
+                                });
+                                let _ = super::cam_library::save(&self.cam_library);
+                                self.command_line.push_output("Saved cutting preset for the selected tool and material.");
+                            }
+                        }
                     }
                     A::ImportGcode => {
                         return Task::perform(async {
