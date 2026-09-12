@@ -178,10 +178,7 @@ impl Scene {
     /// Return `handles` plus every member of a selectable group containing one
     /// of them. Selection and rollover highlighting share this expansion so the
     /// preview matches what a click will select.
-    pub fn handles_expanded_for_selectable_groups(
-        &self,
-        handles: &[Handle],
-    ) -> HashSet<Handle> {
+    pub fn handles_expanded_for_selectable_groups(&self, handles: &[Handle]) -> HashSet<Handle> {
         let mut expanded: HashSet<Handle> = handles.iter().copied().collect();
         let wanted: HashSet<Handle> = handles.iter().copied().collect();
         for obj in self.document.objects.values() {
@@ -202,6 +199,42 @@ impl Scene {
         if self.selected.len() != previous_len {
             self.bump_selection_set();
         }
+    }
+
+    /// Partition selected entity handles into visual objects for operations
+    /// such as edge alignment. A selectable CAD group is one object and must
+    /// receive one shared transform; treating its member lines independently
+    /// can collapse a rectangle or triangle onto its own edge.
+    pub fn selected_object_units(&self, handles: &[Handle]) -> Vec<Vec<Handle>> {
+        let selected: HashSet<Handle> = handles.iter().copied().collect();
+        let mut claimed = HashSet::default();
+        let mut units = Vec::new();
+        for group in self.groups().filter(|group| group.selectable) {
+            let members: Vec<_> = group
+                .entities
+                .iter()
+                .copied()
+                .filter(|handle| selected.contains(handle))
+                .collect();
+            if !members.is_empty()
+                && members.iter().all(|handle| !claimed.contains(handle))
+                && group
+                    .entities
+                    .iter()
+                    .all(|handle| selected.contains(handle))
+            {
+                claimed.extend(members.iter().copied());
+                units.push(members);
+            }
+        }
+        units.extend(
+            handles
+                .iter()
+                .copied()
+                .filter(|handle| !claimed.contains(handle))
+                .map(|handle| vec![handle]),
+        );
+        units
     }
 }
 
@@ -246,5 +279,26 @@ mod group_expansion_tests {
         let both = scene.handles_expanded_for_selectable_groups(&[a, e]);
         assert_eq!(both, [a, b, c, d, e].into_iter().collect::<HashSet<_>>());
         assert!(!both.contains(&lonely));
+    }
+
+    #[test]
+    fn selected_object_units_keep_a_complete_group_together() {
+        use acadrust::entities::{EntityType, Line};
+        use acadrust::types::Vector3;
+
+        let mut scene = Scene::new();
+        let mut line = |x: f64| {
+            scene.add_entity(EntityType::Line(Line::from_points(
+                Vector3::new(x, 0.0, 0.0),
+                Vector3::new(x + 1.0, 0.0, 0.0),
+            )))
+        };
+        let (a, b, c, standalone) = (line(0.0), line(1.0), line(2.0), line(10.0));
+        scene.create_group("triangle".into(), vec![a, b, c]);
+
+        let units = scene.selected_object_units(&[a, b, c, standalone]);
+        assert_eq!(units.len(), 2);
+        assert!(units.iter().any(|unit| unit == &vec![a, b, c]));
+        assert!(units.iter().any(|unit| unit == &vec![standalone]));
     }
 }

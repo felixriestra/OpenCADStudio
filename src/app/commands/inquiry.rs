@@ -17,15 +17,27 @@ impl Mac2CAM {
             return;
         }
 
-        let bounds: Vec<_> = handles
-            .iter()
-            .filter_map(|handle| {
-                let entity = self.tabs[i].scene.document.get_entity(*handle)?;
-                let bb = entity.as_entity().bounding_box();
-                [bb.min.x, bb.min.y, bb.max.x, bb.max.y]
+        let bounds: Vec<_> = self.tabs[i]
+            .scene
+            .selected_object_units(&handles)
+            .into_iter()
+            .filter_map(|unit| {
+                let mut min_x = f64::INFINITY;
+                let mut min_y = f64::INFINITY;
+                let mut max_x = f64::NEG_INFINITY;
+                let mut max_y = f64::NEG_INFINITY;
+                for handle in &unit {
+                    let entity = self.tabs[i].scene.document.get_entity(*handle)?;
+                    let bb = entity.as_entity().bounding_box();
+                    min_x = min_x.min(bb.min.x);
+                    min_y = min_y.min(bb.min.y);
+                    max_x = max_x.max(bb.max.x);
+                    max_y = max_y.max(bb.max.y);
+                }
+                [min_x, min_y, max_x, max_y]
                     .iter()
                     .all(|value| value.is_finite())
-                    .then_some((*handle, bb))
+                    .then_some((unit, min_x, min_y, max_x, max_y))
             })
             .collect();
         if bounds.len() < 2 {
@@ -34,26 +46,26 @@ impl Mac2CAM {
             return;
         }
 
-        let min_x = bounds.iter().map(|(_, bb)| bb.min.x).fold(f64::INFINITY, f64::min);
-        let min_y = bounds.iter().map(|(_, bb)| bb.min.y).fold(f64::INFINITY, f64::min);
-        let max_x = bounds.iter().map(|(_, bb)| bb.max.x).fold(f64::NEG_INFINITY, f64::max);
-        let max_y = bounds.iter().map(|(_, bb)| bb.max.y).fold(f64::NEG_INFINITY, f64::max);
+        let min_x = bounds.iter().map(|(_, x, _, _, _)| *x).fold(f64::INFINITY, f64::min);
+        let min_y = bounds.iter().map(|(_, _, y, _, _)| *y).fold(f64::INFINITY, f64::min);
+        let max_x = bounds.iter().map(|(_, _, _, x, _)| *x).fold(f64::NEG_INFINITY, f64::max);
+        let max_y = bounds.iter().map(|(_, _, _, _, y)| *y).fold(f64::NEG_INFINITY, f64::max);
         let center_x = (min_x + max_x) * 0.5;
         let center_y = (min_y + max_y) * 0.5;
 
-        let pending = self.begin_undo(i, command, bounds.len(), true);
-        for (handle, bb) in &bounds {
+        let pending = self.begin_undo(i, command, handles.len(), true);
+        for (unit, unit_min_x, unit_min_y, unit_max_x, unit_max_y) in &bounds {
             let (dx, dy) = match command {
-                "ALIGNLEFT" => (min_x - bb.min.x, 0.0),
-                "ALIGNHCENTER" => (center_x - (bb.min.x + bb.max.x) * 0.5, 0.0),
-                "ALIGNRIGHT" => (max_x - bb.max.x, 0.0),
-                "ALIGNTOP" => (0.0, max_y - bb.max.y),
-                "ALIGNVCENTER" => (0.0, center_y - (bb.min.y + bb.max.y) * 0.5),
-                "ALIGNBOTTOM" => (0.0, min_y - bb.min.y),
+                "ALIGNLEFT" => (min_x - unit_min_x, 0.0),
+                "ALIGNHCENTER" => (center_x - (unit_min_x + unit_max_x) * 0.5, 0.0),
+                "ALIGNRIGHT" => (max_x - unit_max_x, 0.0),
+                "ALIGNTOP" => (0.0, max_y - unit_max_y),
+                "ALIGNVCENTER" => (0.0, center_y - (unit_min_y + unit_max_y) * 0.5),
+                "ALIGNBOTTOM" => (0.0, min_y - unit_min_y),
                 _ => (0.0, 0.0),
             };
             self.tabs[i].scene.transform_entities(
-                &[*handle],
+                unit,
                 &EntityTransform::Translate(DVec3::new(dx, dy, 0.0)),
             );
         }
