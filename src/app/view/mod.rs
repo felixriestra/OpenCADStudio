@@ -172,6 +172,7 @@ impl Mac2CAM {
         if self.cam_preview_window == Some(window_id) {
             return crate::ui::window::cam_preview::view(
                 self.cam_stock_simulation.as_ref().map(|simulation| &simulation.field),
+                self.tabs[self.active_tab].cam_job.setups.first().map(|setup| setup.material.color).unwrap_or([0.72, 0.50, 0.22]),
                 self.cam_preview_step.unwrap_or(0),
                 self.cam_preview_segments.len(),
             );
@@ -2401,7 +2402,12 @@ impl Mac2CAM {
             Subscription::none()
         };
         let cam_playback = if self.cam_playing {
-            iced::time::every(std::time::Duration::from_millis(35))
+            let interval_ms = if self.cam_playback_speed < 1.0 {
+                (35.0 / self.cam_playback_speed.max(0.25)).round() as u64
+            } else {
+                35
+            };
+            iced::time::every(std::time::Duration::from_millis(interval_ms))
                 .map(|_| Message::CamPlaybackTick)
         } else {
             Subscription::none()
@@ -2795,12 +2801,19 @@ impl Mac2CAM {
                     .and_then(|segment| self.cam_motion_lines.get(segment.motion_index))
                     .copied(),
                 self.cam_playing,
+                self.cam_playback_speed,
+                &self.cam_library.tools,
+                self.cam_selected_tool,
                 width,
                 auto_collapse,
             ),
             crate::ui::dock::PanelId::CamSetup => crate::ui::window::cam_panel::setup_view(
                 &tab.cam_job,
                 &self.cam_editor,
+                &self.cam_library.templates,
+                self.cam_selected_template,
+                &self.cam_library.materials,
+                self.cam_selected_material,
                 width,
                 auto_collapse,
             ),

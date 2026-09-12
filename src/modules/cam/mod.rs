@@ -13,6 +13,15 @@ fn tool(id: &'static str, label: &'static str, glyph: &'static str) -> ToolDef {
     }
 }
 
+fn svg_tool(id: &'static str, label: &'static str, bytes: &'static [u8]) -> ToolDef {
+    ToolDef {
+        id,
+        label,
+        icon: IconKind::Svg(bytes),
+        event: ModuleEvent::Command(id.to_string()),
+    }
+}
+
 impl CadModule for CamModule {
     fn id(&self) -> &'static str {
         "cam"
@@ -27,9 +36,17 @@ impl CadModule for CamModule {
         GROUPS.get_or_init(|| {
             vec![
                 RibbonGroup {
+                    title: "Tools",
+                    tools: vec![RibbonItem::LargeTool(svg_tool(
+                        "CAMTOOLS",
+                        "Tool Library",
+                        include_bytes!("../../../assets/icons/cam_tools.svg"),
+                    ))],
+                },
+                RibbonGroup {
                     title: "Setup",
                     tools: vec![
-                        RibbonItem::LargeTool(tool("CAMINFO", "CAM Setup", "⚙")),
+                        RibbonItem::LargeTool(tool("CAMSETUP", "CAM Setup", "⚙")),
                         RibbonItem::LargeTool(tool("CAMLIST", "Operations", "☷")),
                         RibbonItem::LargeTool(tool("CAMCLEAR", "Clear Job", "⌫")),
                     ],
@@ -44,14 +61,46 @@ impl CadModule for CamModule {
                 RibbonGroup {
                     title: "2D Toolpaths",
                     tools: vec![
-                        RibbonItem::LargeTool(tool("CAMPROFILE", "Outside Profile", "◎")),
-                        RibbonItem::LargeTool(tool("CAMINSIDE", "Inside Profile", "◉")),
-                        RibbonItem::LargeTool(tool("CAMPOCKET", "Pocket", "▣")),
-                        RibbonItem::LargeTool(tool("CAMFACE", "Face", "▤")),
-                        RibbonItem::LargeTool(tool("CAMBORE", "Bore", "◌")),
-                        RibbonItem::LargeTool(tool("CAMSLOT", "Slot", "▭")),
-                        RibbonItem::LargeTool(tool("CAMENGRAVE", "Engrave", "⌁")),
-                        RibbonItem::LargeTool(tool("CAMDRILL", "Drill", "⊙")),
+                        RibbonItem::LargeTool(svg_tool(
+                            "CAMPROFILE",
+                            "Outside Profile",
+                            include_bytes!("../../../assets/icons/cam_profile.svg"),
+                        )),
+                        RibbonItem::LargeTool(svg_tool(
+                            "CAMINSIDE",
+                            "Inside Profile",
+                            include_bytes!("../../../assets/icons/cam_inside.svg"),
+                        )),
+                        RibbonItem::LargeTool(svg_tool(
+                            "CAMPOCKET",
+                            "Pocket",
+                            include_bytes!("../../../assets/icons/cam_pocket.svg"),
+                        )),
+                        RibbonItem::LargeTool(svg_tool(
+                            "CAMFACE",
+                            "Face",
+                            include_bytes!("../../../assets/icons/cam_face.svg"),
+                        )),
+                        RibbonItem::LargeTool(svg_tool(
+                            "CAMBORE",
+                            "Bore",
+                            include_bytes!("../../../assets/icons/cam_bore.svg"),
+                        )),
+                        RibbonItem::LargeTool(svg_tool(
+                            "CAMSLOT",
+                            "Slot",
+                            include_bytes!("../../../assets/icons/cam_slot.svg"),
+                        )),
+                        RibbonItem::LargeTool(svg_tool(
+                            "CAMENGRAVE",
+                            "Engrave",
+                            include_bytes!("../../../assets/icons/cam_engrave.svg"),
+                        )),
+                        RibbonItem::LargeTool(svg_tool(
+                            "CAMDRILL",
+                            "Drill",
+                            include_bytes!("../../../assets/icons/cam_drill.svg"),
+                        )),
                     ],
                 },
                 RibbonGroup {

@@ -7,6 +7,7 @@ use crate::scene::model::mesh_model::MeshModel;
 fn cam_stock_mesh(
     field: &ocs_cam_core::StockHeightField,
     stock: &ocs_cam_core::StockDefinition,
+    material: &ocs_cam_core::MaterialPreset,
 ) -> MeshLodSet {
     let mut verts = Vec::with_capacity(field.columns * field.rows * 4);
     let mut normals = Vec::with_capacity(field.columns * field.rows * 4);
@@ -77,7 +78,7 @@ fn cam_stock_mesh(
         indices,
         triangle_material_handles: Vec::new(),
         triangle_colors: Vec::new(),
-        color: [0.72, 0.50, 0.22, 0.92],
+        color: [material.color[0], material.color[1], material.color[2], 0.96],
         selected: false,
     })
 }
@@ -95,15 +96,32 @@ impl Scene {
         self.preview_wires = wires;
     }
 
+    pub fn set_cam_stock_boundary(&mut self, stock: &ocs_cam_core::StockDefinition) {
+        let x0 = stock.origin.x;
+        let y0 = stock.origin.y;
+        let x1 = x0 + stock.width;
+        let y1 = y0 + stock.height;
+        let mut wire = WireModel::solid_f64(
+            "cam-stock-boundary".into(),
+            vec![[x0, y0, 0.0], [x1, y0, 0.0], [x1, y1, 0.0], [x0, y1, 0.0], [x0, y0, 0.0]],
+            [0.20, 0.65, 1.0, 0.9], false,
+        );
+        wire.line_weight_px = 2.0;
+        wire.plot_visible = false;
+        self.cam_stock_boundary_wires = vec![wire];
+    }
+
     /// Display the remaining CAM stock as a shaded, orbitable 3D mesh.
     pub fn set_cam_stock_preview(
         &mut self,
         field: Option<&ocs_cam_core::StockHeightField>,
         stock: Option<&ocs_cam_core::StockDefinition>,
+        material: Option<&ocs_cam_core::MaterialPreset>,
     ) {
         self.cam_preview_mesh = field
             .zip(stock)
-            .map(|(field, stock)| cam_stock_mesh(field, stock));
+            .zip(material)
+            .map(|((field, stock), material)| cam_stock_mesh(field, stock, material));
         self.bump_geometry();
     }
 

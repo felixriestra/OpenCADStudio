@@ -7,6 +7,7 @@ use iced::{Color, Element, Fill, Point, Rectangle, Renderer, Theme};
 #[derive(Clone)]
 struct StockCanvas {
     field: ocs_cam_core::StockHeightField,
+    material_color: [f32; 3],
 }
 
 impl Program<Message> for StockCanvas {
@@ -39,6 +40,35 @@ impl Program<Message> for StockCanvas {
             .iter()
             .copied()
             .fold(f32::INFINITY, f32::min);
+        let surface = Color::from_rgb(
+            self.material_color[0],
+            self.material_color[1],
+            self.material_color[2],
+        );
+        let outline = Path::new(|builder| {
+            builder.move_to(project(0, 0, self.field.heights[0] - min_height));
+            builder.line_to(project(
+                cols - 1,
+                0,
+                self.field.heights[cols - 1] - min_height,
+            ));
+            builder.line_to(project(
+                cols - 1,
+                rows - 1,
+                self.field.heights[rows * cols - 1] - min_height,
+            ));
+            builder.line_to(project(
+                0,
+                rows - 1,
+                self.field.heights[(rows - 1) * cols] - min_height,
+            ));
+            builder.close();
+        });
+        frame.fill(&outline, surface.scale_alpha(0.72));
+        frame.stroke(
+            &outline,
+            Stroke::default().with_width(2.0).with_color(surface),
+        );
         let top = self
             .field
             .heights
@@ -90,6 +120,7 @@ impl Program<Message> for StockCanvas {
 
 pub fn view(
     field: Option<&ocs_cam_core::StockHeightField>,
+    material_color: [f32; 3],
     step: usize,
     total: usize,
 ) -> Element<'static, Message> {
@@ -100,7 +131,8 @@ pub fn view(
             ))
             .size(16),
             canvas::Canvas::new(StockCanvas {
-                field: field.clone()
+                field: field.clone(),
+                material_color,
             })
             .width(Fill)
             .height(Fill),

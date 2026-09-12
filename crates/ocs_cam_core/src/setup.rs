@@ -5,6 +5,22 @@ use serde::{Deserialize, Serialize};
 pub struct MaterialPreset {
     pub name: String,
     pub feed_factor: f64,
+    #[serde(default = "default_material_color")]
+    pub color: [f32; 3],
+}
+
+fn default_material_color() -> [f32; 3] {
+    [0.72, 0.50, 0.22]
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SetupTemplate {
+    pub id: String,
+    pub name: String,
+    pub units: Units,
+    pub stock: StockDefinition,
+    pub material: MaterialPreset,
+    pub clearance_z: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -66,6 +82,7 @@ impl CamSetup {
             material: MaterialPreset {
                 name: "Generic".to_string(),
                 feed_factor: 1.0,
+                color: default_material_color(),
             },
             clearance_z: 5.0 * scale,
         }

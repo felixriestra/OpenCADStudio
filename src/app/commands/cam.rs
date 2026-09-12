@@ -26,11 +26,17 @@ impl Mac2CAM {
         if verb == "CAMSETUP" {
             self.show_cam_setup_panel = true;
             self.dock_expanded = Some(crate::ui::dock::PanelId::CamSetup);
+            if let Some(stock) = self.tabs[i].cam_job.setups.first().map(|setup| setup.stock.clone()) {
+                self.tabs[i].scene.set_cam_stock_boundary(&stock);
+            }
         } else {
             self.show_cam_panel = true;
             self.dock_expanded = Some(crate::ui::dock::PanelId::Cam);
         }
         match verb {
+            "CAMTOOLS" => {
+                self.command_line.push_output("CAMTOOLS: tool library opened.");
+            }
             "CAMINFO" => {
                 let count = self.tabs[i].cam_job.operations.len();
                 let detail = if count == 0 {

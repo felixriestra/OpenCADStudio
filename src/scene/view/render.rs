@@ -3993,15 +3993,16 @@ impl Scene {
             Arc::new(Vec::new())
         };
         let preview_wires = if !show_live_overlay
-            || (self.interim_wire.is_none() && self.preview_wires.is_empty())
+            || (self.interim_wire.is_none() && self.preview_wires.is_empty() && self.cam_stock_boundary_wires.is_empty())
         {
             Arc::new(Vec::new())
         } else {
-            let mut v: Vec<WireModel> = Vec::with_capacity(self.preview_wires.len() + 1);
+            let mut v: Vec<WireModel> = Vec::with_capacity(self.preview_wires.len() + self.cam_stock_boundary_wires.len() + 1);
             if let Some(iw) = &self.interim_wire {
                 v.push(iw.clone());
             }
             v.extend(self.preview_wires.iter().cloned());
+            v.extend(self.cam_stock_boundary_wires.iter().cloned());
             Arc::new(v)
         };
         let preview_hatches = if show_live_overlay {

@@ -58,6 +58,9 @@ pub enum SetupTemplate {
 #[derive(Debug, Default)]
 pub struct CamEditorState {
     drafts: BTreeMap<NumericField, String>,
+    pub template_name: String,
+    pub material_name: String,
+    pub tool_name: String,
 }
 impl CamEditorState {
     pub fn edit(&mut self, field: NumericField, value: String) {
@@ -96,6 +99,23 @@ pub enum CamPanelMsg {
     ImportGcode,
     PasteGcode,
     Open3dPreview,
+    Slower,
+    Faster,
+    TemplateName(String),
+    TemplateSelect(usize),
+    TemplateSave,
+    TemplateUpdate,
+    TemplateDelete,
+    MaterialName(String),
+    MaterialSelect(usize),
+    MaterialCreate,
+    MaterialUpdate,
+    MaterialDelete,
+    ToolName(String),
+    ToolSelect(usize),
+    ToolCreate,
+    ToolUpdate,
+    ToolDelete,
     EditNumber(NumericField, String),
     ApplySetupTemplate(SetupTemplate),
     ApplyLibraryTool(usize),
@@ -120,6 +140,9 @@ pub fn operations_view<'a>(
     gcode_lines: &'a [String],
     active_gcode_line: Option<usize>,
     playing: bool,
+    playback_speed: f64,
+    saved_tools: &'a [ocs_cam_core::ToolDefinition],
+    selected_tool: Option<usize>,
     width: f32,
     auto_collapse: bool,
 ) -> Element<'a, Message> {
@@ -360,6 +383,9 @@ pub fn operations_view<'a>(
             button("◀").on_press(Message::CamPanel(CamPanelMsg::PreviewPrevious)),
             button(if playing { "Pause" } else { "Play" })
                 .on_press(Message::CamPanel(CamPanelMsg::TogglePlayback)),
+            button("−").on_press(Message::CamPanel(CamPanelMsg::Slower)),
+            text(format!("{playback_speed}×")),
+            button("+").on_press(Message::CamPanel(CamPanelMsg::Faster)),
             text(preview_step.map_or_else(
                 || format!("All {preview_len}"),
                 |step| format!("{step}/{preview_len}")
@@ -374,6 +400,27 @@ pub fn operations_view<'a>(
         parameters,
         tool,
         library,
+        text("Saved Tool Library").size(14),
+        saved_tools
+            .iter()
+            .enumerate()
+            .fold(column![].spacing(2), |column, (index, tool)| column.push(
+                button(text(if selected_tool == Some(index) {
+                    format!("> {}  Ø{:.2}", tool.name, tool.diameter)
+                } else {
+                    format!("{}  Ø{:.2}", tool.name, tool.diameter)
+                }))
+                .width(Fill)
+                .on_press(Message::CamPanel(CamPanelMsg::ToolSelect(index)))
+            )),
+        text_input("Tool name", &editor.tool_name)
+            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolName(value))),
+        row![
+            button("Create").on_press(Message::CamPanel(CamPanelMsg::ToolCreate)),
+            button("Save edits").on_press(Message::CamPanel(CamPanelMsg::ToolUpdate)),
+            button("Delete").on_press(Message::CamPanel(CamPanelMsg::ToolDelete)),
+        ]
+        .spacing(4),
     ]
     .spacing(10)
     .padding(8);
@@ -408,6 +455,10 @@ fn gcode_view<'a>(lines: &'a [String], active: Option<usize>) -> iced::widget::C
 pub fn setup_view<'a>(
     job: &'a ocs_cam_core::CamJob,
     editor: &'a CamEditorState,
+    templates_saved: &'a [ocs_cam_core::SetupTemplate],
+    selected_template: Option<usize>,
+    materials: &'a [ocs_cam_core::MaterialPreset],
+    selected_material: Option<usize>,
     width: f32,
     auto_collapse: bool,
 ) -> Element<'a, Message> {
@@ -425,6 +476,16 @@ pub fn setup_view<'a>(
         button("Desktop router 300 × 180 × 18").on_press(Message::CamPanel(
             CamPanelMsg::ApplySetupTemplate(SetupTemplate::DesktopRouter)
         )),
+        text("My templates").size(14),
+        template_rows(templates_saved, selected_template),
+        text_input("Template name", &editor.template_name)
+            .on_input(|value| Message::CamPanel(CamPanelMsg::TemplateName(value))),
+        row![
+            button("Save new").on_press(Message::CamPanel(CamPanelMsg::TemplateSave)),
+            button("Update").on_press(Message::CamPanel(CamPanelMsg::TemplateUpdate)),
+            button("Delete").on_press(Message::CamPanel(CamPanelMsg::TemplateDelete)),
+        ]
+        .spacing(4),
     ]
     .spacing(4);
     let setup: Element<'_, Message> = job
@@ -457,6 +518,16 @@ pub fn setup_view<'a>(
                 setup_number("Origin Y", SetupField::OriginY, setup.work_origin.y, editor),
                 button(text(format!("Material: {}", setup.material.name)))
                     .on_press(Message::CamPanel(CamPanelMsg::CycleMaterial)),
+                text("Material library").size(14),
+                material_rows(materials, selected_material),
+                text_input("Material name", &editor.material_name)
+                    .on_input(|value| Message::CamPanel(CamPanelMsg::MaterialName(value))),
+                row![
+                    button("Create").on_press(Message::CamPanel(CamPanelMsg::MaterialCreate)),
+                    button("Update").on_press(Message::CamPanel(CamPanelMsg::MaterialUpdate)),
+                    button("Delete").on_press(Message::CamPanel(CamPanelMsg::MaterialDelete)),
+                ]
+                .spacing(4),
                 text("Machine limits").size(14),
                 setup_number(
                     "Travel X",
@@ -505,6 +576,46 @@ pub fn setup_view<'a>(
         .width(Length::Fixed(width))
         .height(Fill)
         .into()
+}
+
+fn template_rows<'a>(
+    items: &'a [ocs_cam_core::SetupTemplate],
+    selected: Option<usize>,
+) -> iced::widget::Column<'a, Message> {
+    items
+        .iter()
+        .enumerate()
+        .fold(column![].spacing(2), |column, (index, item)| {
+            column.push(
+                button(text(if selected == Some(index) {
+                    format!("> {}", item.name)
+                } else {
+                    item.name.clone()
+                }))
+                .width(Fill)
+                .on_press(Message::CamPanel(CamPanelMsg::TemplateSelect(index))),
+            )
+        })
+}
+
+fn material_rows<'a>(
+    items: &'a [ocs_cam_core::MaterialPreset],
+    selected: Option<usize>,
+) -> iced::widget::Column<'a, Message> {
+    items
+        .iter()
+        .enumerate()
+        .fold(column![].spacing(2), |column, (index, item)| {
+            column.push(
+                button(text(if selected == Some(index) {
+                    format!("> {}", item.name)
+                } else {
+                    item.name.clone()
+                }))
+                .width(Fill)
+                .on_press(Message::CamPanel(CamPanelMsg::MaterialSelect(index))),
+            )
+        })
 }
 
 fn panel_header<'a>(

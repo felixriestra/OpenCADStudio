@@ -178,7 +178,8 @@ impl Mac2CAM {
             if step >= simulation.position() {
                 simulation.advance_to(step);
                 if let Some(stock) = self.tabs[self.active_tab].cam_job.setups.first().map(|setup| setup.stock.clone()) {
-                    self.tabs[self.active_tab].scene.set_cam_stock_preview(Some(&simulation.field), Some(&stock));
+                    let material = self.tabs[self.active_tab].cam_job.setups.first().map(|setup| setup.material.clone());
+                    self.tabs[self.active_tab].scene.set_cam_stock_preview(Some(&simulation.field), Some(&stock), material.as_ref());
                 }
             }
         }
@@ -1521,7 +1522,8 @@ impl Mac2CAM {
             }
             Message::CamPlaybackTick => {
                 if self.cam_playing {
-                    let next = self.cam_preview_step.unwrap_or(0) + 1;
+                    let advance = self.cam_playback_speed.round().max(1.0) as usize;
+                    let next = self.cam_preview_step.unwrap_or(0) + advance;
                     if next >= self.cam_preview_segments.len() {
                         self.set_cam_playback_step(self.cam_preview_segments.len());
                         self.cam_playing = false;
@@ -1540,6 +1542,87 @@ impl Mac2CAM {
                 let i = self.active_tab;
                 let count = self.tabs[i].cam_job.operations.len();
                 match action {
+                    A::Slower => self.cam_playback_speed = (self.cam_playback_speed * 0.5).max(0.25),
+                    A::Faster => self.cam_playback_speed = (self.cam_playback_speed * 2.0).min(16.0),
+                    A::TemplateName(value) => self.cam_editor.template_name = value,
+                    A::MaterialName(value) => self.cam_editor.material_name = value,
+                    A::ToolName(value) => self.cam_editor.tool_name = value,
+                    A::TemplateSelect(index) if index < self.cam_library.templates.len() => {
+                        let template = self.cam_library.templates[index].clone();
+                        self.cam_selected_template = Some(index);
+                        self.cam_editor.template_name = template.name.clone();
+                        if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
+                            setup.stock = template.stock;
+                            setup.material = template.material;
+                            setup.clearance_z = template.clearance_z;
+                            let stock = setup.stock.clone();
+                            self.tabs[i].scene.set_cam_stock_boundary(&stock);
+                        }
+                    }
+                    A::TemplateSave => {
+                        let name = self.cam_editor.template_name.trim();
+                        if let Some(setup) = self.tabs[i].cam_job.setups.first().filter(|_| !name.is_empty()) {
+                            self.cam_library.templates.push(ocs_cam_core::SetupTemplate { id: super::cam_library::unique_id("setup"), name: name.into(), units: setup.units, stock: setup.stock.clone(), material: setup.material.clone(), clearance_z: setup.clearance_z });
+                            self.cam_selected_template = Some(self.cam_library.templates.len() - 1);
+                            let _ = super::cam_library::save(&self.cam_library);
+                        }
+                    }
+                    A::TemplateUpdate => {
+                        if let (Some(index), Some(setup)) = (self.cam_selected_template, self.tabs[i].cam_job.setups.first()) {
+                            if let Some(template) = self.cam_library.templates.get_mut(index) {
+                                if !self.cam_editor.template_name.trim().is_empty() { template.name = self.cam_editor.template_name.trim().into(); }
+                                template.units = setup.units; template.stock = setup.stock.clone(); template.material = setup.material.clone(); template.clearance_z = setup.clearance_z;
+                                let _ = super::cam_library::save(&self.cam_library);
+                            }
+                        }
+                    }
+                    A::TemplateDelete => {
+                        if let Some(index) = self.cam_selected_template.take().filter(|index| *index < self.cam_library.templates.len()) { self.cam_library.templates.remove(index); let _ = super::cam_library::save(&self.cam_library); }
+                    }
+                    A::MaterialSelect(index) if index < self.cam_library.materials.len() => {
+                        let material = self.cam_library.materials[index].clone();
+                        self.cam_selected_material = Some(index);
+                        self.cam_editor.material_name = material.name.clone();
+                        if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() { setup.material = material; }
+                    }
+                    A::MaterialCreate => {
+                        let name = self.cam_editor.material_name.trim();
+                        if !name.is_empty() {
+                            let colors = [[0.72,0.50,0.22],[0.72,0.76,0.80],[0.28,0.68,0.86],[0.55,0.39,0.24]];
+                            self.cam_library.materials.push(ocs_cam_core::MaterialPreset { name: name.into(), feed_factor: 1.0, color: colors[self.cam_library.materials.len() % colors.len()] });
+                            self.cam_selected_material = Some(self.cam_library.materials.len()-1); let _ = super::cam_library::save(&self.cam_library);
+                        }
+                    }
+                    A::MaterialUpdate => {
+                        if let Some(index) = self.cam_selected_material {
+                            if let Some(material) = self.cam_library.materials.get_mut(index) {
+                                if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
+                                    let name = if self.cam_editor.material_name.trim().is_empty() {
+                                        material.name.clone()
+                                    } else {
+                                        self.cam_editor.material_name.trim().into()
+                                    };
+                                    *material = setup.material.clone();
+                                    material.name = name;
+                                    setup.material = material.clone();
+                                }
+                                let _ = super::cam_library::save(&self.cam_library);
+                            }
+                        }
+                    }
+                    A::MaterialDelete => { if let Some(index) = self.cam_selected_material.take().filter(|index| *index < self.cam_library.materials.len()) { self.cam_library.materials.remove(index); let _ = super::cam_library::save(&self.cam_library); } }
+                    A::ToolSelect(index) if index < self.cam_library.tools.len() => {
+                        self.cam_selected_tool = Some(index); self.cam_editor.tool_name = self.cam_library.tools[index].name.clone();
+                        if let Some(operation) = self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get_mut(op)) { operation.tool = self.cam_library.tools[index].clone(); operation.parameters.tool_diameter = operation.tool.diameter; operation.parameters.feed = operation.tool.feed; operation.parameters.plunge_feed = operation.tool.plunge_feed; operation.parameters.spindle_rpm = operation.tool.spindle_rpm; }
+                    }
+                    A::ToolCreate => {
+                        let name = self.cam_editor.tool_name.trim();
+                        if !name.is_empty() { let parameters = self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get(op)).map(|op| op.parameters).unwrap_or_default(); let mut tool = ocs_cam_core::ToolDefinition::from_parameters(super::cam_library::unique_id("tool"), parameters); tool.name = name.into(); self.cam_library.tools.push(tool); self.cam_selected_tool = Some(self.cam_library.tools.len()-1); let _ = super::cam_library::save(&self.cam_library); }
+                    }
+                    A::ToolUpdate => {
+                        if let Some(index) = self.cam_selected_tool { if let (Some(saved), Some(operation)) = (self.cam_library.tools.get_mut(index), self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get(op))) { *saved = operation.tool.clone(); if !self.cam_editor.tool_name.trim().is_empty() { saved.name = self.cam_editor.tool_name.trim().into(); } let _ = super::cam_library::save(&self.cam_library); } }
+                    }
+                    A::ToolDelete => { if let Some(index) = self.cam_selected_tool.take().filter(|index| *index < self.cam_library.tools.len()) { self.cam_library.tools.remove(index); let _ = super::cam_library::save(&self.cam_library); } }
                     A::ImportGcode => {
                         return Task::perform(async {
                             let handle = rfd::AsyncFileDialog::new()
@@ -1587,6 +1670,7 @@ impl Mac2CAM {
                         if let Ok(value) = input.parse::<f64>() {
                             match field {
                                 NumericField::Setup(field) => {
+                                    let mut stock_boundary = None;
                                     if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
                                         match field {
                                             SetupField::StockWidth => setup.stock.width = value.max(0.001),
@@ -1601,8 +1685,9 @@ impl Mac2CAM {
                                             SetupField::MaximumFeed => setup.machine.maximum_feed = value.max(0.001),
                                             SetupField::MaximumRpm => setup.machine.maximum_spindle_rpm = value.max(1.0) as u32,
                                         }
-                                        self.tabs[i].dirty = true;
+                                        stock_boundary = Some(setup.stock.clone());
                                     }
+                                    if let Some(stock) = stock_boundary { self.tabs[i].dirty = true; self.tabs[i].scene.set_cam_stock_boundary(&stock); }
                                 }
                                 NumericField::Tool(_) | NumericField::Operation(_) | NumericField::Advanced(_) => {
                                     if let Some(operation) = self.cam_selected_operation.and_then(|index| self.tabs[i].cam_job.operations.get_mut(index)) {
@@ -1638,6 +1723,7 @@ impl Mac2CAM {
                     }
                     A::ApplySetupTemplate(template) => {
                         let scale = if self.tabs[i].cam_job.units == ocs_cam_core::Units::Inches { 1.0 / 25.4 } else { 1.0 };
+                        let mut boundary = None;
                         if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
                             let (width, height, thickness, travel_x, travel_y) = match template {
                                 SetupTemplate::Small => (100.0, 75.0, 20.0, 300.0, 180.0),
@@ -1649,9 +1735,9 @@ impl Mac2CAM {
                             setup.stock.thickness = thickness * scale;
                             setup.machine.travel_x = travel_x * scale;
                             setup.machine.travel_y = travel_y * scale;
-                            self.tabs[i].dirty = true;
-                            self.cam_editor = Default::default();
+                            boundary = Some(setup.stock.clone());
                         }
+                        if let Some(stock) = boundary { self.tabs[i].dirty = true; self.tabs[i].scene.set_cam_stock_boundary(&stock); self.cam_editor = Default::default(); }
                     }
                     A::Toggle(index) if index < count => {
                         let operation = &mut self.tabs[i].cam_job.operations[index];
@@ -1751,6 +1837,11 @@ impl Mac2CAM {
                                     Ok(()) => {
                                         self.set_cam_playback_step(self.cam_preview_segments.len());
                                         self.command_line.push_output("CAM 3D preview: simulated remaining stock. Use 3D Window for the detached view.");
+                                        if self.cam_preview_window.is_none() {
+                                            let (id, task) = window::open(window::Settings { size: iced::Size::new(900.0, 650.0), exit_on_close_request: false, ..Default::default() });
+                                            self.cam_preview_window = Some(id);
+                                            return task.map(|_| Message::Noop);
+                                        }
                                     }
                                     Err(error) => self.command_line.push_error(&format!("CAM simulation failed: {error}")),
                                 }
@@ -1760,7 +1851,7 @@ impl Mac2CAM {
                     }
                     A::ClearPreview => {
                         self.tabs[i].scene.set_preview_wires(Vec::new());
-                        self.tabs[i].scene.set_cam_stock_preview(None, None);
+                        self.tabs[i].scene.set_cam_stock_preview(None, None, None);
                         self.cam_preview_segments.clear();
                         self.cam_preview_step = None;
                         self.cam_gcode_source.clear();
@@ -1835,17 +1926,10 @@ impl Mac2CAM {
                         }
                     }
                     A::CycleMaterial => {
-                        if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() {
-                            let (name, factor) = match setup.material.name.as_str() {
-                                "Generic" => ("Aluminum", 0.55),
-                                "Aluminum" => ("Hardwood", 0.85),
-                                "Hardwood" => ("Plywood", 1.0),
-                                "Plywood" => ("Acrylic", 0.7),
-                                _ => ("Generic", 1.0),
-                            };
-                            setup.material.name = name.to_string();
-                            setup.material.feed_factor = factor;
-                            self.tabs[i].dirty = true;
+                        if !self.cam_library.materials.is_empty() {
+                            let next = self.cam_selected_material.map_or(0, |index| (index + 1) % self.cam_library.materials.len());
+                            self.cam_selected_material = Some(next);
+                            if let Some(setup) = self.tabs[i].cam_job.setups.first_mut() { setup.material = self.cam_library.materials[next].clone(); self.tabs[i].dirty = true; }
                         }
                     }
                     A::AdjustTool(field, delta) => {

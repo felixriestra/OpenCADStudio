@@ -8,6 +8,7 @@ pub(crate) mod config;
 #[cfg(not(target_arch = "wasm32"))]
 pub use automation::{export_headless, serve};
 mod command_driver;
+mod cam_library;
 pub(crate) mod commands;
 #[cfg(not(target_arch = "wasm32"))]
 mod doc_api;
@@ -689,6 +690,11 @@ pub(super) struct Mac2CAM {
     pub(crate) cam_playing: bool,
     pub(crate) cam_stock_simulation: Option<ocs_cam_core::StockSimulation>,
     pub(crate) cam_preview_window: Option<window::Id>,
+    pub(crate) cam_library: cam_library::CamLibrary,
+    pub(crate) cam_selected_template: Option<usize>,
+    pub(crate) cam_selected_material: Option<usize>,
+    pub(crate) cam_selected_tool: Option<usize>,
+    pub(crate) cam_playback_speed: f64,
     /// General edge-stack dock layout for the side panels.
     pub(crate) dock: crate::ui::dock::DockState,
     /// Which panel is currently floated at full height (hovered, or a pinned
@@ -3607,6 +3613,11 @@ impl Mac2CAM {
             cam_playing: false,
             cam_stock_simulation: None,
             cam_preview_window: None,
+            cam_library: cam_library::load(),
+            cam_selected_template: None,
+            cam_selected_material: None,
+            cam_selected_tool: None,
+            cam_playback_speed: 1.0,
             block_palette: Default::default(),
             dock: Default::default(),
             dock_expanded: None,

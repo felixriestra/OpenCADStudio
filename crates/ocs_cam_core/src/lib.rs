@@ -22,7 +22,7 @@ pub use gcode::{parse_grbl, parse_grbl_with_lines, ParsedGCode};
 mod preview;
 pub use preview::{preview_segments, Point3, PreviewSegment, SegmentKind};
 mod setup;
-pub use setup::{CamSetup, MachineEnvelope, MaterialPreset, StockDefinition};
+pub use setup::{CamSetup, MachineEnvelope, MaterialPreset, SetupTemplate, StockDefinition};
 mod simulation;
 pub use simulation::{simulate_stock, StockHeightField, StockSimulation};
 
