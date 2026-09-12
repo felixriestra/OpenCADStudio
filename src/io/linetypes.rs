@@ -1,4 +1,4 @@
-//! OpenCADStudio linetype catalog — loaded from `assets/linetypes/OpenCADStudio.lin`.
+//! Mac2CAM linetype catalog — loaded from `assets/linetypes/Mac2CAM.lin`.
 //!
 //! Call [`populate_document`] to add all standard linetypes to a new document.
 //! Linetypes that already exist in the document are skipped.
@@ -238,7 +238,7 @@ pub fn resolve_complex_lt(document: &CadDocument, name: &str) -> Option<ComplexL
     }
 }
 
-const LIN_SOURCE: &str = include_str!("../../assets/linetypes/OpenCADStudio.lin");
+const LIN_SOURCE: &str = include_str!("../../assets/linetypes/Mac2CAM.lin");
 
 // ── Pattern art extraction ────────────────────────────────────────────────
 
@@ -263,7 +263,7 @@ pub fn extract_pattern(desc: &str) -> String {
 
 // ── Public API ────────────────────────────────────────────────────────────
 
-/// Add all standard OpenCADStudio linetypes to `doc`, skipping existing ones.
+/// Add all standard Mac2CAM linetypes to `doc`, skipping existing ones.
 pub fn populate_document(doc: &mut CadDocument) {
     populate_document_from_source(doc, LIN_SOURCE);
 }

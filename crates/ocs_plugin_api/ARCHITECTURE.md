@@ -6,7 +6,7 @@ Internal-facing architecture documentation for `crates/ocs_plugin_api`. For plug
 
 ## Overview
 
-`ocs_plugin_api` is the stable, semver-versioned contract between the Open CAD Studio host and add-on plugins. The crate is intentionally split into two tiers:
+`ocs_plugin_api` is the stable, semver-versioned contract between the Mac2CAM host and add-on plugins. The crate is intentionally split into two tiers:
 
 | Tier | Feature | Dependencies | Purpose |
 |------|---------|--------------|---------|

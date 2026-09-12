@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "OpenCADStudio"
+name = "Mac2CAM"
 version = "2026.36.0"
 dependencies = [
  "acadrust",

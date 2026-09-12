@@ -10,8 +10,8 @@ from html import escape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = "https://www.opencadstudio.com"
-REPO = "https://github.com/HakanSeven12/OpenCADStudio"
+BASE = "https://www.mac2cam.com"
+REPO = "https://github.com/HakanSeven12/Mac2CAM"
 
 
 def locale_path(locale):
@@ -24,7 +24,7 @@ def public_path(locale):
 
 def load_catalogs():
     catalogs = {p.stem: json.loads(p.read_text()) for p in sorted((ROOT / "site/locales").glob("*.json"))}
-    supported = {p.parent.name for p in (ROOT / "locales").glob("*/opencadstudio.ftl")}
+    supported = {p.parent.name for p in (ROOT / "locales").glob("*/mac2cam.ftl")}
     if catalogs.keys() != supported:
         raise ValueError(f"Website locale mismatch: {catalogs.keys() ^ supported}")
     source = catalogs["en-US"]
@@ -82,7 +82,7 @@ def build(output):
         )
         schema = {
             "@context": "https://schema.org", "@type": "SoftwareApplication",
-            "name": "Open CAD Studio", "url": BASE + path, "inLanguage": locale,
+            "name": "Mac2CAM", "url": BASE + path, "inLanguage": locale,
             "description": messages["description"], "applicationCategory": "DesignApplication",
             "operatingSystem": "Windows, Linux, macOS, Web", "isAccessibleForFree": True,
             "license": "https://www.gnu.org/licenses/gpl-3.0.html", "codeRepository": REPO,
@@ -91,7 +91,7 @@ def build(output):
         }
         website_schema = {
             "@context": "https://schema.org", "@type": "WebSite",
-            "name": "Open CAD Studio", "alternateName": ["OpenCADStudio", "opencadstudio.com"],
+            "name": "Mac2CAM", "alternateName": ["Mac2CAM", "mac2cam.com"],
             "url": BASE + "/",
         }
         values = {key: escape(value) for key, value in messages.items()}

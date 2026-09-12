@@ -91,7 +91,7 @@ impl Scene {
     /// Writes every current `sketch_constraints` entry into its scope's
     /// owner-handle XRecord, ready for whatever save call happens next to
     /// serialize `self.document` as-is. Called right before a native/web
-    /// save (`OpenCADStudio::prepare_native_save` and the wasm save path)
+    /// save (`Mac2CAM::prepare_native_save` and the wasm save path)
     /// — see those call sites' doc comments for why "right before save"
     /// rather than keeping the XRecord resident and live-updated (design
     /// doc §5.2's "live" model, deferred: it would also let constraint-set
@@ -137,7 +137,7 @@ impl Scene {
     /// Populates `sketch_constraints` from every `OCS_SKETCH_CONSTRAINTS`
     /// XRecord found in the just-loaded `self.document` — called right
     /// after a document open installs its `CadDocument` into this `Scene`
-    /// (`OpenCADStudio::on_file_opened` and the automation `"open"`/`"new"`
+    /// (`Mac2CAM::on_file_opened` and the automation `"open"`/`"new"`
     /// ops). Every `BlockRecord` (model space, paper space, and named
     /// block definitions) is a candidate owner; most will have no such
     /// XRecord and are skipped cheaply. Replaces whatever was already in
@@ -204,7 +204,7 @@ mod tests {
     /// The above test only proves `materialize`/`load` agree with each
     /// other on the same in-memory `CadDocument` — it never actually
     /// serializes anything. This drives a real `save_to_bytes`/`load_bytes`
-    /// round trip (the same primitives `OpenCADStudio::on_file_opened`'s
+    /// round trip (the same primitives `Mac2CAM::on_file_opened`'s
     /// native save/open path uses), through both supported formats, closing
     /// the gap stage 2's spike proved for the raw XRecord mechanism up to
     /// this stage's actual app-level wiring.

@@ -247,7 +247,7 @@ fn build_pdf(
     plot_style: Option<&PlotStyleTable>,
     options: PdfPlotOptions,
 ) -> Vec<u8> {
-    let mut doc = PdfDocument::new("Open CAD Studio Export");
+    let mut doc = PdfDocument::new("Mac2CAM Export");
     append_pdf_page(
         &mut doc,
         wires,
@@ -269,7 +269,7 @@ fn build_pdf(
 
 #[cfg(not(target_arch = "wasm32"))]
 fn build_pdf_pages(pages: &[PdfPageInput], plot_style: Option<&PlotStyleTable>) -> Vec<u8> {
-    let mut doc = PdfDocument::new("Open CAD Studio Export");
+    let mut doc = PdfDocument::new("Mac2CAM Export");
     for page in pages {
         append_pdf_page(
             &mut doc,
@@ -1019,7 +1019,7 @@ fn emit_plot_stamp(ops: &mut Vec<Op>) {
     let user = std::env::var("USER")
         .or_else(|_| std::env::var("USERNAME"))
         .unwrap_or_else(|_| "user".into());
-    let label = format!("Open CAD Studio | {user} | {timestamp}");
+    let label = format!("Mac2CAM | {user} | {timestamp}");
     ops.extend([
         Op::SaveGraphicsState,
         Op::StartTextSection,

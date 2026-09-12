@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.HakanSeven12.OpenCadStudio</id>
+  <id>io.github.HakanSeven12.Mac2CAM</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
-  <name>Open CAD Studio</name>
+  <name>Mac2CAM</name>
   <summary xml:lang="ar-SA">تطبيق CAD ثنائي وثلاثي الأبعاد لرسومات DWG وDXF</summary>
   <summary xml:lang="bg-BG">2D/3D CAD приложение за DWG и DXF чертежи</summary>
   <summary xml:lang="cs-CZ">2D/3D CAD aplikace pro výkresy DWG a DXF</summary>
@@ -116,13 +116,13 @@
     <keyword xml:lang="zh-TW">設計</keyword>
     <keyword xml:lang="zh-TW">工程學</keyword>
   </keywords>
-  <launchable type="desktop-id">io.github.HakanSeven12.OpenCadStudio.desktop</launchable>
+  <launchable type="desktop-id">io.github.HakanSeven12.Mac2CAM.desktop</launchable>
   <categories>
     <category>Graphics</category>
     <category>Engineering</category>
   </categories>
-  <url type="homepage">https://github.com/HakanSeven12/OpenCADStudio</url>
-  <url type="bugtracker">https://github.com/HakanSeven12/OpenCADStudio/issues</url>
+  <url type="homepage">https://github.com/HakanSeven12/Mac2CAM</url>
+  <url type="bugtracker">https://github.com/HakanSeven12/Mac2CAM/issues</url>
   <developer id="io.github.hakanseven12">
     <name>Hakan Seven</name>
   </developer>

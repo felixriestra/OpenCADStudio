@@ -1,4 +1,4 @@
-//! "Make Open CAD Studio the default for .dwg / .dxf" — the platform-specific
+//! "Make Mac2CAM the default for .dwg / .dxf" — the platform-specific
 //! plumbing behind the one-time first-launch prompt (see `app::update`'s
 //! `AssocPrompt*` handlers).
 //!
@@ -10,7 +10,7 @@
 //!     per-app default-programs dialog via
 //!     `IApplicationAssociationRegistrationUI::LaunchAdvancedAssociationUI`,
 //!     passing the RegisteredApplications name the MSI registered
-//!     ("Open CAD Studio"). The user confirms there.
+//!     ("Mac2CAM"). The user confirms there.
 //!   * Linux — `xdg-mime default` writes the association into the user's
 //!     `mimeapps.list`; no separate consent step. The .desktop file already
 //!     declares the matching `MimeType=` entries.
@@ -27,7 +27,7 @@
 /// `CFBundleIdentifier` in packaging/Info.plist and the installed `*.desktop`
 /// basename.
 #[cfg(any(target_os = "macos", target_os = "linux"))]
-pub(crate) const APP_ID: &str = "io.github.HakanSeven12.OpenCadStudio";
+pub(crate) const APP_ID: &str = "io.github.HakanSeven12.Mac2CAM";
 
 /// Silently register this app as *a* handler (not necessarily the default) for
 /// .dwg / .dxf, so it appears in the OS "Open with" list. Unlike
@@ -186,7 +186,7 @@ mod windows_impl {
     }
 
     // Must match the RegisteredApplications value name in packaging/windows/main.wxs.
-    const APP_REGISTRY_NAME: &str = "Open CAD Studio";
+    const APP_REGISTRY_NAME: &str = "Mac2CAM";
 
     pub(super) fn set_default() -> Result<String, String> {
         unsafe {
@@ -244,11 +244,11 @@ mod windows_impl {
     /// (they point at now-deleted ProgIDs, which Windows simply ignores).
     pub(super) fn unregister_handler() -> Result<(), String> {
         for key in [
-            r"Software\Classes\Applications\OpenCADStudio.exe",
-            r"Software\Classes\OpenCADStudio.DWG",
-            r"Software\Classes\OpenCADStudio.DXF",
-            r"Software\Classes\OpenCADStudio.BAK",
-            r"Software\Open CAD Studio",
+            r"Software\Classes\Applications\Mac2CAM.exe",
+            r"Software\Classes\Mac2CAM.DWG",
+            r"Software\Classes\Mac2CAM.DXF",
+            r"Software\Classes\Mac2CAM.BAK",
+            r"Software\Mac2CAM",
         ] {
             let w = wide(key);
             unsafe {
@@ -328,7 +328,7 @@ mod windows_impl {
         }
         let dll = dll.to_string_lossy();
         let clsid_base = format!(r"Software\Classes\CLSID\{THUMB_CLSID}");
-        set_string(&clsid_base, None, "OpenCADStudio DWG Thumbnail Provider")?;
+        set_string(&clsid_base, None, "Mac2CAM DWG Thumbnail Provider")?;
         set_string(&format!(r"{clsid_base}\InprocServer32"), None, &dll)?;
         set_string(
             &format!(r"{clsid_base}\InprocServer32"),
@@ -359,22 +359,22 @@ mod windows_impl {
 
     /// Register the running .exe (per-user, HKCU) so the portable build matches
     /// what the MSI provides machine-wide:
-    ///   * an `Applications\OpenCADStudio.exe` entry → listed under "Open with";
+    ///   * an `Applications\Mac2CAM.exe` entry → listed under "Open with";
     ///   * ProgIDs + a Capabilities / RegisteredApplications block → the app is
     ///     a default-app candidate, so the in-app "set as default" prompt's OS
-    ///     dialog (LaunchAdvancedAssociationUI "Open CAD Studio") finds it.
+    ///     dialog (LaunchAdvancedAssociationUI "Mac2CAM") finds it.
     pub(super) fn register_handler() -> Result<(), String> {
         let exe = std::env::current_exe().map_err(|e| e.to_string())?;
         let exe = exe.to_string_lossy().to_string();
 
         // ── "Open with" exe listing ─────────────────────────────────────────
-        const APP_BASE: &str = r"Software\Classes\Applications\OpenCADStudio.exe";
+        const APP_BASE: &str = r"Software\Classes\Applications\Mac2CAM.exe";
         set_string(
             &format!(r"{APP_BASE}\shell\open\command"),
             None,
             &format!("\"{exe}\" \"%1\""),
         )?;
-        set_string(APP_BASE, Some("FriendlyAppName"), "Open CAD Studio")?;
+        set_string(APP_BASE, Some("FriendlyAppName"), "Mac2CAM")?;
         // DefaultIcon is what Windows uses to show the app icon in the
         // "Open with" context-menu list and the "Choose another app" picker.
         set_string(&format!(r"{APP_BASE}\DefaultIcon"), None, &format!("\"{exe}\",0"))?;
@@ -388,23 +388,23 @@ mod windows_impl {
         // ── ProgIDs (per-user mirror of the MSI's) ──────────────────────────
         // The Capabilities entries below point at these, and they must resolve
         // to a real open command for "set as default" to apply them.
-        register_progid(&exe, "OpenCADStudio.DWG", "DWG Drawing")?;
-        register_progid(&exe, "OpenCADStudio.DXF", "DXF Drawing")?;
-        register_progid(&exe, "OpenCADStudio.BAK", "CAD Backup")?;
+        register_progid(&exe, "Mac2CAM.DWG", "DWG Drawing")?;
+        register_progid(&exe, "Mac2CAM.DXF", "DXF Drawing")?;
+        register_progid(&exe, "Mac2CAM.BAK", "CAD Backup")?;
         // Also offer the ProgIDs in each extension's Open-with list.
         set_string(
             r"Software\Classes\.dwg\OpenWithProgids",
-            Some("OpenCADStudio.DWG"),
+            Some("Mac2CAM.DWG"),
             "",
         )?;
         set_string(
             r"Software\Classes\.dxf\OpenWithProgids",
-            Some("OpenCADStudio.DXF"),
+            Some("Mac2CAM.DXF"),
             "",
         )?;
         set_string(
             r"Software\Classes\.bak\OpenWithProgids",
-            Some("OpenCADStudio.BAK"),
+            Some("Mac2CAM.BAK"),
             "",
         )?;
 
@@ -412,21 +412,21 @@ mod windows_impl {
         // Mirrors the MSI's DefaultPrograms component, but per-user, so the
         // portable build is a Default-Apps candidate too. The value name in
         // RegisteredApplications must equal the name passed to
-        // LaunchAdvancedAssociationUI ("Open CAD Studio").
-        const CAP: &str = r"Software\Open CAD Studio\Capabilities";
-        set_string(CAP, Some("ApplicationName"), "Open CAD Studio")?;
+        // LaunchAdvancedAssociationUI ("Mac2CAM").
+        const CAP: &str = r"Software\Mac2CAM\Capabilities";
+        set_string(CAP, Some("ApplicationName"), "Mac2CAM")?;
         set_string(
             CAP,
             Some("ApplicationDescription"),
             "2D/3D CAD application for DWG and DXF drawings.",
         )?;
-        set_string(&format!(r"{CAP}\FileAssociations"), Some(".dwg"), "OpenCADStudio.DWG")?;
-        set_string(&format!(r"{CAP}\FileAssociations"), Some(".dxf"), "OpenCADStudio.DXF")?;
-        set_string(&format!(r"{CAP}\FileAssociations"), Some(".bak"), "OpenCADStudio.BAK")?;
+        set_string(&format!(r"{CAP}\FileAssociations"), Some(".dwg"), "Mac2CAM.DWG")?;
+        set_string(&format!(r"{CAP}\FileAssociations"), Some(".dxf"), "Mac2CAM.DXF")?;
+        set_string(&format!(r"{CAP}\FileAssociations"), Some(".bak"), "Mac2CAM.BAK")?;
         set_string(
             r"Software\RegisteredApplications",
-            Some("Open CAD Studio"),
-            r"Software\Open CAD Studio\Capabilities",
+            Some("Mac2CAM"),
+            r"Software\Mac2CAM\Capabilities",
         )?;
         Ok(())
     }
@@ -502,7 +502,7 @@ mod linux_impl {
 
         let contents = format!(
             "[Desktop Entry]\n\
-             Name=Open CAD Studio\n\
+             Name=Mac2CAM\n\
              Comment=A CAD application for 2D/3D drawing and design\n\
              Exec={exec} %F\n\
              Icon={APP_ID}\n\
@@ -511,7 +511,7 @@ mod linux_impl {
              Categories=Graphics;Engineering;\n\
              MimeType=image/vnd.dwg;image/vnd.dxf;\n\
              Keywords=CAD;DWG;DXF;drawing;design;\n\
-             StartupWMClass=OpenCADStudio\n"
+             StartupWMClass=Mac2CAM\n"
         );
 
         // The icon is checked first and on its own. It and the .desktop entry
@@ -688,7 +688,7 @@ mod linux_impl {
             .status()
             .map_err(|e| format!("could not run xdg-mime: {e}"))?;
         if status.success() {
-            Ok("Open CAD Studio is now the default for .dwg and .dxf files.".to_string())
+            Ok("Mac2CAM is now the default for .dwg and .dxf files.".to_string())
         } else {
             Err(format!("xdg-mime exited with {status}"))
         }
@@ -770,7 +770,7 @@ mod macos_impl {
         }
         unsafe { CFRelease(bundle as *const c_void) };
         match last_err {
-            None => Ok("Open CAD Studio is now the default for .dwg and .dxf files.".to_string()),
+            None => Ok("Mac2CAM is now the default for .dwg and .dxf files.".to_string()),
             Some(e) => Err(e),
         }
     }

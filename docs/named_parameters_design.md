@@ -8,7 +8,7 @@ section for the sibling feature this one builds alongside). The plan file at
 
 ## 1. What this is, and why
 
-OpenCADStudio now has real sketch-level parametric constraints (Coincident,
+Mac2CAM now has real sketch-level parametric constraints (Coincident,
 Horizontal/Vertical, Parallel/Perpendicular, Equal, Tangent, Distance, Angle,
 Radius — see `docs/parametric_system_design.md`, fully built and tested).
 What it does **not** have is a way to drive several of those dimensional
@@ -215,8 +215,8 @@ materialized right before save and read back right after load. Also went
 ahead with the "wire it into open/save" half of stage 2 (not just the
 spike) since it's the same four call sites `sketch_persist` already touches
 and there was no reason to leave it half-done:
-`OpenCADStudio::prepare_native_save` and the wasm save path
-(`src/app/update/file.rs`), `OpenCADStudio::on_file_opened`'s native/web
+`Mac2CAM::prepare_native_save` and the wasm save path
+(`src/app/update/file.rs`), `Mac2CAM::on_file_opened`'s native/web
 open path (`src/app/update/file.rs:1393`), and the automation `"open"`/
 `"new"` ops (`src/app/automation.rs`) — `named_parameters` lives on `Scene`
 (`Scene::named_parameters: named_parameters::ParameterTable`, alongside
@@ -369,7 +369,7 @@ note below).**
   `docs/backlog.md` flags as missing that registration). Built by mirroring
   `alias_editor.rs`'s buffered-rows pattern as closely as possible rather
   than inventing new UI conventions: rows are `(name, formula)`, edited in a
-  working buffer (`OpenCADStudio::named_parameter_editor_rows`,
+  working buffer (`Mac2CAM::named_parameter_editor_rows`,
   `ModalKind::NamedParameters`) and only committed to `Scene::
   named_parameters` on Apply — a better fit here than for aliases, even:
   `ParameterTable::set` validates (and can reject) a formula immediately, so
@@ -415,7 +415,7 @@ note below).**
   cheaper "which handles actually changed" test worth doing) and runs them
   through the same `begin_undo`/`bump_entities`/`commit_undo_delta` bracket
   `resolve_one_sketch_conflict` already established
-  (`OpenCADStudio::apply_named_parameter_editor_rows`, `command_driver.rs`).
+  (`Mac2CAM::apply_named_parameter_editor_rows`, `command_driver.rs`).
 - **Judgment call on undo granularity (§5 open question 3), not fully
   resolved**: the geometry Apply moves is one undo step (bracketed as
   above), matching how every other solve-triggering action in this codebase

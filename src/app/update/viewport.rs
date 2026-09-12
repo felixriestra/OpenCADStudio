@@ -8,7 +8,7 @@ use crate::app::helpers::{
     polar_constrain_if_near, polar_constrain_near, ucs_rotate_vec, ucs_to_wcs, ucs_z_axis,
     CoordKind,
 };
-use crate::app::{Message, OpenCADStudio, POLY_START_DELAY_MS};
+use crate::app::{Message, Mac2CAM, POLY_START_DELAY_MS};
 use crate::modules::ModuleEvent;
 use crate::scene::model::object::GripApply;
 use crate::scene::pick::grip::{
@@ -175,7 +175,7 @@ fn over_ucs_icon(p: Point, h: &crate::ui::overlay::UcsIconHit) -> bool {
     h.tips.iter().any(|t| pt_seg_d2(p, h.origin, *t) <= arm2)
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     fn active_construction_ray(
         &self,
         tab: usize,
@@ -5865,12 +5865,12 @@ properties={:.1}ms picked={}",
 #[cfg(test)]
 mod selection_preview_tests {
     use super::*;
-    use crate::app::{HoverDwell, OpenCADStudio, HOVER_DWELL_MS};
+    use crate::app::{HoverDwell, Mac2CAM, HOVER_DWELL_MS};
 
     /// Drive one settled rollover pick over a line and report what the scene
     /// ended up highlighting.
     fn rollover_hits(preview: u8) -> bool {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let i = app.active_tab;
         app.model_space.selection_preview = preview;

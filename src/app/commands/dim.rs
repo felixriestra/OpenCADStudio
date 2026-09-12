@@ -1,6 +1,6 @@
 use super::*;
 
-fn selected_edge_body(app: &OpenCADStudio, tab: usize) -> Option<acadrust::Handle> {
+fn selected_edge_body(app: &Mac2CAM, tab: usize) -> Option<acadrust::Handle> {
     let scene = &app.tabs.get(tab)?.scene;
     let selected = scene.selected_handles_in_order();
     let [handle] = selected.as_slice() else {
@@ -18,7 +18,7 @@ fn selected_edge_body(app: &OpenCADStudio, tab: usize) -> Option<acadrust::Handl
 }
 
 fn solid_edge_sources(
-    app: &mut OpenCADStudio,
+    app: &mut Mac2CAM,
     tab: usize,
 ) -> Vec<(acadrust::Handle, cadkernel::brep::Body)> {
     let handles = app.tabs[tab]
@@ -47,7 +47,7 @@ fn solid_edge_sources(
         .collect()
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn dispatch_dim(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
             "DIMALIGNED" => {

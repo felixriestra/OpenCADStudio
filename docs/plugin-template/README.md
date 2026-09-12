@@ -1,6 +1,6 @@
-# Open CAD Studio plugin template
+# Mac2CAM plugin template
 
-A complete scaffold for an **external** Open CAD Studio add-on. A plugin is its
+A complete scaffold for an **external** Mac2CAM add-on. A plugin is its
 own repository that builds a `cdylib`; the host loads it at runtime. Copy this
 folder into a new repo and rename the placeholders.
 
@@ -26,13 +26,13 @@ folder into a new repo and rename the placeholders.
 
 ```sh
 cargo build --release
-mkdir -p "<config>/OpenCADStudio/plugins/opencad.my_plugin"
-cp target/release/*my_plugin*.so "<config>/OpenCADStudio/plugins/opencad.my_plugin/"
+mkdir -p "<config>/Mac2CAM/plugins/opencad.my_plugin"
+cp target/release/*my_plugin*.so "<config>/Mac2CAM/plugins/opencad.my_plugin/"
 sed "s|__RUSTC_VERSION__|$(rustc --version)|" plugin.toml > \
-  "<config>/OpenCADStudio/plugins/opencad.my_plugin/plugin.toml"
+  "<config>/Mac2CAM/plugins/opencad.my_plugin/plugin.toml"
 ```
 
-Restart Open CAD Studio: the ribbon tab appears and `MP_` commands route to your
+Restart Mac2CAM: the ribbon tab appears and `MP_` commands route to your
 plugin. (`<config>` = `%APPDATA%` / `~/Library/Application Support` /
 `$XDG_CONFIG_HOME`.)
 
@@ -41,7 +41,7 @@ plugin. (`<config>` = `%APPDATA%` / `~/Library/Application Support` /
 Push a `v*` tag — the workflow builds the cdylib on Linux/Windows/macOS and
 uploads each binary plus `plugin.toml` to a GitHub Release. Users install it from
 the **Plugin Manager** by linking your `owner/repo`, or — once your repo is added
-to [`plugins/registry.json`](https://github.com/HakanSeven12/OpenCADStudio/blob/main/plugins/registry.json)
+to [`plugins/registry.json`](https://github.com/HakanSeven12/Mac2CAM/blob/main/plugins/registry.json)
 via PR — straight from *Available plugins*.
 
 > The binary must be built with the same toolchain and `ocs_plugin_api` version

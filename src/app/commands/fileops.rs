@@ -1,6 +1,6 @@
 use super::*;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn dispatch_fileops(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
             "NEW" => return Some(Task::done(Message::TabNew)),

@@ -19,7 +19,7 @@ thread_local! {
     > = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
-const RECENT_DIRECTORY: &str = "opencadstudio-recent";
+const RECENT_DIRECTORY: &str = "mac2cam-recent";
 const THUMBNAIL_MAGIC: &[u8; 4] = b"OCST";
 const THUMBNAIL_MAX_DIM: u32 = 256;
 

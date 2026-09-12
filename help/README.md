@@ -1,4 +1,4 @@
-# OpenCAD Studio Help
+# Mac2CAM Help
 
 This directory is a self-contained, static user-help system. It is intentionally
 not wired into the application yet.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate OpenCADStudio GitHub growth SVG charts."""
+"""Generate Mac2CAM GitHub growth SVG charts."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def fetch_star_dates(repository: str, token: str | None) -> list[datetime]:
     url = f"https://api.github.com/repos/{repository}/stargazers?per_page=100"
     headers = {
         "Accept": "application/vnd.github.star+json",
-        "User-Agent": "OpenCADStudio-star-history",
+        "User-Agent": "Mac2CAM-star-history",
         "X-GitHub-Api-Version": API_VERSION,
     }
     if token:
@@ -103,7 +103,7 @@ def fetch_release_downloads(
     url = f"https://api.github.com/repos/{repository}/releases?per_page=100"
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "OpenCADStudio-growth-history",
+        "User-Agent": "Mac2CAM-growth-history",
         "X-GitHub-Api-Version": API_VERSION,
     }
     if token:
@@ -313,7 +313,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--repository",
-        default=os.environ.get("GITHUB_REPOSITORY", "HakanSeven12/OpenCADStudio"),
+        default=os.environ.get("GITHUB_REPOSITORY", "HakanSeven12/Mac2CAM"),
     )
     parser.add_argument("--output-dir", type=Path, default=Path("dist"))
     args = parser.parse_args()

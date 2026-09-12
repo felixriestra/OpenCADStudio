@@ -1,7 +1,7 @@
 # Migrating model tiles to `iced::pane_grid`
 
 Status: **planned, not started.** This is a design note for a future migration of
-OpenCADStudio's custom model-space tiling (`model_tiles`) onto iced's
+Mac2CAM's custom model-space tiling (`model_tiles`) onto iced's
 `pane_grid` widget. It records the motivation, blockers, decisions and a phased
 plan so the work can start cold later.
 

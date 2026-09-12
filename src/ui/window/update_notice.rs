@@ -135,7 +135,7 @@ pub fn view_window<'a>(
     let header = container(
         column![
             text(t!("New Release Available")).size(20).style(primary_style),
-            text(t!("A newer Open CAD Studio version is published on GitHub."))
+            text(t!("A newer Mac2CAM version is published on GitHub."))
                 .size(11)
                 .style(muted_style),
         ]

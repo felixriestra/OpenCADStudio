@@ -1,7 +1,7 @@
 use acadrust::{entities::Circle, types::Vector3, EntityType};
 use glam::DVec3;
-use OpenCADStudio::command::WorkingPlane;
-use OpenCADStudio::scene::{model::presspull_model, Scene};
+use Mac2CAM::command::WorkingPlane;
+use Mac2CAM::scene::{model::presspull_model, Scene};
 
 #[test]
 fn area_picks_follow_exact_curves_and_keep_holes() {

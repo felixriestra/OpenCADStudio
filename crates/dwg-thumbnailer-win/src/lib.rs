@@ -212,7 +212,7 @@ fn register(install: bool) -> windows::core::Result<()> {
 
     if install {
         let dll = module_path()?;
-        set_value(&clsid_key, None, "OpenCADStudio DWG Thumbnail Provider")?;
+        set_value(&clsid_key, None, "Mac2CAM DWG Thumbnail Provider")?;
         set_value(&inproc_key, None, &dll)?;
         set_value(&inproc_key, Some("ThreadingModel"), "Apartment")?;
         set_value(&dwg_shellex, None, &clsid)?;

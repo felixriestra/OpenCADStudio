@@ -1,6 +1,6 @@
 use super::*;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn dispatch_display(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
             // Interactive pan: left-drag pans the view until Esc. The only pan
@@ -651,7 +651,7 @@ impl OpenCADStudio {
                             }
                         }
                         "SET" => {
-                            let app = parts.get(1).copied().unwrap_or("OpenCADStudio");
+                            let app = parts.get(1).copied().unwrap_or("Mac2CAM");
                             let val = parts.get(2).copied().unwrap_or("");
                             let editable: Vec<_> = selected_handles
                                 .iter()
@@ -841,9 +841,6 @@ impl OpenCADStudio {
             }
 
             // ── OBJ import ───────────────────────────────────────────────
-            "IMPORTOBJ" | "OBJIMPORT" => {
-                return Some(Task::done(Message::ObjImport));
-            }
             "IMPORTSVG" | "SVGIN" => {
                 return Some(Task::done(Message::SvgImport));
             }
@@ -1673,53 +1670,7 @@ impl OpenCADStudio {
                 );
             }
 
-            // LANDXMLIMPORT <path> — import survey points (LandXML <CgPoint>
-            // elements) as Point objects. Reads the coordinate text content
-            // (northing easting elevation) → Point at (easting, northing, elev).
-            "LANDXMLIMPORT" => {
-                use crate::command::ValuePromptCommand;
-                let c =
-                    ValuePromptCommand::new("LANDXMLIMPORT", "LANDXMLIMPORT  path to the .xml file:");
-                self.command_line.push_info(&c.prompt());
-                self.tabs[i].active_cmd = Some(Box::new(c));
-            }
-            cmd if cmd.starts_with("LANDXMLIMPORT ") => {
-                let path = cmd.trim_start_matches("LANDXMLIMPORT").trim();
-                if path.is_empty() {
-                    self.command_line.push_info(
-                        crate::t!("Usage: LANDXMLIMPORT <path-to-.xml>  (imports CgPoint survey points)").as_ref(),
-                    );
-                    return Some(Task::none());
-                }
-                match std::fs::read_to_string(path) {
-                    Ok(xml) => {
-                        let pts = parse_landxml_cgpoints(&xml);
-                        if pts.is_empty() {
-                            self.command_line
-                                .push_info(crate::t!("LANDXMLIMPORT: no <CgPoint> survey points found.").as_ref());
-                            return Some(Task::none());
-                        }
-                        self.push_undo_snapshot(i, "LANDXMLIMPORT");
-                        for [x, y, z] in &pts {
-                            let mut p = acadrust::entities::Point::new();
-                            p.location = acadrust::types::Vector3::new(*x, *y, *z);
-                            self.tabs[i]
-                                .scene
-                                .add_entity_clone(acadrust::EntityType::Point(p));
-                        }
-                        self.tabs[i].dirty = true;
-                        self.command_line.push_output(crate::tf!(
-                            "LANDXMLIMPORT: imported {} survey point(s). Use ZOOM EXTENTS to view.",
-                            pts.len()
-                        ).as_ref());
-                    }
-                    Err(e) => self
-                        .command_line
-                        .push_error(crate::tf!("LANDXMLIMPORT: cannot read \"{path}\": {e}").as_ref()),
-                }
-            }
-
-            "POINTCLOUDATTACH" | "RECAP" | "SYNCPVIEWPORTS" | "UNDERLAYLAYERS"
+            "SYNCPVIEWPORTS" | "UNDERLAYLAYERS"
             | "UOSNAP" => {
                 self.command_line
                     .push_info(crate::tf!("{cmd}: not yet implemented.").as_ref());
@@ -1729,42 +1680,6 @@ impl OpenCADStudio {
         }
         Some(self.finish_dispatch(cmd))
     }
-}
-
-// Scan LandXML text for <CgPoint> survey points. Each element's text content is
-// "northing easting elevation"; returned as [easting, northing, elevation] so it
-// maps to a Point at (X=easting, Y=northing, Z=elevation). Tolerant manual scan
-// (no XML dependency); handles the standard text-content form.
-// (landxml cgpoint scan)
-fn parse_landxml_cgpoints(xml: &str) -> Vec<[f64; 3]> {
-    let mut out = Vec::new();
-    let mut rest = xml;
-    while let Some(open) = rest.find("<CgPoint") {
-        let after = &rest[open + "<CgPoint".len()..];
-        // Skip the container element "<CgPoints>".
-        if !matches!(
-            after.chars().next(),
-            Some(' ') | Some('>') | Some('\t') | Some('\n') | Some('\r')
-        ) {
-            rest = after;
-            continue;
-        }
-        let Some(gt) = after.find('>') else { break };
-        let body = &after[gt + 1..];
-        let Some(close) = body.find("</CgPoint>") else {
-            break;
-        };
-        let text = &body[..close];
-        let nums: Vec<f64> = text
-            .split_whitespace()
-            .filter_map(|s| s.parse().ok())
-            .collect();
-        if nums.len() >= 3 {
-            out.push([nums[1], nums[0], nums[2]]);
-        }
-        rest = &body[close + "</CgPoint>".len()..];
-    }
-    out
 }
 
 fn parse_csv_table(text: &str) -> Vec<Vec<String>> {
@@ -1831,10 +1746,10 @@ fn table_to_csv(table: &acadrust::entities::Table) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
 
-    fn fresh_app() -> OpenCADStudio {
-        let mut app = OpenCADStudio::new_for_test();
+    fn fresh_app() -> Mac2CAM {
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app
     }
@@ -1894,7 +1809,7 @@ mod tests {
 
     #[test]
     fn regen_rebuilds_the_mesh_map_rather_than_only_bumping_the_epoch() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let i = app.active_tab;
 
@@ -1918,11 +1833,11 @@ mod tests {
     fn the_isolines_slider_rebuilds_once_on_release_and_not_while_dragging() {
         use crate::app::Message;
 
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let i = app.active_tab;
 
-        let seed = |app: &mut OpenCADStudio, i: usize| {
+        let seed = |app: &mut Mac2CAM, i: usize| {
             let stale = acadrust::Handle::new(0xBEEF);
             app.tabs[i].scene.meshes.insert(stale, stale_mesh());
             stale

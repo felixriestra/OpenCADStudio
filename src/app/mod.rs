@@ -322,7 +322,7 @@ struct AddSelectedRestore {
 }
 
 /// What the Space / Enter keys currently mean at the command line. One
-/// decision point (`OpenCADStudio::text_entry_mode`) for every keyboard
+/// decision point (`Mac2CAM::text_entry_mode`) for every keyboard
 /// route that used to re-derive the answer from editor state.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum TextEntryMode {
@@ -346,7 +346,7 @@ pub(crate) fn delobj_deletes_auxiliary(value: i16, creates_surface: bool) -> boo
     value == 2 || (value == 3 && !creates_surface)
 }
 
-pub(super) struct OpenCADStudio {
+pub(super) struct Mac2CAM {
     start: Instant,
     control: control::State,
     tabs: Vec<DocumentTab>,
@@ -797,7 +797,7 @@ pub(super) struct OpenCADStudio {
     /// Startup load failures keyed by plugin id. The Plugin Manager uses these
     /// to distinguish an installed-but-failed package from one awaiting restart.
     plugin_load_errors: rustc_hash::FxHashMap<String, String>,
-    /// Curated plugin registry fetched from the OpenCADStudio repo.
+    /// Curated plugin registry fetched from the Mac2CAM repo.
     plugin_registry: Vec<crate::plugin::external::RegistryEntry>,
     /// True while the curated registry request is in flight.
     plugin_registry_loading: bool,
@@ -2534,7 +2534,7 @@ pub enum Message {
     /// "SketchXpert-style" resolver — one guided removal per click rather
     /// than a candidate-list panel with a cyclable preview; see the status
     /// bar's `ResolveOneSketchConflict` pill and
-    /// `OpenCADStudio::resolve_one_sketch_conflict` for the full rationale).
+    /// `Mac2CAM::resolve_one_sketch_conflict` for the full rationale).
     /// No-op if the scope currently has no flagged conflict.
     ResolveOneSketchConflict,
     /// Toggle the status-bar customization menu open/closed.
@@ -3434,16 +3434,6 @@ pub enum Message {
     /// Callback after the user picks (or cancels) the STEP save path.
     StepExportPath(Option<std::path::PathBuf>),
     StepExportFinished(std::path::PathBuf, Result<(), String>),
-    // ── OBJ import ────────────────────────────────────────────────────────
-    /// Trigger OBJ import: show open-file dialog.
-    ObjImport,
-    /// Callback after the user picks (or cancels) the OBJ file path.
-    ObjImportPath(Option<std::path::PathBuf>),
-    ObjImportFinished(
-        u64,
-        std::path::PathBuf,
-        Result<crate::scene::model::mesh_model::MeshModel, String>,
-    ),
     /// Import SVG paths as editable native lightweight polylines.
     SvgImport,
     SvgImportPath(Option<std::path::PathBuf>),
@@ -3459,7 +3449,7 @@ pub enum SystemClipboardText {
     ConversionFailed,
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     fn new() -> Self {
         let config = config::AppConfig::load();
         if let Err(error) = crate::i18n::set_language(config.settings.language) {
@@ -4083,17 +4073,17 @@ use std::path::PathBuf;
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run() -> iced::Result {
     iced::daemon(
-        OpenCADStudio::boot,
-        OpenCADStudio::update,
-        OpenCADStudio::view,
+        Mac2CAM::boot,
+        Mac2CAM::update,
+        Mac2CAM::view,
     )
     .settings(iced::Settings {
         power_preference: iced::backend::PowerPreference::HighPerformance,
         ..iced::Settings::default()
     })
-    .subscription(OpenCADStudio::subscription)
-    .scale_factor(|state: &OpenCADStudio, _window: window::Id| state.ui_scale as f32 / 100.0)
-    .title(|state: &OpenCADStudio, window_id: window::Id| {
+    .subscription(Mac2CAM::subscription)
+    .scale_factor(|state: &Mac2CAM, _window: window::Id| state.ui_scale as f32 / 100.0)
+    .title(|state: &Mac2CAM, window_id: window::Id| {
         let _ = window_id; // all dialogs are in-canvas modals now
         if let Some(tab) = state.tabs.get(state.active_tab) {
             let dot = if tab.dirty { "● " } else { "" };
@@ -4108,12 +4098,12 @@ pub fn run() -> iced::Result {
             concat!("Mac2CAM_", env!("OCS_BUILD_STAMP")).to_string()
         }
     })
-    .theme(|state: &OpenCADStudio, _| state.active_theme.clone())
+    .theme(|state: &Mac2CAM, _| state.active_theme.clone())
     .font(iced_aw::ICED_AW_FONT_BYTES)
     .run()
 }
 
-impl Drop for OpenCADStudio {
+impl Drop for Mac2CAM {
     fn drop(&mut self) {
         #[cfg(target_arch = "wasm32")]
         crate::sys::set_unsaved_changes_warning(false);
@@ -4132,16 +4122,16 @@ impl Drop for OpenCADStudio {
 #[cfg(target_arch = "wasm32")]
 pub fn run_web() -> iced::Result {
     iced::application(
-        OpenCADStudio::boot_web,
-        OpenCADStudio::update,
-        OpenCADStudio::view_main,
+        Mac2CAM::boot_web,
+        Mac2CAM::update,
+        Mac2CAM::view_main,
     )
-    .subscription(OpenCADStudio::subscription)
-    .scale_factor(|state: &OpenCADStudio| state.ui_scale as f32 / 100.0)
-    .title(|_state: &OpenCADStudio| {
+    .subscription(Mac2CAM::subscription)
+    .scale_factor(|state: &Mac2CAM| state.ui_scale as f32 / 100.0)
+    .title(|_state: &Mac2CAM| {
         concat!("Mac2CAM_", env!("OCS_BUILD_STAMP")).to_string()
     })
-    .theme(|state: &OpenCADStudio| state.active_theme.clone())
+    .theme(|state: &Mac2CAM| state.active_theme.clone())
     .backend(iced::Backend::Hardware(iced::backend::Api::OpenGL))
     .font(iced_aw::ICED_AW_FONT_BYTES)
     .run()

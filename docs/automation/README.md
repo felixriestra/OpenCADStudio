@@ -1,18 +1,18 @@
-# OpenCADStudio MCP control
+# Mac2CAM MCP control
 
-Every native OpenCADStudio build contains the same MCP server as the editor. `OpenCADStudio --mcp` starts it over stdio, opens the desktop editor when needed, and exposes the live document without Python, a package manager, a sidecar service, or client-specific code.
+Every native Mac2CAM build contains the same MCP server as the editor. `Mac2CAM --mcp` starts it over stdio, opens the desktop editor when needed, and exposes the live document without Python, a package manager, a sidecar service, or client-specific code.
 
-MCP lets an AI client inspect the open drawing, execute editor commands, and verify the result through a shared protocol. Install OpenCADStudio, then add a local MCP server in the client and set its command to:
+MCP lets an AI client inspect the open drawing, execute editor commands, and verify the result through a shared protocol. Install Mac2CAM, then add a local MCP server in the client and set its command to:
 
 ```sh
-OpenCADStudio --mcp
+Mac2CAM --mcp
 ```
 
-The client must start that command over standard input/output. If it asks for the executable and arguments separately, select the installed `OpenCADStudio` executable and enter `--mcp` as its only argument. The exact registration screen or configuration location belongs to the client. Once connected, the four tools below should appear in the client's MCP tool list.
+The client must start that command over standard input/output. If it asks for the executable and arguments separately, select the installed `Mac2CAM` executable and enter `--mcp` as its only argument. The exact registration screen or configuration location belongs to the client. Once connected, the four tools below should appear in the client's MCP tool list.
 
 The server provides four tools:
 
-- `ocs_sessions` finds running editor sessions and opens OpenCADStudio when none exists.
+- `ocs_sessions` finds running editor sessions and opens Mac2CAM when none exists.
 - `ocs_read` discovers capabilities and reads document state, complete database records, command manifests, entities, properties, kernel measurements and spatial relationships, history, events, and operation status.
 - `ocs_execute` performs one operation, an atomic record update, or a sequential batch against the real editor.
 - `ocs_capture` returns a bounded PNG of the drawing viewport or complete window.
@@ -138,7 +138,7 @@ Execute responses use `response_detail: "compact"` by default and return only th
 
 For unfamiliar or conditional commands, use `start`, then inspect `state.command` in every response. Its `accepts` array gives the valid MCP input kinds, `options` gives the current tokens, and `input_example` gives the next request shape. Add the current state fields and a new `request_id` to each step.
 
-Every `ocs_execute` request requires a caller-generated `request_id`. Reuse that ID only to retry the identical request after a timeout, together with the same session ID, document ID, expected revision, and selection. Commands report `waiting_input` while more input is required and asynchronous work remains `running` until its real callback finishes. Geometry stays in OpenCADStudio and its geometry kernel.
+Every `ocs_execute` request requires a caller-generated `request_id`. Reuse that ID only to retry the identical request after a timeout, together with the same session ID, document ID, expected revision, and selection. Commands report `waiting_input` while more input is required and asynchronous work remains `running` until its real callback finishes. Geometry stays in Mac2CAM and its geometry kernel.
 
 `ocs_capture` defaults to the drawing viewport and a longest edge of 1600 pixels. Set `scope` to `window` for the full interface or change `max_dimension` between 256 and 4096.
 
@@ -148,11 +148,11 @@ The source-tree protocol smoke test treats the executable as a black box and use
 
 ```sh
 cargo build
-python3 docs/automation/mcp_smoke.py target/debug/OpenCADStudio
+python3 docs/automation/mcp_smoke.py target/debug/Mac2CAM
 ```
 
 The repeatable live-editor evaluation draws three isolated entities in one batch, verifies exact intersections, nearest geometry and kernel measurements, removes the entities, and reports call count, elapsed time and wire bytes:
 
 ```sh
-python3 docs/automation/mcp_eval.py target/debug/OpenCADStudio
+python3 docs/automation/mcp_eval.py target/debug/Mac2CAM
 ```

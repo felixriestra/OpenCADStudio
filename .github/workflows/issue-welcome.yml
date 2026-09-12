@@ -20,5 +20,5 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" --repo "$GH_REPO" --body-file - <<'EOF'
           Thank you for opening this issue.
 
-          If you support OpenCADStudio on [Patreon](https://www.patreon.com/HakanSeven12), send me either your GitHub username or this issue number in a Patreon message. After I verify your support, I will prioritize the issue.
+          If you support Mac2CAM on [Patreon](https://www.patreon.com/HakanSeven12), send me either your GitHub username or this issue number in a Patreon message. After I verify your support, I will prioritize the issue.
           EOF

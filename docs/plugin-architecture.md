@@ -1,15 +1,15 @@
-# Open CAD Studio — Plugin Architecture
+# Mac2CAM — Plugin Architecture
 
 **Status:** Accepted
-**Author:** Open CAD Studio contributors
+**Author:** Mac2CAM contributors
 **Date:** June 2026
 
 This document is the **authoritative spec** for how add-on packages integrate
-with Open CAD Studio. The model follows [QGIS](https://plugins.qgis.org/)-style
+with Mac2CAM. The model follows [QGIS](https://plugins.qgis.org/)-style
 extensibility: a small metadata file, a single entry point, an optional separate
 engine crate, and user-installable packages from a curated index.
 
-> **Open CAD Studio ships no built-in plugins.** Every add-on is an **external
+> **Mac2CAM ships no built-in plugins.** Every add-on is an **external
 > dynamic library** (`cdylib`) the host loads at runtime from the user plugins
 > folder. The host source only contains the generic plugin *runtime*
 > (`src/plugin/`, `src/app/plugin_host.rs`) and the stable contract crate
@@ -23,7 +23,7 @@ engine crate, and user-installable packages from a curated index.
 | Goal | Rationale |
 |------|-----------|
 | **One package, one entry point** | Manifest, ribbon tab and commands ship together in the plugin crate; no edits to the host. |
-| **Stable contract** | Authors target the semver-versioned `ocs_plugin_api` crate, not `OpenCADStudio` internals. |
+| **Stable contract** | Authors target the semver-versioned `ocs_plugin_api` crate, not `Mac2CAM` internals. |
 | **Out-of-tree by default** | A plugin is its own repo + crate; the host never recompiles to gain one. |
 | **DWG round-trip** | Domain data lives on entities as XDATA, not in an opaque side database. |
 | **Engine reuse** | A headless `std`-only engine crate can run in WASM/CLI without the CAD host. |
@@ -42,7 +42,7 @@ engine crate, and user-installable packages from a curated index.
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  Layer A — Host (OpenCADStudio)                                     │
+│  Layer A — Host (Mac2CAM)                                     │
 │  iced UI · Scene · Document · Undo · Command line                   │
 │  Core ribbon tabs: Home, Model, View, … (NOT plugins)              │
 │  Generic plugin runtime: discovery, spawn, dispatch                │
@@ -69,7 +69,7 @@ engine crate, and user-installable packages from a curated index.
 **Hard rules**
 
 1. The host (`src/plugin/`) imports no plugin code — it only knows the contract.
-2. Engine crates import neither `iced`, `acadrust`, nor `OpenCADStudio`.
+2. Engine crates import neither `iced`, `acadrust`, nor `Mac2CAM`.
 3. A plugin never edits host source; it runs entirely from its own crate.
 
 ---
@@ -175,7 +175,7 @@ A plugin is a standalone crate that builds a `cdylib`:
 crate-type = ["cdylib"]
 
 [dependencies]
-ocs_plugin_api = { git = "https://github.com/HakanSeven12/OpenCADStudio", features = ["host"] }
+ocs_plugin_api = { git = "https://github.com/HakanSeven12/Mac2CAM", features = ["host"] }
 
 # Match the host's acadrust so the loaded library is binary-compatible.
 [patch.crates-io]
@@ -312,11 +312,11 @@ and uploads these on a `v*` tag.
 
 ## Loading
 
-On startup the host scans `<config>/OpenCADStudio/plugins/<id>/` for a
+On startup the host scans `<config>/Mac2CAM/plugins/<id>/` for a
 `plugin.toml` + native library (`src/plugin/external.rs`):
 
 ```
-<config>/OpenCADStudio/plugins/
+<config>/Mac2CAM/plugins/
   opencad.example/
     plugin.toml
     libocs_example_plugin.so      # any name with the platform extension

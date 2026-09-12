@@ -1,6 +1,6 @@
 # Plugin registry
 
-`registry.json` is the curated list of third-party plugins Open CAD Studio
+`registry.json` is the curated list of third-party plugins Mac2CAM
 offers in its **Plugin Manager → marketplace**. The app fetches it from this
 repo's `main` branch at runtime, so adding an entry makes a plugin discoverable
 to every user without an app update.

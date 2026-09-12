@@ -1,6 +1,6 @@
-use super::{ModalKind, OpenCADStudio};
+use super::{ModalKind, Mac2CAM};
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn queue_startup_prompts(&mut self) {
         #[cfg(not(target_arch = "wasm32"))]
         if !self.default_assoc_prompted {
@@ -35,7 +35,7 @@ mod tests {
 
     #[test]
     fn startup_dialogs_wait_their_turn() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.apply_config(AppConfig::default());
         app.queue_startup_prompts();
         assert_eq!(app.active_modal, Some(ModalKind::AssocPrompt));

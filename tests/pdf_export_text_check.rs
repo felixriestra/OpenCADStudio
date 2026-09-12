@@ -11,8 +11,8 @@
 use acadrust::entities::{Dimension, DimensionLinear, Text};
 use acadrust::types::Vector3;
 use acadrust::EntityType;
-use OpenCADStudio::io::pdf_export::{export_pdf, PdfPlotOptions, PlotWire};
-use OpenCADStudio::scene::Scene;
+use Mac2CAM::io::pdf_export::{export_pdf, PdfPlotOptions, PlotWire};
+use Mac2CAM::scene::Scene;
 
 #[test]
 fn text_and_dim_reach_pdf_export() {

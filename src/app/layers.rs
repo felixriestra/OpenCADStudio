@@ -1,7 +1,7 @@
-use super::OpenCADStudio;
+use super::Mac2CAM;
 use crate::ui;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn load_layer_state_editor(&mut self, selected: Option<String>) {
         let i = self.active_tab;
         if let Some(name) = selected {

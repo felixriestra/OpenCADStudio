@@ -2,7 +2,7 @@
 name = "ocs_plugin_api"
 version = "0.2.1"
 edition = "2021"
-description = "Stable, dependency-free contract for Open CAD Studio add-on packages: plugin manifest, version handshake, and ribbon/CadModule types."
+description = "Stable, dependency-free contract for Mac2CAM add-on packages: plugin manifest, version handshake, and ribbon/CadModule types."
 license = "GPL-3.0-only"
 
 [dependencies]
@@ -28,7 +28,7 @@ getrandom = { version = "0.2", optional = true }
 
 [features]
 # Enables the runtime host surface (`HostApi` trait) and the out-of-process
-# plugin runtime. The OpenCADStudio binary turns this on; pure-data consumers
+# plugin runtime. The Mac2CAM binary turns this on; pure-data consumers
 # leave it off.
 host = ["dep:acadrust", "dep:interprocess", "dep:bincode", "dep:serde_bytes", "dep:thiserror", "dep:libloading", "dep:memmap2", "dep:rkyv", "dep:getrandom"]
 

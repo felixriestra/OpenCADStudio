@@ -2,7 +2,7 @@
 name = "my-plugin"
 version = "0.1.0"
 edition = "2021"
-description = "An Open CAD Studio add-on."
+description = "An Mac2CAM add-on."
 license = "GPL-3.0-only"
 
 # A plugin is a C-ABI dynamic library the host loads at runtime.
@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # The stable contract, with the runtime `host` surface (HostApi / BuiltinPlugin).
-ocs_plugin_api = { git = "https://github.com/HakanSeven12/OpenCADStudio", features = ["host"] }
+ocs_plugin_api = { git = "https://github.com/HakanSeven12/Mac2CAM", features = ["host"] }
 
 # Match the host's acadrust so the loaded library is binary-compatible
 # (approach B assumes the same toolchain + dependency versions).

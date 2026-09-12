@@ -1,9 +1,9 @@
-use super::{Message, OpenCADStudio};
+use super::{Message, Mac2CAM};
 use crate::command::{CmdResult, SelectionEntity, StepInput};
 use acadrust::Handle;
 use iced::Task;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn reject_locked_edit(&mut self, i: usize, handle: Handle) -> bool {
         let Some(layer) = self.tabs[i].scene.locked_layer_name(handle) else {
             return false;
@@ -6461,7 +6461,7 @@ mod sketch_constraint_undo_tests {
     use super::*;
     use crate::scene::sketch_constraints::{ConstraintKind, SketchRef, SketchScope};
 
-    fn add_line(app: &mut OpenCADStudio, x1: f64, y1: f64, x2: f64, y2: f64) -> Handle {
+    fn add_line(app: &mut Mac2CAM, x1: f64, y1: f64, x2: f64, y2: f64) -> Handle {
         app.tabs[app.active_tab]
             .scene
             .add_entity(acadrust::EntityType::Line(acadrust::entities::Line::from_points(
@@ -6470,7 +6470,7 @@ mod sketch_constraint_undo_tests {
             )))
     }
 
-    fn line_angle_deg(app: &OpenCADStudio, handle: Handle) -> f64 {
+    fn line_angle_deg(app: &Mac2CAM, handle: Handle) -> f64 {
         match app.tabs[app.active_tab].scene.document.get_entity(handle) {
             Some(acadrust::EntityType::Line(l)) => (l.end.y - l.start.y).atan2(l.end.x - l.start.x).to_degrees(),
             other => panic!("expected a Line, got {other:?}"),
@@ -6489,7 +6489,7 @@ mod sketch_constraint_undo_tests {
     /// (the earlier `Delta` entry) reverts the geometry itself.
     #[test]
     fn adding_a_constraint_is_undoable_and_redoable_in_two_steps() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let line = add_line(&mut app, 0.0, 0.0, 10.0, 3.0);
         let original_angle = line_angle_deg(&app, line);
@@ -6555,7 +6555,7 @@ mod sketch_constraint_undo_tests {
     /// Coincident constraint — suppressible by holding Shift.
     #[test]
     fn drawing_a_line_onto_an_existing_endpoint_infers_a_coincident_constraint() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let existing = add_line(&mut app, 0.0, 0.0, 5.0, 0.0);
 
@@ -6578,7 +6578,7 @@ mod sketch_constraint_undo_tests {
     /// suppressed entirely.
     #[test]
     fn shift_suppresses_the_coincident_inference() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let _existing = add_line(&mut app, 0.0, 0.0, 5.0, 0.0);
 
@@ -6606,7 +6606,7 @@ mod sketch_constraint_undo_tests {
     /// is undoable/redoable via the same stage-9 mechanism.
     #[test]
     fn resolve_one_sketch_conflict_removes_a_flagged_constraint_and_is_undoable() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let line = add_line(&mut app, 0.0, 0.0, 10.0, 3.0);
 
@@ -6655,7 +6655,7 @@ mod sketch_constraint_undo_tests {
     /// *named* parameter, not just data plumbing.
     #[test]
     fn applying_named_parameter_rows_defines_and_resolves_referencing_constraints() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let line = add_line(&mut app, 0.0, 0.0, 10.0, 0.0);
 
@@ -6702,7 +6702,7 @@ mod sketch_constraint_undo_tests {
     fn properties_panel_parameter_row_add_rename_redefine_and_delete() {
         use crate::ui::window::named_parameters::ParamField;
 
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let line = add_line(&mut app, 0.0, 0.0, 10.0, 0.0);
         let _ = app.apply_cmd_result(CmdResult::AddSketchConstraint {
@@ -6746,7 +6746,7 @@ mod sketch_constraint_undo_tests {
     /// references, replacing whatever was selected before.
     #[test]
     fn properties_panel_constraint_link_click_selects_its_entities() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let a = add_line(&mut app, 0.0, 0.0, 10.0, 0.0);
         let b = add_line(&mut app, 0.0, 5.0, 10.0, 5.0);
@@ -6773,7 +6773,7 @@ mod sketch_constraint_undo_tests {
     /// `ParameterTable::resolve_all` already gives a bad reference.
     #[test]
     fn applying_a_row_with_a_malformed_formula_reports_an_error_and_keeps_the_good_row() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
 
         app.named_parameter_editor_rows = vec![
@@ -6795,7 +6795,7 @@ mod sketch_constraint_undo_tests {
     /// unrelated row still commits normally.
     #[test]
     fn applying_rows_with_a_duplicate_name_refuses_both_and_keeps_the_unrelated_row() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
 
         app.named_parameter_editor_rows = vec![
@@ -6817,7 +6817,7 @@ mod sketch_constraint_undo_tests {
     /// `CoincidentConstraintCommand` drives via its two `on_point` calls.
     #[test]
     fn coincident_command_resolves_two_picked_points_into_a_constraint() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let a = add_line(&mut app, 0.0, 0.0, 5.0, 0.0);
         let b = add_line(&mut app, 20.0, 0.0, 20.0, 5.0); // deliberately far from `a`, so the two picks are unambiguous
@@ -6841,7 +6841,7 @@ mod sketch_constraint_undo_tests {
     /// scope untouched rather than silently constraining the wrong thing.
     #[test]
     fn coincident_command_reports_an_error_when_a_pick_misses() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _ = app.automation_op(r#"{"op":"new"}"#);
         let _a = add_line(&mut app, 0.0, 0.0, 5.0, 0.0);
 
@@ -6869,7 +6869,7 @@ mod delobj_tests {
     use acadrust::types::Vector3;
 
     fn sweep_source_presence(value: i16, mode: crate::command::ExtrudeMode) -> (bool, bool) {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let i = app.active_tab;
         let mut circle = acadrust::Circle::new();
@@ -6937,7 +6937,7 @@ mod thicken_tests {
 
     #[test]
     fn thicken_preserves_sources_and_round_trips_results_with_one_undo() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let body = cadkernel::brep::planar_region(Plane::XY, &[
             vec![Curve::Circle(Circle { centre: [0.0; 2], radius: 3.0 })],
@@ -6978,7 +6978,7 @@ mod thicken_tests {
 
     #[test]
     fn thicken_creates_a_solid_from_a_free_form_surface() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let profile = NurbsCurve::interpolate(
             &[[0.0, 0.0], [0.7, 0.15], [1.3, -0.1], [2.0, 0.0]],

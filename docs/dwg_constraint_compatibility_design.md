@@ -5,7 +5,7 @@
 Hakan (upstream maintainer) reviewed the sketch-constraint system
 (`docs/parametric_system_design.md`) and asked for it to persist using the
 constraint object model already exposed in `acadrust`/`cadcodec` (the pinned
-CAD kernel), so a file saved by OpenCADStudio carries constraints AutoCAD or
+CAD kernel), so a file saved by Mac2CAM carries constraints AutoCAD or
 BricsCAD would recognize as their own native objects — not just an opaque
 custom blob only this app understands.
 
@@ -223,7 +223,7 @@ template for the constraint graph's own wiring.
 ## 6. Persistence architecture: additive, not a replacement
 
 **Proposal: write both.** Keep `OCS_SKETCH_CONSTRAINTS` as the authoritative
-round-trip format OpenCADStudio itself reads back
+round-trip format Mac2CAM itself reads back
 (`sketch_persist::load_sketch_constraints_from_document`), and *additionally*
 materialize the `AssocNetwork`/.../`Assoc2dConstraintGroup` graph alongside
 it on save, for other applications to read.

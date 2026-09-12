@@ -1,5 +1,5 @@
 use super::helpers::{entity_type_key, entity_type_label, title_case_word};
-use super::{OpenCADStudio, VARIES_LABEL};
+use super::{Mac2CAM, VARIES_LABEL};
 use crate::io::linetypes;
 use crate::scene::view::dispatch;
 use crate::scene::model::object::PropValue;
@@ -28,7 +28,7 @@ fn visual_style_properties_text(style: &acadrust::objects::VisualStyle) -> Strin
         .join("\n")
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Rebuild the PropertiesPanel from the current entity selection.
     /// Preserves UI state (open pickers, edit buffer) across refreshes.
     pub(super) fn refresh_properties(&mut self) {
@@ -3946,11 +3946,11 @@ mod insert_unit_scale_tests {
 
 #[cfg(test)]
 mod apply_property_op_tests {
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
     use acadrust::entities::Line;
     use acadrust::types::{Color, Vector3};
 
-    fn line_handle(app: &mut OpenCADStudio) -> acadrust::Handle {
+    fn line_handle(app: &mut Mac2CAM) -> acadrust::Handle {
         let mut line = Line::new();
         line.start = Vector3::ZERO;
         line.end = Vector3::new(1.0, 0.0, 0.0);
@@ -3960,7 +3960,7 @@ mod apply_property_op_tests {
 
     #[test]
     fn empty_handles_does_not_invoke_or_dirty() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let i = app.active_tab;
         let before = app.tabs[i].dirty;
         let called = std::rc::Rc::new(std::cell::Cell::new(false));
@@ -3977,7 +3977,7 @@ mod apply_property_op_tests {
 
     #[test]
     fn applies_to_each_handle_sets_dirty_and_mutates() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let i = app.active_tab;
         let h1 = line_handle(&mut app);
         let h2 = line_handle(&mut app);
@@ -4010,7 +4010,7 @@ mod apply_property_op_tests {
 
     #[test]
     fn missing_entity_does_not_abort_loop() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let i = app.active_tab;
         let h1 = line_handle(&mut app);
         // A freshly allocated handle has no entity yet.
@@ -4048,11 +4048,11 @@ mod apply_property_op_tests {
 
 #[cfg(test)]
 mod chprop_integration_tests {
-    use crate::app::{Message, OpenCADStudio};
+    use crate::app::{Message, Mac2CAM};
     use acadrust::entities::Line;
     use acadrust::types::{Color, LineWeight, Vector3};
 
-    fn line_handle(app: &mut OpenCADStudio) -> acadrust::Handle {
+    fn line_handle(app: &mut Mac2CAM) -> acadrust::Handle {
         let mut line = Line::new();
         line.start = Vector3::ZERO;
         line.end = Vector3::new(1.0, 0.0, 0.0);
@@ -4072,7 +4072,7 @@ mod chprop_integration_tests {
     /// assertions deliberately check entity state only.
     #[test]
     fn prop_color_change_multiple_entities_undo_redo() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let i = app.active_tab;
         let h1 = line_handle(&mut app);
         let h2 = line_handle(&mut app);
@@ -4132,7 +4132,7 @@ mod chprop_integration_tests {
     #[ignore = "CLI CHPROP dispatch via run_command_line / automation-run does not mutate the entity in this test setup; the undo-ordering fix in the converted CLI site is covered at the helper level by `apply_property_op_tests::applies_to_each_handle_sets_dirty_and_mutates` and the strengthened `missing_entity_does_not_abort_loop`."]
     #[test]
     fn cli_chprop_undo_restores_previous_state() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let i = app.active_tab;
         let h = line_handle(&mut app);
         let original = app.tabs[i]
@@ -4167,7 +4167,7 @@ mod chprop_integration_tests {
     /// only the entity-level invariant.
     #[test]
     fn prop_change_on_locked_layer_is_ignored() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let i = app.active_tab;
         let h = line_handle(&mut app);
 
@@ -4210,7 +4210,7 @@ mod chprop_integration_tests {
     /// branch sets it after `apply_property_op`).
     #[test]
     fn ribbon_lineweight_updates_after_change() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let _h = line_handle(&mut app);
         let _ = app.automation_op(r#"{"op":"select","type":"Line"}"#);
 
@@ -4230,7 +4230,7 @@ mod grip_limit_tests {
         use acadrust::types::Vector3;
 
         let select_n = |n: usize, limit: Option<i32>| -> usize {
-            let mut app = OpenCADStudio::new_for_test();
+            let mut app = Mac2CAM::new_for_test();
             app.automation_op(r#"{"op":"new"}"#);
             if let Some(limit) = limit {
                 app.grip_object_limit = limit;
@@ -4272,14 +4272,14 @@ mod grip_limit_tests {
     /// round-trip test catches and a person does not.
     #[test]
     fn the_view_toggles_survive_a_save_and_load() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.show_viewcube = false;
         app.show_ucs_icon = false;
         app.ucs_icon_at_origin = false;
         app.selection_cycling = true;
 
         let saved = app.current_settings();
-        let mut restored = OpenCADStudio::new_for_test();
+        let mut restored = Mac2CAM::new_for_test();
         restored.apply_settings(&saved);
 
         assert!(!restored.show_viewcube, "the ViewCube must stay off");
@@ -4294,14 +4294,14 @@ mod grip_limit_tests {
     /// missed one.
     #[test]
     fn the_selection_settings_survive_a_save_and_load() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.pick_add = false;
         app.pick_drag_rect = true;
         app.pick_box = 11;
         app.grip_object_limit = 0;
 
         let saved = app.current_settings();
-        let mut restored = OpenCADStudio::new_for_test();
+        let mut restored = Mac2CAM::new_for_test();
         restored.apply_settings(&saved);
 
         assert!(!restored.pick_add);
@@ -4321,7 +4321,7 @@ mod grip_limit_tests {
         use acadrust::entities::{EntityType, Line};
         use acadrust::types::Vector3;
 
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app.grip_object_limit = 0;
         let i = app.active_tab;

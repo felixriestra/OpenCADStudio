@@ -1,4 +1,4 @@
-# Trunk config for the web (wasm) build of Open CAD Studio (issue #45).
+# Trunk config for the web (wasm) build of Mac2CAM (issue #45).
 #
 # Build:   trunk build --release
 # Dev:     trunk serve

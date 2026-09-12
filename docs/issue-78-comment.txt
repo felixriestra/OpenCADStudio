@@ -4,8 +4,8 @@
 
 I've drafted a **QGIS-style add-on model** on my fork:
 
-- **Spec:** [docs/plugin-architecture.md](https://github.com/mf4633/OpenCADStudio/blob/feature/plugin-host/docs/plugin-architecture.md)
-- **Scaffold:** [docs/plugin-template/](https://github.com/mf4633/OpenCADStudio/tree/feature/plugin-host/docs/plugin-template)
+- **Spec:** [docs/plugin-architecture.md](https://github.com/mf4633/Mac2CAM/blob/feature/plugin-host/docs/plugin-architecture.md)
+- **Scaffold:** [docs/plugin-template/](https://github.com/mf4633/Mac2CAM/tree/feature/plugin-host/docs/plugin-template)
 - **Framework PR:** #80 — **host only, no Storm Sewer in core**
 
 **Three layers:** host core → add-on package (plugin.toml, ribbon, commands) → optional headless engine crate. Domain data lives on DWG entities (XDATA), not a proprietary project DB.
@@ -16,7 +16,7 @@ I've drafted a **QGIS-style add-on model** on my fork:
 
 ### Storm Sewer (separate)
 
-Storm Sewer stays on a separate branch as the reference consumer — not in core: [feature/storm-sewer-module](https://github.com/mf4633/OpenCADStudio/tree/feature/storm-sewer-module).
+Storm Sewer stays on a separate branch as the reference consumer — not in core: [feature/storm-sewer-module](https://github.com/mf4633/Mac2CAM/tree/feature/storm-sewer-module).
 
 ### Re: script languages (@schoeller, #29)
 

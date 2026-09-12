@@ -1,6 +1,6 @@
 use super::*;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(in crate::app) fn copy_entities_to_clipboard(
         &mut self,
         i: usize,
@@ -465,34 +465,6 @@ impl OpenCADStudio {
                 ).as_ref());
             }
 
-            // ADCENTER / CONTENTBROWSER — report the drawing's named content
-            // (blocks and layers) from the command line in place of the browser
-            // panel.
-            "ADCENTER" | "CONTENTBROWSER" => {
-                let blocks = self.tabs[i].scene.custom_block_names();
-                let layers: Vec<String> = self.tabs[i]
-                    .scene
-                    .document
-                    .layers
-                    .names()
-                    .map(|s| s.to_string())
-                    .collect();
-                self.command_line.push_output(crate::tf!(
-                    "Blocks ({}): {}",
-                    blocks.len(),
-                    if blocks.is_empty() {
-                        "(none)".to_string()
-                    } else {
-                        blocks.join(", ")
-                    }
-                ).as_ref());
-                self.command_line.push_output(crate::tf!(
-                    "Layers ({}): {}",
-                    layers.len(),
-                    layers.join(", ")
-                ).as_ref());
-            }
-
             // BLOCKPALETTE / BLOCKSPALETTE — toggle the docked Insert Block panel.
             "BLOCKPALETTE" | "BLOCKSPALETTE" => {
                 self.show_block_palette ^= true;
@@ -698,16 +670,16 @@ impl OpenCADStudio {
 
 #[cfg(test)]
 mod tests {
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
 
-    fn fresh_app() -> OpenCADStudio {
-        let mut app = OpenCADStudio::new_for_test();
+    fn fresh_app() -> Mac2CAM {
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app
     }
 
     /// Run one command line and return only the command-line text it appended.
-    fn run_capture(app: &mut OpenCADStudio, cmd: &str) -> String {
+    fn run_capture(app: &mut Mac2CAM, cmd: &str) -> String {
         let start = app.command_line.history.len();
         let _ = app.run_command_line(cmd);
         app.command_line.history[start..]

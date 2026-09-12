@@ -1,8 +1,8 @@
-// Plugin registry — external (dynamically-loaded) plugins only. OpenCADStudio
+// Plugin registry — external (dynamically-loaded) plugins only. Mac2CAM
 // ships no built-in add-ons; every plugin is a cdylib loaded from the plugins
 // folder at startup (see `external`) and the marketplace installs them there.
 
-use crate::app::OpenCADStudio;
+use crate::app::Mac2CAM;
 use crate::modules::{registry as core_registry, CadModule};
 
 /// Core ribbon tabs plus every loaded external add-on tab.
@@ -51,7 +51,7 @@ pub fn plugin_command_names(disabled: &rustc_hash::FxHashSet<String>) -> Vec<Str
 
 /// Dispatch `cmd` to a loaded external plugin (skipping disabled ones).
 /// Returns true if one handled it.
-pub(crate) fn try_dispatch(app: &mut OpenCADStudio, tab: usize, cmd: &str) -> bool {
+pub(crate) fn try_dispatch(app: &mut Mac2CAM, tab: usize, cmd: &str) -> bool {
     #[cfg(not(target_arch = "wasm32"))]
     {
         use super::host::HostSession;

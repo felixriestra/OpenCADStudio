@@ -7,8 +7,8 @@ use acadrust::entities::{EntityType, MText};
 use acadrust::objects::{Dictionary, ObjectContextKind, ObjectType, Scale};
 use acadrust::types::Vector3;
 use acadrust::{CadDocument, DxfVersion, Handle};
-use OpenCADStudio::io;
-use OpenCADStudio::scene::annotative;
+use Mac2CAM::io;
+use Mac2CAM::scene::annotative;
 
 #[test]
 fn empty_annotation_scales_is_not_annotative() {

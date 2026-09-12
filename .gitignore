@@ -19,7 +19,7 @@ dist-dev
 
 # Flatpak
 flatpak/cargo-sources.json
-flatpak/io.github.HakanSeven12.OpenCadStudio.local.yml
+flatpak/io.github.HakanSeven12.Mac2CAM.local.yml
 .flatpak-builder/
 build-dir/
 

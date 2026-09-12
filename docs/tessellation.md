@@ -1,6 +1,6 @@
 # Entity tessellation paths
 
-How each acadrust `EntityType` becomes drawable geometry in OpenCADStudio.
+How each acadrust `EntityType` becomes drawable geometry in Mac2CAM.
 
 There are **three ways** an entity gets there, and they must not be conflated:
 

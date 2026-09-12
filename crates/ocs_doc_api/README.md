@@ -1,6 +1,6 @@
 # ocs_doc_api
 
-Typed document operations and queries for OpenCADStudio plugins and hosts.
+Typed document operations and queries for Mac2CAM plugins and hosts.
 The same facade runs over an in-process backend or the plugin IPC channel.
 
 ```rust

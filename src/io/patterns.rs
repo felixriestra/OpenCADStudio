@@ -1,4 +1,4 @@
-//! OpenCADStudio hatch pattern catalog — loaded from `assets/patterns/OpenCADStudio.pat`.
+//! Mac2CAM hatch pattern catalog — loaded from `assets/patterns/Mac2CAM.pat`.
 //!
 //! PAT line format:  `angle, x0, y0, dx, dy [, dash1, dash2, ...]`
 //!   - `angle`      line direction in degrees
@@ -8,7 +8,7 @@
 
 use std::sync::OnceLock;
 
-const PAT_SRC: &str = include_str!("../../assets/patterns/OpenCADStudio.pat");
+const PAT_SRC: &str = include_str!("../../assets/patterns/Mac2CAM.pat");
 
 // ── Public types ──────────────────────────────────────────────────────────
 

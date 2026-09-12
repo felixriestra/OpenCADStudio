@@ -3,7 +3,7 @@
 Status: design/research only, no code written against this doc yet.
 Scope: Section 5 (document-model integration) and Phase B/C of Section 4 (UI)
 of `/Users/felix/.claude/plans/snoopy-finding-matsumoto.md`, made concrete
-against the actual OpenCADStudio codebase as of this session.
+against the actual Mac2CAM codebase as of this session.
 
 The one-shot "Constraints" ribbon group already live in the app
 (`src/modules/draw/constrain/{mod.rs,tools.rs,value.rs}`, dispatched from
@@ -35,7 +35,7 @@ edits (`src/app/document.rs:642-812`, `src/app/history.rs`):
   `UndoRecording` that captures, per handle, the **first-touch before-image**
   (`record_undo_before`, `:2499`, no-op if not recording — callers guard with
   `is_recording_undo()`).
-- The app-level wrapper is `OpenCADStudio::begin_undo`
+- The app-level wrapper is `Mac2CAM::begin_undo`
   (`src/app/history.rs:372`) / `commit_undo_delta` (`:701`), which pairs each
   recorded before-image with the entity's current after-image and pushes one
   symmetric `DeltaSnapshot` (`src/app/document.rs:723`) onto the undo stack.
@@ -149,7 +149,7 @@ edit, one paste — which is the right granularity, matching how
 Default save format is DWG (AC1032/R2018+) via `acadrust`
 (`src/io/mod.rs:4`, `save_as_version`/`save_to_bytes` at `:1546`/`:1717`);
 DXF is also supported through the same codec. **There is no separate
-"OpenCADStudio native" serde dump of the whole document** — `serde`/
+"Mac2CAM native" serde dump of the whole document** — `serde`/
 `serde_json`/`bincode` in `Cargo.toml` are used elsewhere (plugin IPC,
 `ocs_doc_api`, see `src/app/doc_api.rs`), not for saving drawings. This means
 **any new Rust struct added to `Scene`/`DocumentTab` that isn't threaded
@@ -197,7 +197,7 @@ entry, owned by a per-scope `Dictionary` entry hung off
 `named_objects_dict_handle` under an app-specific key (e.g.
 `"OCS_SKETCH_CONSTRAINTS"`). This requires **zero changes to the external
 `acadrust`/`cadkernel` crates**, rides an already-fully-implemented
-read/write path, and only needs OpenCADStudio's own reader/writer for the
+read/write path, and only needs Mac2CAM's own reader/writer for the
 blob's *contents* to agree with itself — no AutoCAD-compatibility burden.
 The tradeoff, called out explicitly as an open risk in §7, is that a DWG
 saved this way will show no constraint data if opened in real AutoCAD or
@@ -819,7 +819,7 @@ see below).
   - **Open question 3** (which command owns the copy/paste handle-remap
     table): there isn't one shared table — `Scene::copy_entities`
     (`src/scene/modify.rs`, backing COPY/ARRAY/MIRROR) and
-    `OpenCADStudio::finalize_paste` (`command_driver.rs`, clipboard paste)
+    `Mac2CAM::finalize_paste` (`command_driver.rs`, clipboard paste)
     each already build their own local `handle_map: FxHashMap<Handle,
     Handle>` while duplicating entities. New `Scene::
     duplicate_sketch_constraints_for(&handle_map)`
@@ -894,7 +894,7 @@ reasons as above).
   field (`#[serde(skip)]`, like `dof`). A new status-bar pill ("⚠ n
   conflicting", `src/ui/statusbar/mod.rs`) appears only when the current
   scope's `conflicts` is non-empty; clicking it (`Message::
-  ResolveOneSketchConflict` → `OpenCADStudio::resolve_one_sketch_conflict`,
+  ResolveOneSketchConflict` → `Mac2CAM::resolve_one_sketch_conflict`,
   `command_driver.rs`) removes the first flagged constraint and re-solves,
   using the same undo bracket as stage 8/9's handlers.
   - **Deviation from this doc**: §6.4's full `ConflictResolverPanel` — a
@@ -924,7 +924,7 @@ pre-existing Turkish-glyph-fallback test wholly unrelated to this work —
 `src/scene/text/lff.rs` untouched by any stage in this doc) / 13 ignored.
 
 **Stages 8 and 11 live-verified** in a release build (`cargo build --release
---bin OpenCADStudio`, run from a scratch copy of the app bundle so
+--bin Mac2CAM`, run from a scratch copy of the app bundle so
 `/Applications`'s installed copy was never touched) once the stuck-focus
 environment issue cleared. Stage 8: drew two separate `LINE` segments whose
 shared endpoint coincided exactly — a "≡" glyph appeared at the junction
@@ -952,7 +952,7 @@ only right before a save, read back right after a load.
   this, and `decode` rejects a mismatched version rather than misreading
   bytes, though the migration path itself is still undesigned, per §7).
   Empty sets are skipped, so an unconstrained drawing gains no persisted
-  bookkeeping. Called from `OpenCADStudio::prepare_native_save` (covers
+  bookkeeping. Called from `Mac2CAM::prepare_native_save` (covers
   every native save trigger: Save, Save As, autosave, recovery-save) and
   from the wasm save path's own manual prep block (`src/app/update/
   file.rs`) — both confirmed to be the actual save entry points by tracing
@@ -963,7 +963,7 @@ only right before a save, read back right after a load.
   definition — the table already enumerates all of them, so no separate
   "which scopes exist" bookkeeping was needed) for that XRecord key,
   decoding and pushing whatever it finds. Called from
-  `OpenCADStudio::on_file_opened` (native/web open) and the automation
+  `Mac2CAM::on_file_opened` (native/web open) and the automation
   `"open"` op (`src/app/automation.rs`) — the two places a `CadDocument`
   actually gets installed into a tab's `Scene`; the automation `"new"` op
   now also clears `sketch_constraints` for the same reason `"open"` needs

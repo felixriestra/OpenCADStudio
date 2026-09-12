@@ -7,7 +7,7 @@ use crate::app::helpers::{
     parse_coord, polar_constrain_near, ucs_rotate_vec, ucs_to_wcs, ucs_z_axis,
     CoordKind,
 };
-use crate::app::{Message, OpenCADStudio, POLY_START_DELAY_MS};
+use crate::app::{Message, Mac2CAM, POLY_START_DELAY_MS};
 use crate::app::TextEntryMode;
 use crate::modules::ModuleEvent;
 use crate::scene::pick::grip::{
@@ -70,7 +70,7 @@ fn polyline_vertex_count(entity: &AcadEntityType) -> Option<usize> {
     }
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
 pub(super) fn begin_tab_close_queue(&mut self, tab_ids: Vec<u64>) -> Task<Message> {
                 self.pending_tab_closes.clear();
                 self.pending_tab_closes.extend(tab_ids);
@@ -3522,18 +3522,18 @@ fn block_attr_prompts(
 
 #[cfg(test)]
 mod layer_rename_tests {
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
     use acadrust::entities::Line;
     use acadrust::{EntityType, Handle};
 
-    fn app_with_editing_layer() -> OpenCADStudio {
-        let mut app = OpenCADStudio::new_for_test();
+    fn app_with_editing_layer() -> Mac2CAM {
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let _ = app.on_layer_new();
         app
     }
 
-    fn rename_layer(app: &mut OpenCADStudio, old_name: &str, new_name: &str) {
+    fn rename_layer(app: &mut Mac2CAM, old_name: &str, new_name: &str) {
         let i = app.active_tab;
         let idx = app.tabs[i]
             .layers

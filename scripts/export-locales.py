@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 XML_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
 KEYS = {
-    'title': 'common.open-cad-studio-web-app',
+    'title': 'common.mac2cam-web-app',
     'loading': 'common.loading',
     'comment': 'common.a-cad-application-for-2d-3d-drawing-and-design',
     'summary': 'common.value-2d-3d-cad-application-for-dwg-and-dxf-drawings',
@@ -19,13 +19,13 @@ KEYS = {
     'drawing': 'common.drawing',
     'design': 'common.design',
     'engineering': 'common.engineering',
-    'Launch': 'common.launch-open-cad-studio',
-    'InstallerDescription': 'common.open-cad-studio-installer',
+    'Launch': 'common.launch-mac2cam',
+    'InstallerDescription': 'common.mac2cam-installer',
     'Installer': 'common.installer',
     'DwgDrawing': 'common.dwg-drawing',
     'DxfDrawing': 'common.dxf-drawing',
     'DesktopShortcut': 'common.desktop-shortcut',
-    'DesktopShortcutDescription': 'common.add-a-shortcut-to-open-cad-studio-on-the-desktop',
+    'DesktopShortcutDescription': 'common.add-a-shortcut-to-mac2cam-on-the-desktop',
     'DowngradeError': 'common.newer-version-already-installed',
     'Open': 'common.open',
     'Desktop': 'common.desktop',
@@ -59,7 +59,7 @@ def labels(path):
 
 def outputs():
     localized = {path.parent.name: labels(path)
-                 for path in sorted((ROOT / 'locales').glob('*/opencadstudio.ftl'))}
+                 for path in sorted((ROOT / 'locales').glob('*/mac2cam.ftl'))}
     english = localized['en-US']
     yield ROOT / 'web/locale-labels.json', json.dumps(
         {locale: {key: text[key] for key in ('title', 'loading')}
@@ -72,7 +72,7 @@ def outputs():
                      lambda match: match[1] + html.escape(english['loading']) + match[2], content)
     yield page, content
 
-    desktop = ROOT / 'packaging/OpenCADStudio.desktop'
+    desktop = ROOT / 'packaging/Mac2CAM.desktop'
     lines = [line for line in desktop.read_text().splitlines()
              if not re.match(r'^(Comment|Keywords)(\[|=)', line)]
     for locale, text in localized.items():
@@ -83,7 +83,7 @@ def outputs():
         lines.append(f'Keywords{suffix}=CAD;DWG;DXF;{text["drawing"]};{text["design"]};{text["engineering"]};2D;3D;')
     yield desktop, '\n'.join(lines) + '\n'
 
-    metainfo = ROOT / 'packaging/io.github.HakanSeven12.OpenCadStudio.metainfo.xml'
+    metainfo = ROOT / 'packaging/io.github.HakanSeven12.Mac2CAM.metainfo.xml'
     component = ET.fromstring(metainfo.read_text())
     for child in list(component):
         if child.tag in ('summary', 'description', 'keywords'):

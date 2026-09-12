@@ -1,6 +1,6 @@
 //! Client-neutral MCP adapter for the live desktop editor.
 //!
-//! `OpenCADStudio --mcp` speaks MCP over stdio. All drawing work is forwarded
+//! `Mac2CAM --mcp` speaks MCP over stdio. All drawing work is forwarded
 //! to the authenticated GUI control bridge; this module contains no geometry.
 
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
@@ -286,7 +286,7 @@ fn sessions(launch_if_none: bool) -> Result<Vec<Value>, String> {
         let deadline = Instant::now() + Duration::from_secs(30);
         while Instant::now() < deadline {
             if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
-                return Err(format!("OpenCADStudio exited while starting ({status})"));
+                return Err(format!("Mac2CAM exited while starting ({status})"));
             }
             thread::sleep(Duration::from_millis(200));
             available = descriptors()?;
@@ -295,7 +295,7 @@ fn sessions(launch_if_none: bool) -> Result<Vec<Value>, String> {
             }
         }
         if available.is_empty() {
-            return Err("OpenCADStudio is still starting; call ocs_sessions again".into());
+            return Err("Mac2CAM is still starting; call ocs_sessions again".into());
         }
     }
     Ok(available.into_iter().map(|(_, state)| state).collect())
@@ -980,8 +980,8 @@ fn tool_definitions() -> Value {
     json!([
         {
             "name":"ocs_sessions",
-            "description":"List real OpenCADStudio GUI sessions and documents. Launch the installed editor if none is running.",
-            "inputSchema":{"type":"object","properties":{"launch_if_none":{"type":"boolean","default":true,"description":"Launch OpenCADStudio when no live session exists."}},"additionalProperties":false},
+            "description":"List real Mac2CAM GUI sessions and documents. Launch the installed editor if none is running.",
+            "inputSchema":{"type":"object","properties":{"launch_if_none":{"type":"boolean","default":true,"description":"Launch Mac2CAM when no live session exists."}},"additionalProperties":false},
             "outputSchema":{"type":"object","properties":{"result":{"type":"array","items":{"type":"object","properties":{"ok":{"const":true},"session_id":{"type":"string"},"document_id":{"type":"integer"},"revision":{"type":"integer"},"selection":{"type":"array","items":{"type":"string"}},"documents":{"type":"array"}},"required":["ok","session_id","document_id","revision","selection","documents"],"additionalProperties":true}}},"required":["result"],"additionalProperties":false},
             "annotations":{"title":"List OCS sessions","readOnlyHint":false,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}
         },
@@ -1038,7 +1038,7 @@ fn response(id: Value, result: Value) -> Value {
 }
 
 fn server_info() -> Value {
-    json!({"name":"OpenCADStudio","title":"Open CAD Studio","version":env!("OCS_APP_VERSION")})
+    json!({"name":"Mac2CAM","title":"Mac2CAM","version":env!("OCS_APP_VERSION")})
 }
 
 fn modern_request(params: &Value) -> bool {
@@ -1433,7 +1433,7 @@ mod tests {
         );
         assert_eq!(
             discovered["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
-            "OpenCADStudio"
+            "Mac2CAM"
         );
 
         let listed = handle_message(

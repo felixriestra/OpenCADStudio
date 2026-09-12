@@ -40,7 +40,7 @@ pub struct MarketView<'a> {
 /// Latest desktop builds, used by the browser-only plugin notice.
 #[cfg(target_arch = "wasm32")]
 pub const DESKTOP_DOWNLOAD_URL: &str =
-    "https://github.com/HakanSeven12/OpenCADStudio/releases/latest";
+    "https://github.com/HakanSeven12/Mac2CAM/releases/latest";
 
 // Register the command names for autocomplete. On the web they open a desktop
 // download notice instead of the native marketplace.
@@ -477,7 +477,7 @@ fn registry_error_message(error: &str) -> (Cow<'static, str>, Cow<'static, str>)
         (
             t!("Unable to verify the server certificate"),
             t!(
-                "Open CAD Studio could not trust the certificate presented for the plugin registry. Check your system certificate and proxy settings, then retry."
+                "Mac2CAM could not trust the certificate presented for the plugin registry. Check your system certificate and proxy settings, then retry."
             ),
         )
     } else if error.contains("timed out") || error.contains("timeout") {
@@ -585,7 +585,7 @@ fn marketplace_section<'a>(
         col = col.push(notice);
     }
 
-    // Curated registry entries (from the OpenCADStudio repo).
+    // Curated registry entries (from the Mac2CAM repo).
     for e in m.registry {
         if repository_is_installed(&e.repo, Some(&e.name), externals)
             || !matches_search(m.search, &[&e.name, &e.description, &e.repo])
@@ -957,7 +957,7 @@ pub fn view_web_notice<'a>() -> Element<'a, Message> {
                 .width(Length::Fit)
                 .align_x(iced::alignment::Horizontal::Center),
             text(t!(
-                "Open CAD Studio plugins are native packages and cannot run inside a browser. Download the desktop app to browse, install, and use plugins."
+                "Mac2CAM plugins are native packages and cannot run inside a browser. Download the desktop app to browse, install, and use plugins."
             ))
             .size(13)
             .width(Length::Fit)

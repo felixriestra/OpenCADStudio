@@ -224,7 +224,7 @@ pub struct UserSettings {
     /// Whole-interface scale, as a percentage — every panel, dialog, the
     /// ribbon, and their text, not just one widget's font size. Wired
     /// straight into iced's own per-window `scale_factor` hook
-    /// (`OpenCADStudio::run`), so a change takes effect immediately with no
+    /// (`Mac2CAM::run`), so a change takes effect immediately with no
     /// per-panel plumbing needed. Relies on the struct-level `#[serde(default)]`
     /// (via `impl Default` below) to backfill this field for a config file
     /// saved before this setting existed, same as every other field here.
@@ -238,7 +238,7 @@ pub struct UserSettings {
     // Ortho ($ORTHOMODE) and the running OSNAP set ($OSMODE) are per-drawing —
     // stored in the document header, not here (they used to be persisted app-
     // globally, which duplicated the file's own state).
-    /// Whether the one-time "make Open CAD Studio the default for .dwg/.dxf?"
+    /// Whether the one-time "make Mac2CAM the default for .dwg/.dxf?"
     /// prompt has already been shown. Set once the user answers (either way),
     /// so we never nag again on subsequent launches.
     pub default_assoc_prompted: bool,

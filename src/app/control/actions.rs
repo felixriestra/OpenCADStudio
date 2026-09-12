@@ -67,7 +67,7 @@ pub(super) const NAMES: &[&str] = &[
     "undo",
     "redo",
 ];
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn control_properties(&mut self) -> Value {
         self.refresh_properties();
         json!({"ok":true,"sections":self.tabs[self.active_tab].properties.sections.iter().map(|s|json!({"title":s.title,"properties":s.props.iter().map(|p|{

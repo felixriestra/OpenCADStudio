@@ -504,7 +504,7 @@ impl super::Scene {
     /// Design doc §5.3/§12 (open question 3, now resolved): copy/paste's
     /// handle remapping lives locally in each command that duplicates
     /// entities — `Scene::copy_entities`' `handle_map` (COPY/ARRAY/MIRROR,
-    /// `src/scene/modify.rs`) and `OpenCADStudio::finalize_paste`'s own
+    /// `src/scene/modify.rs`) and `Mac2CAM::finalize_paste`'s own
     /// (clipboard paste, `src/app/command_driver.rs`) — rather than in one
     /// shared table, so each call site passes its own `handle_map` here
     /// after adding the duplicated entities.

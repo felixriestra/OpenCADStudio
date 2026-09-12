@@ -984,7 +984,7 @@ mod tests {
     /// `UndoRecording` the entity removal itself rides in, so one recovered
     /// image is enough to restore both together (the app-level wiring that
     /// turns this into one committed, one-undo-press `DeltaSnapshot` is
-    /// `OpenCADStudio::commit_undo_delta`/`apply_delta_state`, exercised by
+    /// `Mac2CAM::commit_undo_delta`/`apply_delta_state`, exercised by
     /// the app, not `Scene`, so it's out of this test's reach — this covers
     /// the root cause, not that outer plumbing).
     #[test]

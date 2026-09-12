@@ -1,4 +1,4 @@
-//! Headless 2.5D CAM primitives for OpenCADStudio.
+//! Headless 2.5D CAM primitives for Mac2CAM.
 //!
 //! This crate deliberately has no UI or DWG dependencies. The host converts
 //! selected CAD entities into [`Contour`] values, then consumes the canonical
@@ -1321,7 +1321,7 @@ fn append_contour_motions(motions: &mut Vec<Motion>, contour: &Contour, feed: f6
 
 pub fn post_grbl(program: &Program) -> String {
     let mut output = String::new();
-    output.push_str("(OpenCADStudio CAM)\n");
+    output.push_str("(Mac2CAM CAM)\n");
     output.push_str(match program.units {
         Units::Millimeters => "G21\n",
         Units::Inches => "G20\n",

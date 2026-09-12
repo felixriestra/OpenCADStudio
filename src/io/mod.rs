@@ -6,7 +6,6 @@
 pub mod file_association;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod edit_lock;
-pub mod obj;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod single_instance;
 pub mod pdf_export;

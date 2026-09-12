@@ -7,7 +7,7 @@
 //!
 //! Layout (mirrors the spec in `docs/plugin-architecture.md`):
 //! ```text
-//! <config>/OpenCADStudio/plugins/
+//! <config>/Mac2CAM/plugins/
 //!   <plugin-id>/
 //!     plugin.toml
 //!     <lib<name>.so | .dll | .dylib>
@@ -119,7 +119,7 @@ impl ExternalPlugin {
     }
 }
 
-/// `<config>/OpenCADStudio/plugins`, matching the settings/recent-files store.
+/// `<config>/Mac2CAM/plugins`, matching the settings/recent-files store.
 /// Overridable via `OCS_PLUGINS_DIR` for tests.
 pub fn plugins_dir() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("OCS_PLUGINS_DIR") {
@@ -142,7 +142,7 @@ pub fn plugins_dir() -> Option<PathBuf> {
         p
     };
     let mut p = base;
-    p.push("OpenCADStudio");
+    p.push("Mac2CAM");
     p.push("plugins");
     Some(p)
 }
@@ -369,7 +369,7 @@ mod loader {
     /// process. Call once at startup. Returns per-id results so the host can
     /// report load failures.
     pub(crate) fn load_at_startup(
-        app: &mut crate::app::OpenCADStudio,
+        app: &mut crate::app::Mac2CAM,
     ) -> Vec<(String, Result<(), String>)> {
         let discovered = super::discover();
         let mut manager = PluginManager::new();
@@ -759,7 +759,7 @@ acadrust_source = "git+https://github.com/HakanSeven12/cadcodec.git?rev=0908da7#
 
     /// Integration smoke test for the out-of-process plugin path.
     /// Set `OCS_TEST_PLUGIN` to the built cdylib path and make sure the
-    /// `OpenCADStudio` binary is built; the test uses it as the runner host.
+    /// `Mac2CAM` binary is built; the test uses it as the runner host.
     #[test]
     fn spawn_and_dispatch_test_plugin() {
         let path = match std::env::var_os("OCS_TEST_PLUGIN") {
@@ -781,7 +781,7 @@ acadrust_source = "git+https://github.com/HakanSeven12/cadcodec.git?rev=0908da7#
         );
         std::env::set_var("OCS_PLUGIN_RUNNER_EXE", &host_exe);
 
-        let mut app = crate::app::OpenCADStudio::new_for_test();
+        let mut app = crate::app::Mac2CAM::new_for_test();
         let mut host = crate::app::plugin_host::HostSession::new(&mut app, 0);
         let process = ocs_plugin_api::process::PluginProcess::spawn(
                 &path,

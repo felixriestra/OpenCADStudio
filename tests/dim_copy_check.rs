@@ -5,8 +5,8 @@ use acadrust::tables::BlockRecord;
 use acadrust::types::Vector3;
 use acadrust::{EntityType, Handle};
 use glam::DVec3;
-use OpenCADStudio::command::EntityTransform;
-use OpenCADStudio::scene::Scene;
+use Mac2CAM::command::EntityTransform;
+use Mac2CAM::scene::Scene;
 
 #[test]
 fn copy_dimension_duplicates_its_block() {

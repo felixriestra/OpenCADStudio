@@ -16,7 +16,7 @@ workflow verifies all five download files. Native update notices require a
 download for the installed platform.
 
 The app shows `2026.35`, Cargo and macOS use `2026.35.0`, and MSI uses `26.35.0`.
-The main window title is `Open CAD Studio 2026.35 - Drawing.dwg`.
+The main window title is `Mac2CAM 2026.35 - Drawing.dwg`.
 
 To preview release notes, manually run **Weekly release** on `main` with
 **publish** unchecked. Check **publish** to release immediately. Rerunning

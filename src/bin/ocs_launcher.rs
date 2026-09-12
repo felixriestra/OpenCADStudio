@@ -23,16 +23,16 @@ use objc2_foundation::{
 };
 
 #[cfg(target_os = "macos")]
-use OpenCADStudio::io::single_instance;
+use Mac2CAM::io::single_instance;
 
 /// Name of the real GUI binary inside `Contents/MacOS/`, sibling to this
 /// launcher. Must match the packaging script's bundle assembly step.
 #[cfg(target_os = "macos")]
-const REAL_BINARY_NAME: &str = "OpenCADStudio-App";
+const REAL_BINARY_NAME: &str = "Mac2CAM-App";
 
 /// How long to wait, after `applicationDidFinishLaunching:`, for an
 /// `application:openURLs:` callback before concluding this particular launch
-/// came with no documents (Dock icon, `open OpenCADStudio.app` with no
+/// came with no documents (Dock icon, `open Mac2CAM.app` with no
 /// file). `application:openURLs:` arrives as part of the same startup
 /// sequence when it's coming at all — essentially immediately, not after a
 /// meaningful delay — so this window is slack, not a user-visible wait.
@@ -79,7 +79,7 @@ fn deliver_or_launch(files: &[String]) {
         }
         Ok(_) => {}
         Err(err) => {
-            eprintln!("OpenCADStudio launcher: failed to launch the GUI: {err}");
+            eprintln!("Mac2CAM launcher: failed to launch the GUI: {err}");
         }
     }
     reassert_accessory_policy();

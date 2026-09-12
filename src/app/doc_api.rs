@@ -1684,7 +1684,7 @@ fn layer_info_from_acadrust(layer: &acadrust::tables::Layer) -> LayerInfo {
 mod tests {
     use super::*;
     use crate::app::plugin_host::HostSession;
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
     use ocs_doc_api::ops::{
         BoolOp, Color, LayerFlags, LayerInfo, LineWeight, SolidPrimitive, XDataRecord,
         XDataValue, XRecordEntry, XRecordSpec, XRecordValue,
@@ -1711,7 +1711,7 @@ mod tests {
 
     #[test]
     fn doc_api_create_boolean_query_end_to_end() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let rev0 = host.scene().geometry_epoch;
 
@@ -1781,7 +1781,7 @@ mod tests {
 
     #[test]
     fn doc_api_transform_many_with_stale_id_fails_all_or_nothing() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // A transformable solid, plus a stale id (always non-transformable -> UnknownId).
         let mk_solid = Operation::CreateSolid(SolidPrimitive::Cuboid {
@@ -1812,7 +1812,7 @@ mod tests {
 
     #[test]
     fn doc_api_query_batch_over_cap_is_rejected() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let over = ocs_doc_api::ops::BULK_ITEM_CAP + 1;
         let queries: Vec<Query> = (0..over).map(|_| Query::GetGeometryRevision).collect();
@@ -1824,7 +1824,7 @@ mod tests {
 
     #[test]
     fn phase0_add_vertex_to_polyline() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let mk_poly = Operation::CreateCurve(Curve2Spec::Polyline { layer: None,
             points: vec![[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [10.0, 10.0, 0.0]],
@@ -1863,7 +1863,7 @@ mod tests {
 
     #[test]
     fn phase0_extrude_rectangular_profile_to_solid() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // A closed rectangular 2x3 profile in XY.
         let mk_profile = Operation::CreateCurve(Curve2Spec::Polyline { layer: None,
@@ -1900,7 +1900,7 @@ mod tests {
 
     #[test]
     fn phase0_revolve_profile_to_solid() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // A 1-wide, 2-tall rectangle offset 1 from the Y axis; revolve about the Y
         // axis by 2*pi -> a cylinder-ish annulus (outer r=2, inner r=1, h=2): pi*(4-1)*2 = 6pi ≈ 18.85.
@@ -1944,7 +1944,7 @@ mod tests {
 
     #[test]
     fn phase0_non_solid_transform_line_and_circle() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let mk_line = Operation::CreateCurve(Curve2Spec::Line { layer: None,
             start: [0.0; 3],
@@ -1999,7 +1999,7 @@ mod tests {
 
     #[test]
     fn phase2_arc_ellipse_spline_create_bounds_transform() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
 
         // Arc: create -> kind Arc; bounds are the coarse full-circle bounds.
@@ -2111,7 +2111,7 @@ mod tests {
 
     #[test]
     fn phase2_ray_xline_create_and_transform() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let ray = new_id(
             &dispatch(
@@ -2175,7 +2175,7 @@ mod tests {
 
     #[test]
     fn phase4_create_viewport_bounds_transform() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // A 40x30 paper-space viewport at (50,50,0) looking at model origin.
         let vp = new_id(
@@ -2243,7 +2243,7 @@ mod tests {
 
     #[test]
     fn fix_uniform_scale_applied_once_not_squared() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let circle = new_id(
             &dispatch(
@@ -2283,7 +2283,7 @@ mod tests {
 
     #[test]
     fn fix_rotation_rotates_ellipse_ray_and_insert() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // 90-degree Z-rotation: x_axis=(0,1,0), y_axis=(-1,0,0).
         let rot90 = ocs_doc_api::PlacementSpec {
@@ -2386,7 +2386,7 @@ mod tests {
 
     #[test]
     fn fix_transform_many_locked_layer_fails_all_or_nothing() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let a = new_id(
             &dispatch(
@@ -2453,7 +2453,7 @@ mod tests {
 
     #[test]
     fn phase2b_text_mtext_create_content_transform() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
 
         // Create a TEXT, read its content, set it, verify.
@@ -2550,7 +2550,7 @@ mod tests {
 
     #[test]
     fn loft_two_profiles_produces_solid() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Two circles at different Z (profiles for loft).
         let c1 = new_id(
@@ -2601,7 +2601,7 @@ mod tests {
 
     #[test]
     fn bulge_arc_polyline_profile_converts_to_arc() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // A polyline with a bulge (arc) segment: square with one curved side.
         let poly = new_id(
@@ -2682,7 +2682,7 @@ mod tests {
 
     #[test]
     fn phase2cii_dimension_radius_diameter_angular() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Radius: center (0,0,0), point on circle (4,0,0) -> radius 4.
         let rad = new_id(
@@ -2755,7 +2755,7 @@ mod tests {
 
     #[test]
     fn phase3ii_create_attribute_definition() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let attdef = new_id(
             &dispatch(
@@ -2796,7 +2796,7 @@ mod tests {
 
     #[test]
     fn phase5ii_create_table_from_grid() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let data = vec![
             vec!["Name".to_string(), "Value".to_string()],
@@ -2848,7 +2848,7 @@ mod tests {
 
     #[test]
     fn accurate_volume_centroid_sphere_and_cube() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Sphere r=5: analytic volume = 4/3 * pi * 125 ≈ 523.599; centroid at centre.
         let ball = new_id(
@@ -2917,7 +2917,7 @@ mod tests {
 
     #[test]
     fn phase2ciii_dimension_angular2ln() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Angle between line (0,0,0)->(10,0,0) and (0,0,0)->(0,10,0) = 90 degrees.
         let ang = new_id(
@@ -2957,7 +2957,7 @@ mod tests {
 
     #[test]
     fn fix_loft_over_cap_is_rejected() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let over = ocs_doc_api::ops::BULK_ITEM_CAP + 1;
         let profiles: Vec<ObjectId> = (0..over).map(|i| ObjectId::from_u64(i as u64)).collect();
@@ -2968,7 +2968,7 @@ mod tests {
 
     #[test]
     fn fix_create_many_invalid_curve_is_all_or_nothing() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let rev_before = host.scene().geometry_epoch;
         // A valid point + an invalid ellipse (ratio > 1) in one CreateMany batch.
@@ -2995,7 +2995,7 @@ mod tests {
 
     #[test]
     fn partial_ellipse_rotation_preserves_parameters() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Rotating the major axis already rotates the ellipse; its parameters stay fixed.
         let ell = new_id(
@@ -3041,7 +3041,7 @@ mod tests {
 
     #[test]
     fn fix_raster_image_path_validation() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let mk = |path: &str| {
             Operation::CreateRasterImage(ocs_doc_api::ops::RasterImageSpec {
@@ -3076,7 +3076,7 @@ mod tests {
 
     #[test]
     fn read_mostly_family_bounds_leader_and_mesh() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Leader with vertices at (0,0,0),(5,5,0),(10,0,0) -> bounds x[0,10] y[0,5].
         let leader = acadrust::entities::Leader {
@@ -3153,7 +3153,7 @@ mod tests {
 
     #[test]
     fn phase5_create_raster_image_registers_definition() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let img = new_id(
             &dispatch(
@@ -3205,7 +3205,7 @@ mod tests {
 
     #[test]
     fn phase4_set_view_and_view_query() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let vp = new_id(
             &dispatch(
@@ -3275,7 +3275,7 @@ mod tests {
 
     #[test]
     fn phase3_attributes_and_block_traversal() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // A block "Door" containing a line; insert it, then set/read attributes.
         host.document_mut()
@@ -3383,7 +3383,7 @@ mod tests {
 
     #[test]
     fn phase2c_dimension_linear_create_measurement_bounds() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Linear dimension from (0,0,0) to (30,0,0) with the line at (0,5,0).
         let dim = new_id(
@@ -3431,7 +3431,7 @@ mod tests {
 
     #[test]
     fn phase2b_hatch_create_boundary_bounds_delete() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Solid hatch over a unit square boundary.
         let sq = vec![[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
@@ -3496,7 +3496,7 @@ mod tests {
 
     #[test]
     fn phase5_media_entities_read_kind_and_bounds() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Insert a RasterImage directly (read-mostly: DocApi reads kind + bounds).
         let img = {
@@ -3553,7 +3553,7 @@ mod tests {
 
     #[test]
     fn phase3_create_insert_and_transform() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // Register a block record so the insert can reference it.
         host.document_mut()
@@ -3617,7 +3617,7 @@ mod tests {
 
     #[test]
     fn doc_api_tab_mismatch_is_rejected() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         // A request naming a DIFFERENT tab than the bound one is rejected.
         let env = DocApiEnvelope::op(Operation::CreateCurve(Curve2Spec::Point { layer: None,
@@ -3631,7 +3631,7 @@ mod tests {
 
     #[test]
     fn doc_api_unknown_id_surfaces_structured_error() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let ghost = ObjectId::from_u64(0xDEAD);
         let err = dispatch(
@@ -3653,7 +3653,7 @@ mod tests {
     /// assert the geometry round-trips with the expected kind + bounds.
     #[test]
     fn roundtrip_2d_entities_line_circle_point_polyline() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
 
         // Line [0,0,0]-[10,0,0]: kind + bounds round-trip.
@@ -3771,7 +3771,7 @@ mod tests {
     /// union/subtract produce the expected mass/volume relationships.
     #[test]
     fn roundtrip_geometric_methods_transform_and_booleans() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
 
         // Two overlapping boxes [0,10]^3 and [5,15]^3.
@@ -3846,7 +3846,7 @@ mod tests {
     /// ACIS data (the exact path `restore_solid_models` re-lifts on load).
     #[test]
     fn roundtrip_intersected_solids_through_dwg_file() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
 
         // Two overlapping boxes -> intersect -> the result solid (125 vol).
@@ -3931,7 +3931,7 @@ mod tests {
     #[test]
     fn doc_api_failed_inputs_leave_document_and_history_unchanged() {
         use ocs_doc_api::EntitySpec;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let count = app.tabs[0].scene.document.entity_count();
         let dirty = app.tabs[0].dirty;
         let undo = app.tabs[0].history.undo_stack.len();
@@ -3975,7 +3975,7 @@ mod tests {
     #[test]
     fn doc_api_bulk_creation_is_dirty_and_undoes_in_one_step() {
         use ocs_doc_api::EntitySpec;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let undo = app.tabs[0].history.undo_stack.len();
         let count = app.tabs[0].scene.document.entity_count();
         let ids = {
@@ -4016,7 +4016,7 @@ mod tests {
 
     #[test]
     fn doc_api_text_scale_and_elevated_extrusion() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let text = new_id(
             &dispatch(
@@ -4085,7 +4085,7 @@ mod tests {
 
     #[test]
     fn doc_api_envelope_guards_and_query_budget_reset() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let id = new_id(
             &dispatch(
@@ -4123,7 +4123,7 @@ mod tests {
             protocol::{PluginRequest, PluginResponse},
             server::handle_plugin_request,
         };
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let objects = app.tabs[0].scene.document.objects.len();
         let id = {
             let mut host = HostSession::new(&mut app, 0);
@@ -4169,7 +4169,7 @@ mod tests {
 
     #[test]
     fn doc_api_layer_crud_roundtrip_and_entity_assignment() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
 
         // Create a line to assign to a layer later.
@@ -4266,7 +4266,7 @@ mod tests {
 
     #[test]
     fn doc_api_xdata_batch_rejects_a_locked_entity_before_mutating() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let line = |host: &mut HostSession<'_>| {
             new_id(&dispatch(
@@ -4318,7 +4318,7 @@ mod tests {
 
     #[test]
     fn doc_api_xrecords_keep_one_named_owner() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let spec = |name: &str| XRecordSpec {
             name: name.into(),
@@ -4384,7 +4384,7 @@ mod tests {
 
     #[test]
     fn doc_api_enumerate_entities_and_geometry_queries() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
 
         // Create entities on different layers.

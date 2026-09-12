@@ -97,7 +97,7 @@ pub fn view_window(
         row![
             logo,
             column![
-                text("Open CAD Studio").size(28).style(primary_style),
+                text("Mac2CAM").size(28).style(primary_style),
                 text(t!("CAD application for Architecture & Engineering"))
                     .size(11)
                     .style(muted_style),

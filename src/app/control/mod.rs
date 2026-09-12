@@ -1,5 +1,5 @@
 //! Semantic control shared by the GUI, headless client and web adapter.
-use super::{Message, OpenCADStudio};
+use super::{Message, Mac2CAM};
 use crate::command::{InputKind, StepInput};
 use iced::Task;
 use serde_json::{Value, json};
@@ -338,7 +338,7 @@ fn active_command_metadata(command: &dyn crate::command::CadCommand) -> Value {
     })
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn control_busy(&self) -> bool {
         self.control.pending.is_some()
     }
@@ -1086,7 +1086,7 @@ pub(super) fn action_names() -> &'static [&'static str] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn request(app: &mut OpenCADStudio, mut req: Value) -> Value {
+    fn request(app: &mut Mac2CAM, mut req: Value) -> Value {
         let state = app.control_state();
         req["protocol"] = json!(1);
         req["document_id"] = state["document_id"].clone();
@@ -1106,7 +1106,7 @@ mod tests {
     }
     #[test]
     fn control_stepwise_drawing_undo_and_properties() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         assert_eq!(
             request(&mut app, json!({"op":"new"}))["status"],
             "completed"
@@ -1170,7 +1170,7 @@ mod tests {
     }
     #[test]
     fn command_discovery_explains_batch_and_interactive_use() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let detail = app
             .control_request(json!({"op":"commands","name":"pline"}))
             .0;
@@ -1190,7 +1190,7 @@ mod tests {
     }
     #[test]
     fn control_queries_exact_curve_relationships_and_metrics() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         request(&mut app, json!({"op":"new"}));
         request(&mut app, json!({"op":"run","cmd":"LINE -5,0 5,0"}));
         request(&mut app, json!({"op":"run","cmd":"LINE 0,-5 0,5"}));
@@ -1241,7 +1241,7 @@ mod tests {
 
     #[test]
     fn control_retry_is_idempotent_and_stale_state_rejected() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         request(&mut app, json!({"op":"new"}));
         let state = app.control_state();
         let req = json!({"op":"run","cmd":"LINE 0,0 10,0","request_id":"line","document_id":state["document_id"],"revision":state["revision"]});
@@ -1256,7 +1256,7 @@ mod tests {
     }
     #[test]
     fn control_errors_and_missing_entities_do_not_report_success() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         request(&mut app, json!({"op":"new"}));
         let result = request(&mut app, json!({"op":"run","cmd":"NONEXISTENT_COMMAND"}));
         assert_eq!(result["status"], "failed", "{result}");
@@ -1271,7 +1271,7 @@ mod tests {
     }
     #[test]
     fn direct_user_input_takes_command_ownership() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         request(&mut app, json!({"op":"new"}));
         request(&mut app, json!({"op":"start","cmd":"LINE"}));
         let _ = app.update(Message::ViewportLeftPress);
@@ -1283,7 +1283,7 @@ mod tests {
     }
     #[test]
     fn control_preserves_other_documents_and_waits_for_async_open() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         request(&mut app, json!({"op":"new"}));
         request(&mut app, json!({"op":"run","cmd":"CIRCLE 0,0 3"}));
         let id = app.control_state()["document_id"].as_u64().unwrap();

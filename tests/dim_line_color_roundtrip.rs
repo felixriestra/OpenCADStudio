@@ -9,13 +9,13 @@ use acadrust::tables::BlockRecord;
 use acadrust::types::{Color, Vector3};
 use acadrust::xdata::XDataValue;
 use acadrust::{CadDocument, EntityType, Handle};
-use OpenCADStudio::entities::dim_override as dov;
-use OpenCADStudio::scene::Scene;
+use Mac2CAM::entities::dim_override as dov;
+use Mac2CAM::scene::Scene;
 
 fn roundtrip(doc: &CadDocument, ext: &str) -> CadDocument {
-    let bytes = OpenCADStudio::io::save_to_bytes(doc, ext, doc.version)
+    let bytes = Mac2CAM::io::save_to_bytes(doc, ext, doc.version)
         .unwrap_or_else(|e| panic!("save to {ext}: {e}"));
-    OpenCADStudio::io::load_bytes(&format!("rt.{ext}"), bytes)
+    Mac2CAM::io::load_bytes(&format!("rt.{ext}"), bytes)
         .unwrap_or_else(|e| panic!("reload {ext}: {e}"))
 }
 

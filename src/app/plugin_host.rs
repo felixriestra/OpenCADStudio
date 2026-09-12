@@ -9,11 +9,11 @@ use ocs_plugin_api::shm::{DocumentSnapshotStore, DocumentViewData};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::plugin::v4_support;
-use super::OpenCADStudio;
+use super::Mac2CAM;
 
 /// Session adapter: one active document tab, command line, undo.
 pub(crate) struct HostSession<'a> {
-    app: &'a mut OpenCADStudio,
+    app: &'a mut Mac2CAM,
     tab: usize,
     doc_store: Option<DocumentSnapshotStore<DocumentViewData>>,
     /// In-flight DocApi v2 undo delta (between `push_undo` and `finalize_op`).
@@ -21,7 +21,7 @@ pub(crate) struct HostSession<'a> {
 }
 
 impl<'a> HostSession<'a> {
-    pub(crate) fn new(app: &'a mut OpenCADStudio, tab: usize) -> Self {
+    pub(crate) fn new(app: &'a mut Mac2CAM, tab: usize) -> Self {
         Self {
             app,
             tab,
@@ -545,14 +545,14 @@ fn plugin_step_to_result(step: ocs_plugin_api::host::CommandStep) -> crate::comm
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
     use acadrust::entities::Point;
     use acadrust::xdata::XDataValue;
     use ocs_plugin_api::host::DocumentReader;
 
     #[test]
     fn xdata_record_round_trips_and_registers_appid() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut host = HostSession::new(&mut app, 0);
         let h = host.add_entity(EntityType::Point(Point::new()));
 
@@ -582,7 +582,7 @@ mod tests {
     #[test]
     fn plugin_state_round_trips_through_hostapi_trait() {
         use ocs_plugin_api::host::{self, HostApi};
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let mut session = HostSession::new(&mut app, 0);
         let host: &mut dyn HostApi = &mut session;
 
@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn add_entities_batch_assigns_handles_and_publishes_once() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let mut host = HostSession::new(&mut app, 0);
 
@@ -631,7 +631,7 @@ mod tests {
 
     #[test]
     fn update_entity_replaces_in_place_preserving_handle() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let mut host = HostSession::new(&mut app, 0);
         let h = host.add_entity(EntityType::Point(Point::at(acadrust::types::Vector3::new(
@@ -663,7 +663,7 @@ mod tests {
         // A plugin adds/edits an entity naming a layer no LAYER command ever
         // created. The layer must gain a real table entry (non-null handle) so
         // it survives a DWG save instead of collapsing to layer 0 (#252, #67).
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let mut host = HostSession::new(&mut app, 0);
 
@@ -701,7 +701,7 @@ mod tests {
 
     #[test]
     fn remove_entity_deletes_and_clears_caches() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let mut host = HostSession::new(&mut app, 0);
         let h = host.add_entity(EntityType::Point(Point::at(acadrust::types::Vector3::new(
@@ -742,7 +742,7 @@ mod tests {
 
     #[test]
     fn plugin_interactive_command_drives_host_flow() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         {
             let mut host = HostSession::new(&mut app, 0);
@@ -782,7 +782,7 @@ mod tests {
 
     #[test]
     fn plugin_object_pick_routes_to_command() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let target = {
             let mut host = HostSession::new(&mut app, 0);
@@ -807,7 +807,7 @@ mod tests {
     #[test]
     fn host_document_reader_sees_entities() {
         use ocs_plugin_api::host::ReaderEntityKind;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let mut host = HostSession::new(&mut app, 0);
         host.add_entity(acadrust::EntityType::Point(acadrust::entities::Point::at(
@@ -822,7 +822,7 @@ mod tests {
 
     #[test]
     fn host_document_view_publish_and_read_shared() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let mut host = HostSession::new(&mut app, 0);
         let info = host.document_view().unwrap();
@@ -842,7 +842,7 @@ mod tests {
     /// handle, read it back, and remove it.
     #[test]
     fn document_reader_to_xdata_roundtrip() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let mut host = HostSession::new(&mut app, 0);
         let h = host.add_entity(EntityType::Point(Point::at(acadrust::types::Vector3::new(
@@ -873,7 +873,7 @@ mod tests {
     /// memory, then write and read-back XDATA through the normal HostApi RPCs.
     #[test]
     fn shared_document_view_read_then_write_xdata_roundtrip() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.tabs[0].is_start = false;
         let mut host = HostSession::new(&mut app, 0);
         let info = host.document_view().unwrap();

@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory() as directory:
     date = datetime(2026, 1, 1, tzinfo=timezone.utc)
     for locale, messages in catalogs.items():
         for chart in ('stars', 'downloads'):
-            svg = charts.render_svg('HakanSeven12/OpenCADStudio', [date], [('v1', date, 10)], 'dark', chart, messages)
+            svg = charts.render_svg('HakanSeven12/Mac2CAM', [date], [('v1', date, 10)], 'dark', chart, messages)
             tree = ET.fromstring(svg)
             assert tree.find('{http://www.w3.org/2000/svg}title').text == messages['stars' if chart == 'stars' else 'downloads']
             (output / ('' if locale == 'en-US' else locale) / f'{chart[:-1]}-history-dark.svg').write_text(svg)
@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory() as directory:
         assert {link['href'] for link in links if link.get('rel') == 'icon'} == {'/favicon.ico', '/favicon.png', '/favicon.svg'}
         assert {link['hreflang'] for link in links if link.get('rel') == 'alternate'} == supported | {'x-default'}
         expected_path = '/' if locale == 'en-US' else f'/{locale}/'
-        assert next(link['href'] for link in links if link.get('rel') == 'canonical') == f'https://www.opencadstudio.com{expected_path}'
+        assert next(link['href'] for link in links if link.get('rel') == 'canonical') == f'https://www.mac2cam.com{expected_path}'
         choices = [attrs for tag, attrs in page.tags if tag == 'a' and 'hreflang' in attrs]
         assert {choice['hreflang'] for choice in choices} == supported
         assert [choice['hreflang'] for choice in choices if choice.get('aria-current') == 'page'] == [locale]
@@ -87,11 +87,11 @@ with tempfile.TemporaryDirectory() as directory:
     sitemap = ET.parse(output / 'sitemap.xml')
     locations = {url[0].text for url in sitemap.getroot()}
     assert len(locations) == len(supported)
-    assert 'https://www.opencadstudio.com/' in locations
-    assert 'https://www.opencadstudio.com/en-US/' not in locations
+    assert 'https://www.mac2cam.com/' in locations
+    assert 'https://www.mac2cam.com/en-US/' not in locations
     assert (output / 'index.html').read_bytes() == (output / 'en-US/index.html').read_bytes()
     homepage_schemas = [json.loads(value) for value in re.findall(r'<script type="application/ld\+json">(.*?)</script>', (output / 'index.html').read_text())]
     website = next(schema for schema in homepage_schemas if schema['@type'] == 'WebSite')
-    assert website['url'] == 'https://www.opencadstudio.com/' and 'OpenCADStudio' in website['alternateName']
+    assert website['url'] == 'https://www.mac2cam.com/' and 'Mac2CAM' in website['alternateName']
     subprocess.run(['node', 'scripts/test_site.cjs', str(output / 'site.js')], cwd=ROOT, check=True)
 print(f'All {len(supported)} translations, metadata, local links, charts, manifests and icons passed')

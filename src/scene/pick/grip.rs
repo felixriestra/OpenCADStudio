@@ -1,4 +1,4 @@
-//! OpenCADStudio-style grip editing.
+//! Mac2CAM-style grip editing.
 
 use acadrust::Handle;
 use glam::{DVec3, Mat4, Vec2};
@@ -31,7 +31,7 @@ fn marker_screen_position(mut point: Point, shape: GripShape) -> Point {
 
 // ── Active drag state ─────────────────────────────────────────────────────
 
-/// Stored on `OpenCADStudio` while a grip is being dragged.
+/// Stored on `Mac2CAM` while a grip is being dragged.
 #[derive(Clone, Debug)]
 pub struct GripEdit {
     /// Handle of the entity being edited.

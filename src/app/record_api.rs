@@ -5,7 +5,7 @@ use serde_json::{Map, Value, json};
 use std::collections::VecDeque;
 use std::sync::OnceLock;
 
-use super::{Message, OpenCADStudio};
+use super::{Message, Mac2CAM};
 
 const COLLECTIONS: &[(&str, bool)] = &[
     ("entities", true),
@@ -1190,7 +1190,7 @@ fn replace_table_entry<T: TableEntry>(table: &mut Table<T>, handle: acadrust::Ha
     *target = edited;
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn record_capabilities(&self) -> Value {
         let document = &self.tabs[self.active_tab].scene.document;
         json!({
@@ -1594,9 +1594,9 @@ mod tests {
     use acadrust::types::{Handle, Vector3};
     use serde_json::{Value, json};
 
-    use super::OpenCADStudio;
+    use super::Mac2CAM;
 
-    fn execute(app: &mut OpenCADStudio, mut request: Value, id: &str) -> Value {
+    fn execute(app: &mut Mac2CAM, mut request: Value, id: &str) -> Value {
         let state = app.automation_op(r#"{"protocol":1,"op":"state"}"#);
         let object = request.as_object_mut().unwrap();
         object.insert("protocol".into(), json!(1));
@@ -1608,7 +1608,7 @@ mod tests {
 
     #[test]
     fn records_query_and_edit_every_mutable_record_family() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let i = app.active_tab;
 
@@ -1731,7 +1731,7 @@ mod tests {
 
     #[test]
     fn record_schema_describes_absent_types_fields_enums_units_and_write_rules() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
 
         let catalog = app.record_schema(&json!({"collection":"entities"}));
@@ -1829,7 +1829,7 @@ mod tests {
 
     #[test]
     fn record_updates_reject_type_identity_and_compare_failures() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let i = app.active_tab;
         let entity = app.tabs[i]

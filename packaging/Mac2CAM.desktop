@@ -1,12 +1,12 @@
 [Desktop Entry]
-Name=Open CAD Studio
-Exec=OpenCADStudio %F
-Icon=io.github.HakanSeven12.OpenCadStudio
+Name=Mac2CAM
+Exec=Mac2CAM %F
+Icon=io.github.HakanSeven12.Mac2CAM
 Terminal=false
 Type=Application
 Categories=Graphics;Engineering;
 MimeType=image/vnd.dwg;image/vnd.dxf;
-StartupWMClass=io.github.HakanSeven12.OpenCadStudio
+StartupWMClass=io.github.HakanSeven12.Mac2CAM
 Comment[ar]=تطبيق CAD للرسم والتصميم ثنائي وثلاثي الأبعاد
 Keywords[ar]=CAD;DWG;DXF;الرسم;تصميم;هندسي;2D;3D;
 Comment[bg]=CAD приложение за 2D/3D чертане и проектиране

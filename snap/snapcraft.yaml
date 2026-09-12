@@ -1,11 +1,11 @@
-name: open-cad-studio
+name: mac2cam
 base: core22
 # Overwritten in CI with the release version number (see .github/workflows/release.yml).
 version: '0.0.0'
-title: Open CAD Studio
+title: Mac2CAM
 summary: 2D drafting and 3D modeling with native DWG/DXF support
 description: |
-  Open CAD Studio (OCS) is a CAD application for 2D drafting and 3D
+  Mac2CAM (OCS) is a CAD application for 2D drafting and 3D
   modeling, built in Rust. Reads and writes DWG and DXF files natively
   (R13 through R2018).
 
@@ -28,7 +28,7 @@ description: |
     sweep, and 3D array
   - ACIS tessellation for rendering 3DSOLID/REGION/BODY entities
 
-  Open CAD Studio is open source, part of the OpenAEC Foundation family
+  Mac2CAM is open source, part of the OpenAEC Foundation family
   of applications, and rendered with wgpu for GPU-accelerated 2D/3D
   drawing.
 
@@ -52,12 +52,12 @@ layout:
     symlink: $SNAP/graphics/X11/locale
 
 apps:
-  open-cad-studio:
+  mac2cam:
     command-chain:
-      - bin/open-cad-studio-wrapper
+      - bin/mac2cam-wrapper
       - bin/graphics-core22-wrapper
-    command: usr/bin/OpenCADStudio
-    desktop: usr/share/applications/io.github.HakanSeven12.OpenCadStudio.desktop
+    command: usr/bin/Mac2CAM
+    desktop: usr/share/applications/io.github.HakanSeven12.Mac2CAM.desktop
     plugs:
       - home            # open/save/export drawings in the home directory
       - removable-media # same, on external drives / USB
@@ -70,13 +70,13 @@ apps:
       - desktop-legacy
 
 parts:
-  open-cad-studio:
+  mac2cam:
     plugin: nil
     override-build: |
       mkdir -p "${CRAFT_PART_INSTALL}"
       tar -xzf "${CRAFT_PROJECT_DIR}/linux-payload.tar.gz" -C "${CRAFT_PART_INSTALL}"
-      install -Dm755 "${CRAFT_PROJECT_DIR}/snap/local/open-cad-studio-wrapper" \
-        "${CRAFT_PART_INSTALL}/bin/open-cad-studio-wrapper"
+      install -Dm755 "${CRAFT_PROJECT_DIR}/snap/local/mac2cam-wrapper" \
+        "${CRAFT_PART_INSTALL}/bin/mac2cam-wrapper"
     stage-packages:
       - libxcursor1
       - libxi6
@@ -88,7 +88,7 @@ parts:
       - libfreetype6
 
   graphics-core22:
-    after: [open-cad-studio]
+    after: [mac2cam]
     source: https://github.com/canonical/gpu-snap.git
     plugin: dump
     override-prime: |

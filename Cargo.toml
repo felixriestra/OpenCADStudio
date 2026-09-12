@@ -1,9 +1,9 @@
 [package]
-name = "OpenCADStudio"
+name = "Mac2CAM"
 version = "2026.36.0"
 edition = "2021"
 build = "build.rs"
-default-run = "OpenCADStudio"
+default-run = "Mac2CAM"
 
 [workspace]
 members = [

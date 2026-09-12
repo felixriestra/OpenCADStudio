@@ -4,11 +4,11 @@
 // attached so eprintln! / panics stay visible while developing.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use OpenCADStudio::app;
+use Mac2CAM::app;
 #[cfg(not(target_arch = "wasm32"))]
-use OpenCADStudio::{cli, io, mcp};
+use Mac2CAM::{cli, io, mcp};
 #[cfg(target_arch = "wasm32")]
-use OpenCADStudio::sys;
+use Mac2CAM::sys;
 
 fn main() -> iced::Result {
     // Web (wasm) uses the single-window entry; native uses the multi-window

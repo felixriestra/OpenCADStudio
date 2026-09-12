@@ -255,7 +255,7 @@ pub enum TangentObject {
 /// Every input source — the GUI command line, the headless automation feeder,
 /// dynamic input, the plugin API, and the viewport (clicks / picks / selection
 /// / tangent) — translates its raw input into one of these and routes it
-/// through `OpenCADStudio::feed_command`, so a single place drives the command
+/// through `Mac2CAM::feed_command`, so a single place drives the command
 /// regardless of where the step came from.
 ///
 /// Variants are wired up incrementally as each source is migrated onto

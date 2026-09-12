@@ -2,30 +2,30 @@
   <a href="../../README.md">English</a> · <a href="README.bg.md">Български</a> · <a href="README.pt-BR.md">Português (Brasil)</a> · <a href="README.cs.md">Čeština</a> · <a href="README.nl.md">Nederlands</a> · <a href="README.fr.md">Français</a> · <a href="README.fi.md">Suomi</a> · <a href="README.de.md">Deutsch</a> · <a href="README.el.md">Ελληνικά</a> · <a href="README.hu.md">Magyar</a> · <a href="README.it.md">Italiano</a> · <a href="README.ja.md">日本語</a> · <a href="README.ko.md">한국어</a> · <a href="README.pl.md">Polski</a> · <a href="README.ru.md">Русский</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.es.md">Español</a> · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.tr.md">Türkçe</a> · <a href="README.hi.md">हिन्दी</a> · <a href="README.ar.md">العربية</a>
 </p>
 
-<p align="center"><img src="../../assets/logo.svg" width="112" alt="Open CAD Studio 标志"></p>
-<h1 align="center">Open CAD Studio</h1>
+<p align="center"><img src="../../assets/logo.svg" width="112" alt="Mac2CAM 标志"></p>
+<h1 align="center">Mac2CAM</h1>
 <p align="center">使用 Rust 构建、面向桌面端和网页端的开源二维绘图与三维建模应用。</p>
 
 <p align="center">
-  <a href="https://github.com/HakanSeven12/OpenCADStudio/releases/latest"><img alt="最新版本" src="https://img.shields.io/github/v/release/HakanSeven12/OpenCADStudio"></a>
-  <a href="https://github.com/HakanSeven12/OpenCADStudio/releases"><img alt="版本下载量" src="https://img.shields.io/github/downloads/HakanSeven12/OpenCADStudio/total"></a>
-  <a href="https://github.com/HakanSeven12/OpenCADStudio/stargazers"><img alt="GitHub 星标" src="https://img.shields.io/github/stars/HakanSeven12/OpenCADStudio"></a>
-  <a href="../../LICENSE"><img alt="GPL-3.0 许可证" src="https://img.shields.io/github/license/HakanSeven12/OpenCADStudio"></a>
+  <a href="https://github.com/HakanSeven12/Mac2CAM/releases/latest"><img alt="最新版本" src="https://img.shields.io/github/v/release/HakanSeven12/Mac2CAM"></a>
+  <a href="https://github.com/HakanSeven12/Mac2CAM/releases"><img alt="版本下载量" src="https://img.shields.io/github/downloads/HakanSeven12/Mac2CAM/total"></a>
+  <a href="https://github.com/HakanSeven12/Mac2CAM/stargazers"><img alt="GitHub 星标" src="https://img.shields.io/github/stars/HakanSeven12/Mac2CAM"></a>
+  <a href="../../LICENSE"><img alt="GPL-3.0 许可证" src="https://img.shields.io/github/license/HakanSeven12/Mac2CAM"></a>
 </p>
 
 <p align="center">
-  <a href="https://www.opencadstudio.com"><strong>启动网页应用</strong></a> ·
-  <a href="https://github.com/HakanSeven12/OpenCADStudio/releases/latest"><strong>下载桌面应用</strong></a> ·
-  <a href="https://github.com/HakanSeven12/OpenCADStudio/discussions"><strong>参与讨论</strong></a>
+  <a href="https://www.mac2cam.com"><strong>启动网页应用</strong></a> ·
+  <a href="https://github.com/HakanSeven12/Mac2CAM/releases/latest"><strong>下载桌面应用</strong></a> ·
+  <a href="https://github.com/HakanSeven12/Mac2CAM/discussions"><strong>参与讨论</strong></a>
 </p>
 
-<p align="center"><img src="../../site/workspace.png" alt="Open CAD Studio 工作区" width="100%"></p>
+<p align="center"><img src="../../site/workspace.png" alt="Mac2CAM 工作区" width="100%"></p>
 
 ## 概览
 
-Open CAD Studio 是一款用于技术绘图、布局设计和实体建模的跨平台应用。它可原生读取和写入 DWG 与 DXF 图纸，桌面版和浏览器版共享同一套编辑核心。
+Mac2CAM 是一款用于技术绘图、布局设计和实体建模的跨平台应用。它可原生读取和写入 DWG 与 DXF 图纸，桌面版和浏览器版共享同一套编辑核心。
 
-本项目正在积极开发中。请保留重要生产图纸的备份，并通过 [GitHub Issues](https://github.com/HakanSeven12/OpenCADStudio/issues) 报告可重现的问题。
+本项目正在积极开发中。请保留重要生产图纸的备份，并通过 [GitHub Issues](https://github.com/HakanSeven12/Mac2CAM/issues) 报告可重现的问题。
 
 ## 主要功能
 
@@ -36,7 +36,7 @@ Open CAD Studio 是一款用于技术绘图、布局设计和实体建模的跨�
 - **GPU 渲染** — 通过 `wgpu` 加速二维和三维视口，并支持正交与透视相机。
 - **可扩展工作流** — 支持原生插件、命令脚本、无界面转换和逐行 JSON 自动化 API。
 
-<p align="center"><img src="../../site/modeling.png" alt="Open CAD Studio 中的三维模型" width="100%"></p>
+<p align="center"><img src="../../site/modeling.png" alt="Mac2CAM 中的三维模型" width="100%"></p>
 
 ## 文件工作流
 
@@ -55,43 +55,43 @@ Open CAD Studio 是一款用于技术绘图、布局设计和实体建模的跨�
 
 ## 桌面版或网页版
 
-使用[网页应用](https://www.opencadstudio.com)可无需安装立即开始。图纸通过浏览器选择，并以本地下载文件保存。
+使用[网页应用](https://www.mac2cam.com)可无需安装立即开始。图纸通过浏览器选择，并以本地下载文件保存。
 
 需要原生文件关联、文件管理器缩略图、系统打印、PDF 输出、外部插件、命令脚本和无界面自动化时，请使用桌面应用。项目提供 Windows、Linux 和 Apple Silicon macOS 版本。
 
 ## 安装
 
-请从[最新版本](https://github.com/HakanSeven12/OpenCADStudio/releases/latest)下载所有当前软件包。
+请从[最新版本](https://github.com/HakanSeven12/Mac2CAM/releases/latest)下载所有当前软件包。
 
 ### Windows
 
 请选择一个已签名的 x86-64 软件包：
 
-- `OpenCADStudio-*-windows-x86_64-installer.msi` — 推荐的安装程序，包含开始菜单快捷方式、DWG/DXF 文件关联和图纸缩略图。
-- `OpenCADStudio-*-windows-x86_64-portable.exe` — 无需安装的独立应用程序。
+- `Mac2CAM-*-windows-x86_64-installer.msi` — 推荐的安装程序，包含开始菜单快捷方式、DWG/DXF 文件关联和图纸缩略图。
+- `Mac2CAM-*-windows-x86_64-portable.exe` — 无需安装的独立应用程序。
 
 ### Linux
 
 下载 x86-64 AppImage，添加执行权限并运行：
 
 ```bash
-chmod +x OpenCADStudio-*-linux-x86_64.AppImage
-./OpenCADStudio-*-linux-x86_64.AppImage
+chmod +x Mac2CAM-*-linux-x86_64.AppImage
+./Mac2CAM-*-linux-x86_64.AppImage
 ```
 
 ### macOS
 
 发布的 macOS 软件包支持 Apple Silicon：
 
-1. 下载 `OpenCADStudio-*-macos-arm64.dmg`。
-2. 打开镜像，将 `OpenCADStudio.app` 拖入 **Applications**。
+1. 下载 `Mac2CAM-*-macos-arm64.dmg`。
+2. 打开镜像，将 `Mac2CAM.app` 拖入 **Applications**。
 3. 如果 Gatekeeper 阻止首次启动，请在 **System Settings → Privacy & Security** 中允许该应用。
 
 应用采用临时签名，但目前尚未通过 Apple 公证。
 
 ## 语言
 
-Open CAD Studio 可以跟随系统语言，也可以使用以下 21 种界面语言：
+Mac2CAM 可以跟随系统语言，也可以使用以下 21 种界面语言：
 
 > 阿拉伯语 · 巴西葡萄牙语 · 保加利亚语 · 捷克语 · 荷兰语 · 英语 · 芬兰语 · 法语 · 德语 · 希腊语 · 印地语 · 匈牙利语 · 意大利语 · 日语 · 韩语 · 波兰语 · 俄语 · 简体中文 · 西班牙语 · 繁体中文 · 土耳其语
 
@@ -119,12 +119,12 @@ sudo apt install libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev \
 然后构建：
 
 ```bash
-git clone https://github.com/HakanSeven12/OpenCADStudio.git
-cd OpenCADStudio
-cargo build --release --bin OpenCADStudio
+git clone https://github.com/HakanSeven12/Mac2CAM.git
+cd Mac2CAM
+cargo build --release --bin Mac2CAM
 ```
 
-生成的二进制文件位于 `target/release/OpenCADStudio`（Windows 上为 `OpenCADStudio.exe`）。
+生成的二进制文件位于 `target/release/Mac2CAM`（Windows 上为 `Mac2CAM.exe`）。
 
 ### 网页版
 
@@ -146,10 +146,10 @@ trunk serve
 桌面二进制程序支持一次性转换和持续运行的无界面服务器：
 
 ```bash
-OpenCADStudio --export input.dwg output.dxf
-OpenCADStudio --serve
-OpenCADStudio --serve --port 4242
-OpenCADStudio --mcp
+Mac2CAM --export input.dwg output.dxf
+Mac2CAM --serve
+Mac2CAM --serve --port 4242
+Mac2CAM --mcp
 ```
 
 服务器通过标准输入/输出或本地 TCP 套接字逐行交换 JSON 对象。请参阅[自动化指南](../automation/README.md)。
@@ -173,24 +173,24 @@ OpenCADStudio --mcp
 
 欢迎提交错误报告、目标明确的 pull request、翻译、文档改进和插件贡献。
 
-- 提交新报告前请搜索现有 [issues](https://github.com/HakanSeven12/OpenCADStudio/issues)。
-- 问题和想法请使用 [Discussions](https://github.com/HakanSeven12/OpenCADStudio/discussions)。
+- 提交新报告前请搜索现有 [issues](https://github.com/HakanSeven12/Mac2CAM/issues)。
+- 问题和想法请使用 [Discussions](https://github.com/HakanSeven12/Mac2CAM/discussions)。
 - 请按照[安全策略](../../SECURITY.md)私下报告漏洞。
 
 ## 项目成长
 
-<a href="https://github.com/HakanSeven12/OpenCADStudio/stargazers">
+<a href="https://github.com/HakanSeven12/Mac2CAM/stargazers">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://www.opencadstudio.com/star-history-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://www.opencadstudio.com/star-history-light.svg">
-    <img alt="Open CAD Studio 星标和版本下载量" src="https://www.opencadstudio.com/star-history-light.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="https://www.mac2cam.com/star-history-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://www.mac2cam.com/star-history-light.svg">
+    <img alt="Mac2CAM 星标和版本下载量" src="https://www.mac2cam.com/star-history-light.svg">
   </picture>
 </a>
 
 ## 支持项目
 
-如果 Open CAD Studio 对您的工作有所帮助，请通过 [GitHub Sponsors](https://github.com/sponsors/HakanSeven12) 或 [Patreon](https://www.patreon.com/HakanSeven12) 支持持续开发。
+如果 Mac2CAM 对您的工作有所帮助，请通过 [GitHub Sponsors](https://github.com/sponsors/HakanSeven12) 或 [Patreon](https://www.patreon.com/HakanSeven12) 支持持续开发。
 
 ## 许可证
 
-Open CAD Studio 根据 [GNU General Public License v3.0](../../LICENSE) 分发。
+Mac2CAM 根据 [GNU General Public License v3.0](../../LICENSE) 分发。

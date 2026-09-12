@@ -1,12 +1,12 @@
 # Security Policy
 
-The OpenCADStudio maintainers take security vulnerabilities seriously. We appreciate responsible reports that help protect users, their drawings, and their systems.
+The Mac2CAM maintainers take security vulnerabilities seriously. We appreciate responsible reports that help protect users, their drawings, and their systems.
 
 Please do not publicly disclose a suspected vulnerability before the maintainers have had a reasonable opportunity to investigate and release a fix.
 
 ## Supported Versions
 
-OpenCADStudio is under active development. Security updates are generally provided for the latest released version and the current `main` branch.
+Mac2CAM is under active development. Security updates are generally provided for the latest released version and the current `main` branch.
 
 | Version                       | Supported |
 | ----------------------------- | --------- |
@@ -30,7 +30,7 @@ Use GitHub Private Vulnerability Reporting when it is available:
 
 Repository:
 
-`https://github.com/HakanSeven12/OpenCADStudio`
+`https://github.com/HakanSeven12/Mac2CAM`
 
 ### When private vulnerability reporting is unavailable
 
@@ -41,7 +41,7 @@ Instead, create a minimal public issue that only states that you need a private 
 A minimal issue may contain:
 
 ```text
-I believe I have identified a potential security vulnerability in OpenCADStudio. Please provide a private communication channel so I can share the details responsibly.
+I believe I have identified a potential security vulnerability in Mac2CAM. Please provide a private communication channel so I can share the details responsibly.
 ```
 
 ## Information to Include
@@ -49,7 +49,7 @@ I believe I have identified a potential security vulnerability in OpenCADStudio.
 A useful security report should include:
 
 * A clear description of the vulnerability
-* The affected OpenCADStudio version or commit
+* The affected Mac2CAM version or commit
 * The affected operating system or browser
 * Whether the issue affects the native application, web application, file parser, exporter, plug-in system, or build process
 * Step-by-step reproduction instructions
@@ -143,7 +143,7 @@ The following are generally not considered security vulnerabilities:
 * Issues that only affect unsupported versions
 * Vulnerabilities in third-party applications or operating systems
 * Automated scanner reports without manual verification
-* Dependency vulnerability reports without evidence that OpenCADStudio is affected
+* Dependency vulnerability reports without evidence that Mac2CAM is affected
 * Denial-of-service tests that require excessive traffic or infrastructure load
 * Physical attacks on a user's device
 * Reports based only on outdated dependency version numbers without a demonstrated exploit path
@@ -157,7 +157,7 @@ Security research must be performed responsibly.
 You may:
 
 * Test systems, repositories, accounts, and files that you own
-* Test the publicly available OpenCADStudio application
+* Test the publicly available Mac2CAM application
 * Create malicious test drawings in a controlled environment
 * Use local virtual machines or isolated test systems
 * Perform limited automated testing that does not affect other users
@@ -229,7 +229,7 @@ Reporter credit is optional. Tell the maintainers how you would like to be credi
 
 Security fixes may be delivered through:
 
-* A new OpenCADStudio release
+* A new Mac2CAM release
 * A GitHub Security Advisory
 * Release notes
 * Repository documentation
@@ -237,7 +237,7 @@ Security fixes may be delivered through:
 
 Users should download releases only from the official repository:
 
-`https://github.com/HakanSeven12/OpenCADStudio/releases`
+`https://github.com/HakanSeven12/Mac2CAM/releases`
 
 Users are encouraged to verify that the repository owner and release source are correct before running downloaded binaries.
 
@@ -260,4 +260,4 @@ This safe-harbor statement does not authorize testing of third-party systems and
 
 Regular bugs, crashes, feature requests, and usability issues that do not contain sensitive security information may be reported through GitHub Issues:
 
-`https://github.com/HakanSeven12/OpenCADStudio/issues`
+`https://github.com/HakanSeven12/Mac2CAM/issues`

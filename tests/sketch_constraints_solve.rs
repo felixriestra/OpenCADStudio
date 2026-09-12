@@ -5,9 +5,9 @@
 // constrained neighbors, produces the expected change list, and an
 // unrelated edit doesn't touch anything (§4.3's "what does NOT trigger").
 
-use OpenCADStudio::scene::named_parameters::DrivingValue;
-use OpenCADStudio::scene::sketch_constraints::{ConstraintKind, SketchRef, SketchScope};
-use OpenCADStudio::scene::{ChangeKind, Scene};
+use Mac2CAM::scene::named_parameters::DrivingValue;
+use Mac2CAM::scene::sketch_constraints::{ConstraintKind, SketchRef, SketchScope};
+use Mac2CAM::scene::{ChangeKind, Scene};
 use acadrust::entities::EntityType;
 use acadrust::types::{Handle, Vector3};
 
@@ -315,7 +315,7 @@ fn copying_two_constrained_entities_carries_their_constraint_along() {
     scene.bump_entities(&[(a, ChangeKind::Modified), (b, ChangeKind::Modified)]);
     let constraints_before = scene.sketch_constraint_set(SketchScope::ModelSpace).unwrap().constraints.len();
 
-    let transform = OpenCADStudio::command::EntityTransform::Translate(glam::DVec3::new(100.0, 100.0, 0.0));
+    let transform = Mac2CAM::command::EntityTransform::Translate(glam::DVec3::new(100.0, 100.0, 0.0));
     let new_handles = scene.copy_entities(&[a, b], &transform);
     assert_eq!(new_handles.len(), 2);
     let (new_a, new_b) = (new_handles[0], new_handles[1]);
@@ -355,7 +355,7 @@ fn a_duplicated_horizontal_constraint_is_reported_as_redundant() {
     // Design doc §6.4 (stage 11): `solve_scope` classifies the redundant row
     // `ocs_gcs::diagnosis::diagnose` flags and resolves it back to the
     // `ConstraintId` a `ConflictResolverPanel` would name.
-    use OpenCADStudio::scene::sketch_constraints::ConstraintKind;
+    use Mac2CAM::scene::sketch_constraints::ConstraintKind;
     use ocs_gcs::diagnosis::RedundancyKind;
 
     let mut scene = Scene::new();
@@ -375,7 +375,7 @@ fn a_duplicated_horizontal_constraint_is_reported_as_redundant() {
 
 #[test]
 fn two_conflicting_distance_targets_are_reported_as_conflicting() {
-    use OpenCADStudio::scene::sketch_constraints::ConstraintKind;
+    use Mac2CAM::scene::sketch_constraints::ConstraintKind;
     use ocs_gcs::diagnosis::RedundancyKind;
 
     let mut scene = Scene::new();

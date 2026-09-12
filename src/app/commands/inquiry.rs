@@ -1,6 +1,6 @@
 use super::*;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn dispatch_inquiry(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
             "3DORBIT" => {
@@ -2002,7 +2002,7 @@ fn arith_eval(expr: &str) -> Result<f64, String> {
     Ok(v)
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Open the attribute editor. If a single block with attributes is already
     /// selected it opens directly on that block; otherwise it starts the
     /// block-pick command and opens once a block is chosen (see

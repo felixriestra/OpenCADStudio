@@ -463,7 +463,7 @@ impl Ribbon {
         // The quick-access flow and the tabs flow each flex-wrap; WrapBar stacks
         // them so a wrapped tab never shares a row with a quick-access button.
 
-        let tab_items = self.modules.iter().enumerate().fold(
+        let mut tab_items = self.modules.iter().enumerate().fold(
             Vec::<Element<'_, Message>>::new(),
             |mut acc, (i, module)| {
                 // The Layout module no longer has a ribbon tab — its paper-space
@@ -538,19 +538,19 @@ impl Ribbon {
                     ..Default::default()
                 });
                 acc.push(btn.into());
-                if module.id() == "view" {
-                    let open = self.open_dropdown.as_deref() == Some(HELP_MENU_ID);
-                    let help = button(text("Help ▾").size(12))
-                        .on_press(Message::ToggleRibbonDropdown(HELP_MENU_ID.to_string()))
-                        .style(move |theme: &Theme, status| {
-                            top_hist_btn_style(theme, true, open, status)
-                        })
-                        .padding([5, 14]);
-                    acc.push(PosReport::new(HELP_MENU_ID, help).into());
-                }
                 acc
             },
         );
+        // Help is deliberately appended after every current and future module,
+        // making it the invariant rightmost item in the ribbon tab bar.
+        let help_open = self.open_dropdown.as_deref() == Some(HELP_MENU_ID);
+        let help = button(text("Help ▾").size(12))
+            .on_press(Message::ToggleRibbonDropdown(HELP_MENU_ID.to_string()))
+            .style(move |theme: &Theme, status| {
+                top_hist_btn_style(theme, true, help_open, status)
+            })
+            .padding([5, 14]);
+        tab_items.push(PosReport::new(HELP_MENU_ID, help).into());
 
         // Tabs may squeeze their gaps to fit before wrapping: from the normal 6px
         // down to -12px on a narrow (e.g. phone) tab row, tucking neighbours into

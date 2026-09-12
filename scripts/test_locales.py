@@ -16,7 +16,7 @@ assert len(lookup) > 3000
 
 keys = set()
 group = None
-for line in (ROOT / 'locales/en-US/opencadstudio.ftl').read_text().splitlines():
+for line in (ROOT / 'locales/en-US/mac2cam.ftl').read_text().splitlines():
     if match := re.match(r'^([A-Za-z][\w-]*)\s*=', line):
         group = match[1]
     elif match := re.match(r'^    \.([A-Za-z][\w-]*)\s*=', line):

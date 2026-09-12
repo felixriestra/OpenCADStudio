@@ -5,9 +5,9 @@
 // (save/load integration, the "lazy" persistence model) is gated on this
 // test passing — see the design doc §8 stage 2 and §7 open question 1.
 
-use OpenCADStudio::scene::named_parameters::DrivingValue;
-use OpenCADStudio::scene::sketch_constraints::{ConstraintKind, SketchConstraintSet, SketchRef, SketchScope};
-use OpenCADStudio::scene::Scene;
+use Mac2CAM::scene::named_parameters::DrivingValue;
+use Mac2CAM::scene::sketch_constraints::{ConstraintKind, SketchConstraintSet, SketchRef, SketchScope};
+use Mac2CAM::scene::Scene;
 use acadrust::entities::EntityType;
 use acadrust::objects::{XRecordEntry, XRecordValue};
 use acadrust::types::{Handle, Vector3};
@@ -43,9 +43,9 @@ fn roundtrip_through(scene: &Scene, owner: Handle, set: &SketchConstraintSet, ex
     let record = doc.xrecord_mut(owner, RECORD_KEY).expect("xrecord_mut after ensure_xrecord");
     record.entries.push(XRecordEntry::new(310, XRecordValue::Chunk(bytes)));
 
-    let saved = OpenCADStudio::io::save_to_bytes(&doc, ext, doc.version)
+    let saved = Mac2CAM::io::save_to_bytes(&doc, ext, doc.version)
         .unwrap_or_else(|e| panic!("save to {ext} bytes: {e}"));
-    let reloaded = OpenCADStudio::io::load_bytes(&format!("roundtrip.{ext}"), saved)
+    let reloaded = Mac2CAM::io::load_bytes(&format!("roundtrip.{ext}"), saved)
         .unwrap_or_else(|e| panic!("reload {ext} bytes: {e}"));
 
     let record = reloaded

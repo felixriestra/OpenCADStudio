@@ -38,7 +38,7 @@
       }
       @keyframes ocs-spin { to { transform: rotate(360deg); } }
     </style>
-    <link data-trunk rel="rust" data-bin="OpenCADStudio" />
+    <link data-trunk rel="rust" data-bin="Mac2CAM" />
     <link data-trunk rel="copy-dir" href="web/fonts" />
     <link data-trunk rel="copy-file" href="web/ocs-parse-worker.js" />
     <link data-trunk rel="copy-file" href="web/locale-labels.json" />
@@ -55,7 +55,7 @@
         fetch("locale-labels.json").then(response => response.json()).then(labels => {
           let saved;
           try {
-            saved = JSON.parse(localStorage.getItem("opencadstudio.settings"))?.settings?.language;
+            saved = JSON.parse(localStorage.getItem("mac2cam.settings"))?.settings?.language;
           } catch {}
           const preferred = navigator.languages?.length ? navigator.languages : [navigator.language];
           const requested = typeof saved === "string" && saved !== "system" ? [saved, ...preferred] : preferred;

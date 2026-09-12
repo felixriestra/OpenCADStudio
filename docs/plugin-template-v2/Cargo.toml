@@ -2,7 +2,7 @@
 name = "plugin-template-v2"
 version = "0.1.0"
 edition = "2021"
-description = "Example OpenCAD Studio plugin demonstrating the shared-memory DocumentReader API."
+description = "Example Mac2CAM plugin demonstrating the shared-memory DocumentReader API."
 license = "GPL-3.0-only"
 
 [lib]

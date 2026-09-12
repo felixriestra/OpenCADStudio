@@ -1,4 +1,4 @@
-//! Headless automation server (`OpenCADStudio --serve`).
+//! Headless automation server (`Mac2CAM --serve`).
 //!
 //! Drives the app without a GUI over a line-based JSON protocol: one request
 //! object per line on stdin, one response object per line on stdout. State (the
@@ -20,14 +20,14 @@ use std::path::PathBuf;
 
 use serde_json::{Value, json};
 
-use super::OpenCADStudio;
+use super::Mac2CAM;
 
 /// Run the headless JSON server. Default transport is stdin/stdout; with
 /// `--port <N>` it instead listens on `127.0.0.1:<N>` and serves one client at
 /// a time (the document session persists across reconnects).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn serve() {
-    let mut app = OpenCADStudio::new();
+    let mut app = Mac2CAM::new();
     match port_arg() {
         Some(port) => serve_socket(&mut app, port),
         None => serve_stdio(&mut app),
@@ -76,7 +76,7 @@ fn ready() -> Value {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn serve_stdio(app: &mut OpenCADStudio) {
+fn serve_stdio(app: &mut Mac2CAM) {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     {
@@ -98,7 +98,7 @@ fn serve_stdio(app: &mut OpenCADStudio) {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn serve_socket(app: &mut OpenCADStudio, port: u16) {
+fn serve_socket(app: &mut Mac2CAM, port: u16) {
     let listener = match std::net::TcpListener::bind(("127.0.0.1", port)) {
         Ok(l) => l,
         Err(e) => {
@@ -106,7 +106,7 @@ fn serve_socket(app: &mut OpenCADStudio, port: u16) {
             return;
         }
     };
-    eprintln!("OpenCADStudio --serve listening on 127.0.0.1:{port}");
+    eprintln!("Mac2CAM --serve listening on 127.0.0.1:{port}");
     for stream in listener.incoming().flatten() {
         let Ok(read_half) = stream.try_clone() else {
             continue;
@@ -263,7 +263,7 @@ fn projected_fields(mut entity: Value, fields: Option<&Vec<Value>>) -> Value {
     entity
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Handle one JSON request line and return the JSON response.
     #[cfg(any(test, not(target_arch = "wasm32")))]
     pub(crate) fn automation_op(&mut self, line: &str) -> Value {
@@ -496,7 +496,7 @@ impl OpenCADStudio {
     }
 
     /// Run a command line headlessly. Thin wrapper over the shared
-    /// [`OpenCADStudio::run_command_line`] (see `cmd_result.rs`), which the GUI
+    /// [`Mac2CAM::run_command_line`] (see `cmd_result.rs`), which the GUI
     /// command line uses too so both process `UCS Z 90` / `LINE 0,0 10,10` /
     /// `PDMODE 3` identically.
     fn run_headless(&mut self, cmd: &str) -> Result<(), String> {
@@ -741,11 +741,11 @@ impl OpenCADStudio {
 
 #[cfg(test)]
 mod tests {
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
 
     #[test]
     fn layout_notice_skips_grid_camera_and_scene_builds() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         assert_eq!(app.automation_op(r#"{"op":"new"}"#)["ok"], true);
         assert_eq!(
             app.automation_op(r#"{"op":"run","cmd":"LINE 0,0 10,10"}"#)["ok"],
@@ -778,7 +778,7 @@ mod tests {
 
     #[test]
     fn automation_ops_round_trip() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
 
         let r = app.automation_op(r#"{"op":"new"}"#);
         assert_eq!(r["ok"], true);
@@ -836,7 +836,7 @@ mod tests {
         use acadrust::entities::{AttributeEntity, EntityType, Insert};
         use acadrust::types::Vector3;
 
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let i = app.active_tab;
         let mut insert = Insert::new("A_CPT", Vector3::new(12.0, 34.0, 5.0));
@@ -873,7 +873,7 @@ mod tests {
     fn ucs_interactive_inline_args() {
         // `UCS Z 90` must drive the interactive UCS command step-by-step (option
         // "Z" then value "90") and rotate the active UCS 90° about Z. (#169)
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app.automation_op(r#"{"op":"run","cmd":"UCS Z 90"}"#);
         let i = app.active_tab;
@@ -892,7 +892,7 @@ mod tests {
 
     #[test]
     fn translated_and_rotated_ucs_resolves_absolute_relative_and_polar_input() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app.automation_op(r#"{"op":"run","cmd":"UCS ORIGIN 100,200,300"}"#);
         app.automation_op(r#"{"op":"run","cmd":"UCS Z 90"}"#);
@@ -918,7 +918,7 @@ mod tests {
 
     #[test]
     fn tilted_ucs_places_planar_entities_with_the_plane_normal() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app.automation_op(r#"{"op":"run","cmd":"UCS 3POINT 0,0,0 1,0,0 0,0,1"}"#);
         app.automation_op(r#"{"op":"run","cmd":"CIRCLE 2,3 1"}"#);
@@ -947,7 +947,7 @@ mod tests {
         // A single-value setting command entered with its value on one line
         // drives the interactive front-end (start + value step) and applies via
         // the inline handler. (F4)
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app.automation_op(r#"{"op":"run","cmd":"PDMODE 3"}"#);
         app.automation_op(r#"{"op":"run","cmd":"LTSCALE 2.5"}"#);
@@ -972,7 +972,7 @@ mod tests {
         // rotate the selection (the reference point is optional, as the prompt
         // says). Before the fix this did nothing and the command cancelled, so
         // the objects never rotated. Regression for #159.
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app.automation_op(r#"{"op":"run","cmd":"LINE 0,0 10,0"}"#);
         app.automation_op(r#"{"op":"select","type":"Line"}"#);
@@ -998,7 +998,7 @@ mod tests {
         use crate::ui::command_line::EntryKind;
 
         // Fresh app = welcome tab, no drawing.
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         assert!(
             app.tabs[app.active_tab].is_start,
             "test needs the welcome tab"
@@ -1083,7 +1083,7 @@ mod tests {
         // the poly path).
         use crate::app::Message;
         for (add, rect) in [(true, false), (true, true), (false, false), (false, true)] {
-            let mut app = OpenCADStudio::new_for_test();
+            let mut app = Mac2CAM::new_for_test();
             app.automation_op(r#"{"op":"new"}"#);
             let i = app.active_tab;
             app.pick_add = add;
@@ -1155,7 +1155,7 @@ mod tests {
 
     #[test]
     fn pickadd_command_flips_flag() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         // The Start tab blocks drawing commands — open a drawing first.
         app.automation_op(r#"{"op":"new"}"#);
         // The boot path may have restored a persisted value — normalize.
@@ -1184,7 +1184,7 @@ mod tests {
         use crate::command::StepInput;
         use acadrust::{EntityType, MText, Text};
 
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let i = app.active_tab;
 
@@ -1241,7 +1241,7 @@ mod tests {
         // Double-clicking a drawing that is already open should land on the tab
         // showing it, not load a second copy of the same file.
         use crate::app::Message;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
 
         let path = std::env::temp_dir().join("ocs_already_open.dwg");
@@ -1291,7 +1291,7 @@ mod tests {
         // process each, all arriving together) would leave one tab and silently
         // lose the rest.
         use crate::app::Message;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
 
         // Any existing file will do: OpenRecent only stats it, and the actual
@@ -1351,7 +1351,7 @@ mod tests {
                 std::fs::write(&path, b"a previous drawing").unwrap();
             }
 
-            let mut app = OpenCADStudio::new_for_test();
+            let mut app = Mac2CAM::new_for_test();
             app.automation_op(r#"{"op":"new"}"#);
             let p = path.to_string_lossy().replace('\\', "\\\\");
             let saved = app.automation_op(&format!(r#"{{"op":"save","path":"{p}"}}"#));
@@ -1375,7 +1375,7 @@ mod tests {
 
     #[test]
     fn save_then_open_round_trips() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let path =
             std::env::temp_dir().join(format!("ocs_automation_test_{}.dxf", std::process::id()));
         let _ = std::fs::remove_file(&path);
@@ -1400,7 +1400,7 @@ mod tests {
 
     #[test]
     fn open_finalizes_and_purges_like_the_ui_open_path() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         let stale = acadrust::Handle::from(9999);
         app.tabs[app.active_tab].scene.solid_models.insert(
             stale, cadkernel::brep::make::cuboid([0.0; 3], [1.0; 3]).unwrap(),
@@ -1452,7 +1452,7 @@ mod tests {
     #[test]
     fn test_pline_line_then_arc() {
         use crate::app::Message;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         {
             app.tabs[0].scene.selection.borrow_mut().vp_size = (1920.0, 1080.0);
@@ -1517,7 +1517,7 @@ mod tests {
     #[test]
     fn test_mtp_in_line_command() {
         use crate::app::Message;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         {
             app.tabs[0].scene.selection.borrow_mut().vp_size = (1920.0, 1080.0);
@@ -1558,7 +1558,7 @@ mod tests {
     #[test]
     fn test_mtp_escape_restores_parent() {
         use crate::app::Message;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
 
         // Start LINE
@@ -1585,7 +1585,7 @@ mod tests {
     #[test]
     fn test_mtp_typing_routing_with_dyn_input() {
         use crate::app::Message;
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app.dyn_input = true;
 

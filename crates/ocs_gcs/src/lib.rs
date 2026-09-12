@@ -1,4 +1,4 @@
-//! 2D geometric constraint solver for OpenCADStudio sketches.
+//! 2D geometric constraint solver for Mac2CAM sketches.
 //!
 //! A Rust port of FreeCAD's planegcs (LGPL-2.1-or-later), staged bottom-up:
 //! see `/Users/felix/.claude/plans/snoopy-finding-matsumoto.md` for the full

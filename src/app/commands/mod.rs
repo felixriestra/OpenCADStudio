@@ -1,4 +1,4 @@
-use super::{Message, OpenCADStudio};
+use super::{Message, Mac2CAM};
 use crate::command::CadCommand;
 use crate::scene::Scene;
 use iced::Task;
@@ -22,7 +22,7 @@ mod view;
 pub(crate) use view::DrawOrderCommand;
 pub(crate) use cam::regenerate_cam_operation;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// First `"{prefix}{n}"` (n ≥ 1) not already used by a block record in the
     /// active drawing. Used to auto-name a paste-as-block definition.
     pub(super) fn unique_block_name(&self, prefix: &str) -> String {
@@ -468,10 +468,6 @@ inventory::submit!(crate::command::CommandRegistration {
         "BLOCKSPALETTE",
         "ATTMAN",
         "BATTMAN",
-        // Drawing-content overview.
-        "ADCENTER",
-        "CONTENTBROWSER",
-        "ADC",
         // Annotation scale.
         "ANNOSCALE",
         "CANNOSCALE",
@@ -480,10 +476,9 @@ inventory::submit!(crate::command::CommandRegistration {
         "ANNOUPDATE",
         "SCALELISTEDIT",
         "OBJECTSCALE",
-        // Import CSV into a table + LandXML survey points.
+        // Import CSV into a table.
         "DATALINK",
         "DATALINKUPDATE",
-        "LANDXMLIMPORT",
         // Keyboard-shortcut (CUI) export / import.
         "CUIEXPORT",
         "CUIIMPORT",
@@ -695,7 +690,6 @@ inventory::submit!(crate::command::CommandRegistration {
         "IM",
         "IMAGE",
         "IMAGEATTACH",
-        "IMPORTOBJ",
         "ISOLATEOBJECTS",
         "LA",
         "LAYER",
@@ -793,20 +787,20 @@ inventory::submit!(crate::command::CommandRegistration {
 
 #[cfg(test)]
 mod marquee_cancel_tests {
-    use crate::app::{GripPendingValue, OpenCADStudio};
+    use crate::app::{GripPendingValue, Mac2CAM};
     use crate::scene::model::object::GripMenuAction;
     use crate::scene::pick::grip::GripEdit;
     use acadrust::Handle;
     use iced::time::Instant;
 
-    fn fresh() -> OpenCADStudio {
-        let mut app = OpenCADStudio::new_for_test();
+    fn fresh() -> Mac2CAM {
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app
     }
 
     /// Arm a held box drag.
-    fn arm_marquee(app: &mut OpenCADStudio) {
+    fn arm_marquee(app: &mut Mac2CAM) {
         let i = app.active_tab;
         let mut sel = app.tabs[i].scene.selection.borrow_mut();
         sel.left_down = true;
@@ -821,7 +815,7 @@ mod marquee_cancel_tests {
     }
 
     /// Arm a held lasso drag.
-    fn arm_lasso(app: &mut OpenCADStudio) {
+    fn arm_lasso(app: &mut Mac2CAM) {
         let i = app.active_tab;
         let mut sel = app.tabs[i].scene.selection.borrow_mut();
         sel.left_down = true;

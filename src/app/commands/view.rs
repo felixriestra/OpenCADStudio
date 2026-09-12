@@ -1,13 +1,13 @@
 use super::*;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(crate) fn dispatch_view(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
             "HELP" => {
                 self.command_line
                     .push_info(crate::t!("Opening OCS Discussions for help and questions...").as_ref());
                 return Some(crate::sys::open_url(
-                    "https://github.com/HakanSeven12/OpenCADStudio/discussions",
+                    "https://github.com/HakanSeven12/Mac2CAM/discussions",
                     self.main_window,
                 ));
             }
@@ -195,7 +195,7 @@ impl OpenCADStudio {
             "CHANGELOG" => {
                 self.command_line.push_info(crate::t!("Opening release notes...").as_ref());
                 return Some(crate::sys::open_url(
-                    "https://github.com/HakanSeven12/OpenCADStudio/releases",
+                    "https://github.com/HakanSeven12/Mac2CAM/releases",
                     self.main_window,
                 ));
             }
@@ -1455,7 +1455,7 @@ fn assign_back_group_keys(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
     use acadrust::objects::ObjectType;
     use acadrust::EntityType;
 
@@ -1480,7 +1480,7 @@ mod tests {
         // --- HATCHTOBACK ---
         let mut hb_ms: Vec<f64> = Vec::new();
         for _ in 0..runs {
-            let mut app = OpenCADStudio::new_for_test();
+            let mut app = Mac2CAM::new_for_test();
             app.automation_op(r#"{"op":"new"}"#);
             let i = app.active_tab;
             let t0 = std::time::Instant::now();
@@ -1505,7 +1505,7 @@ mod tests {
         // --- DRAWORDER BACK (interactive path) ---
         let mut db_ms: Vec<f64> = Vec::new();
         for _ in 0..runs {
-            let mut app = OpenCADStudio::new_for_test();
+            let mut app = Mac2CAM::new_for_test();
             app.automation_op(r#"{"op":"new"}"#);
             let i = app.active_tab;
             let lines: Vec<EntityType> =
@@ -1527,8 +1527,8 @@ mod tests {
         );
     }
 
-    fn fresh_app() -> OpenCADStudio {
-        let mut app = OpenCADStudio::new_for_test();
+    fn fresh_app() -> Mac2CAM {
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app
     }
@@ -1891,7 +1891,7 @@ mod tests {
     }
 
     fn effective_sort_map(
-        app: &OpenCADStudio,
+        app: &Mac2CAM,
     ) -> rustc_hash::FxHashMap<u64, u64> {
         let i = app.active_tab;
         let block_handle = app.tabs[i].scene.current_layout_block_handle_pub();

@@ -1,6 +1,6 @@
 use super::*;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn dispatch_layers(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
             // ── Layer object commands ──────────────────────────────────────
@@ -705,7 +705,7 @@ impl OpenCADStudio {
     }
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Translate every layer the two drawings name alike, in one step.
     ///
     /// The common case for a drawing arriving from outside: the names already

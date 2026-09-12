@@ -17,7 +17,7 @@
 //! when each manager was hand-copied: a dead New, a missing ribbon refresh, a
 //! style added without a handle (dropped on DWG save, issue #67).
 
-use super::OpenCADStudio;
+use super::Mac2CAM;
 use acadrust::objects::{
     Dictionary, MLineStyle, MultiLeaderStyle, ObjectType, TableStyle,
 };
@@ -216,7 +216,7 @@ impl StyleKind {
     }
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     // ── Queries ────────────────────────────────────────────────────────────
 
     /// All style names for `kind`, in display order (object-backed styles are
@@ -1129,7 +1129,7 @@ pub(super) struct ScaleStage {
     materialized: bool,
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     fn capture_scale_state(&self) -> ScaleSnapshot {
         let i = self.active_tab;
         let doc = &self.tabs[i].scene.document;

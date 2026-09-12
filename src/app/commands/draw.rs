@@ -1,6 +1,6 @@
 use super::*;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn dispatch_draw(&mut self, cmd: &str, i: usize) -> Option<Task<Message>> {
         match cmd {
             // ── Draw commands ──────────────────────────────────────────────
@@ -1747,12 +1747,12 @@ impl OpenCADStudio {
 
 #[cfg(test)]
 mod region_tests {
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
 
     #[test]
     fn region_respects_delobj_and_preserves_unconverted_sources() {
         for delete_sources in [false, true] {
-            let mut app = OpenCADStudio::new_for_test();
+            let mut app = Mac2CAM::new_for_test();
             app.automation_op(r#"{"op":"new"}"#);
             app.automation_op(r#"{"op":"run","cmd":"CIRCLE 5,5 3"}"#);
             app.automation_op(r#"{"op":"run","cmd":"LINE 0,0 10,10"}"#);

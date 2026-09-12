@@ -13,9 +13,9 @@ crates/
 
 ---
 
-## Linux (COSMIC, GNOME, Nautilus, Nemo, …) — handled by OpenCADStudio itself
+## Linux (COSMIC, GNOME, Nautilus, Nemo, …) — handled by Mac2CAM itself
 
-No separate binary. OpenCADStudio embeds this core and, on startup, installs a
+No separate binary. Mac2CAM embeds this core and, on startup, installs a
 freedesktop `.thumbnailer` pointing at its own hidden `--dwg-thumbnail` mode
 (see `src/io/file_association.rs::install_thumbnailer`). Launch OCS once and file
 managers render DWG thumbnails; clear stale "no thumbnail" cache if needed:
@@ -44,7 +44,7 @@ are (replace the path):
 ```reg
 Windows Registry Editor Version 5.00
 [HKEY_CLASSES_ROOT\CLSID\{8F2A9C41-3B6E-4E2D-9C7A-1E0B5D6F42AA}]
-@="OpenCADStudio DWG Thumbnail Provider"
+@="Mac2CAM DWG Thumbnail Provider"
 [HKEY_CLASSES_ROOT\CLSID\{8F2A9C41-3B6E-4E2D-9C7A-1E0B5D6F42AA}\InprocServer32]
 @="C:\\path\\to\\dwg_thumbnailer_win.dll"
 "ThreadingModel"="Apartment"

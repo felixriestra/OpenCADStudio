@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.opencadstudio.com/sitemap.xml
+Sitemap: https://www.mac2cam.com/sitemap.xml

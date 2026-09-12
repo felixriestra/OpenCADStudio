@@ -1,4 +1,4 @@
-use super::{ArrowKey, Message, OpenCADStudio, TextEntryMode};
+use super::{ArrowKey, Message, Mac2CAM, TextEntryMode};
 use crate::scene::VIEWCUBE_DRAW_PX;
 use crate::ui::PropertiesPanel;
 use iced::time::Instant;
@@ -8,7 +8,7 @@ use iced::Task;
 /// keyboard can't reach the main window (command line, F-key toggles, edit
 /// shortcuts) while a dialog is up. `CommandEscape` is handled separately (it
 /// closes the modal); a modal's own text fields emit their own messages, which
-/// are not in this set. See [`OpenCADStudio::update`] and #126.
+/// are not in this set. See [`Mac2CAM::update`] and #126.
 fn is_modal_blocked_key_msg(msg: &Message) -> bool {
     matches!(
         msg,
@@ -146,7 +146,7 @@ fn cam_preview_wires(
     wires
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(in crate::app) fn reset_modal_geometry(&mut self) {
         self.modal_offset = iced::Vector::ZERO;
         self.modal_resize = iced::Vector::ZERO;
@@ -1224,56 +1224,6 @@ impl OpenCADStudio {
                         .command_line
                         .push_output(crate::tf!("STEPOUT: exported to \"{}\"", path.display()).as_ref()),
                     Err(error) => self.command_line.push_error(crate::tf!("STEPOUT: {error}").as_ref()),
-                }
-                Task::none()
-            }
-
-            // ── OBJ import ────────────────────────────────────────────────
-            Message::ObjImport => Task::perform(
-                async {
-                    crate::sys::file_dialog()
-                        .set_title(crate::t!("Import OBJ Mesh").as_ref())
-                        .add_filter(crate::t!("Wavefront OBJ").as_ref(), &["obj", "OBJ"])
-                        .add_filter(crate::t!("All Files").as_ref(), &["*"])
-                        .pick_file()
-                        .await
-                        .map(|h| crate::sys::handle_path(&h))
-                },
-                Message::ObjImportPath,
-            ),
-
-            Message::ObjImportPath(Some(path)) => self.on_obj_import_path_some(path),
-
-            Message::ObjImportPath(None) => Task::none(),
-
-            Message::ObjImportFinished(tab_id, path, result) => {
-                match result {
-                    Err(error) => self.command_line.push_error(crate::tf!("IMPORTOBJ: {error}").as_ref()),
-                    Ok(mut mesh) => {
-                        let Some(i) = self.tabs.iter().position(|tab| tab.id == tab_id) else {
-                            self.command_line
-                                .push_info(crate::t!("IMPORTOBJ: target drawing was closed.").as_ref());
-                            return Task::none();
-                        };
-                        let file_stem = path
-                            .file_stem()
-                            .map(|s| s.to_string_lossy().into_owned())
-                            .unwrap_or_else(|| "obj_mesh".into());
-                        mesh.name = file_stem.clone();
-                        self.push_undo_snapshot(i, "IMPORTOBJ");
-                        let entity = crate::modules::insert::solid3d_cmds::empty_solid3d();
-                        let handle = self.tabs[i].scene.add_entity(entity);
-                        if !handle.is_null() {
-                            self.tabs[i]
-                                .scene
-                                .meshes
-                                .insert(handle, crate::scene::MeshLodSet::from_single(mesh));
-                            self.tabs[i].dirty = true;
-                            self.command_line.push_output(crate::tf!(
-                                "IMPORTOBJ: imported \"{file_stem}\" as mesh."
-                            ).as_ref());
-                        }
-                    }
                 }
                 Task::none()
             }
@@ -7536,7 +7486,7 @@ impl OpenCADStudio {
 
             Message::AboutCopyInfo => {
                 let info = format!(
-                    "Open CAD Studio v{}\nOS: {}\nArch: {}",
+                    "Mac2CAM v{}\nOS: {}\nArch: {}",
                     env!("OCS_APP_VERSION"),
                     crate::ui::window::about::platform_name(),
                     crate::ui::window::about::architecture_name(),
@@ -7754,7 +7704,7 @@ impl OpenCADStudio {
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(error) = &self.plugin_registry_error {
                     return iced::clipboard::write(format!(
-                        "Open CAD Studio v{}\nOS: {}\nArchitecture: {}\nRegistry: {}\nError: {}",
+                        "Mac2CAM v{}\nOS: {}\nArchitecture: {}\nRegistry: {}\nError: {}",
                         env!("OCS_APP_VERSION"),
                         std::env::consts::OS,
                         std::env::consts::ARCH,
@@ -9408,11 +9358,11 @@ impl OpenCADStudio {
 #[cfg(test)]
 mod prop_pointer_tests {
     use super::Message;
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
     use crate::ui::dock::PanelId;
 
-    fn drawing_app() -> OpenCADStudio {
-        let mut app = OpenCADStudio::new_for_test();
+    fn drawing_app() -> Mac2CAM {
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app
     }
@@ -9450,7 +9400,7 @@ mod free_text_entry_tests {
     //! tests pin the routing through `text_entry_mode` so the three key
     //! routes can't drift apart again.
     use super::Message;
-    use crate::app::{OpenCADStudio, TextEntryMode};
+    use crate::app::{Mac2CAM, TextEntryMode};
     use crate::modules::annotate::table_cmd::TableCellEditCommand;
     use acadrust::entities::Table;
     use acadrust::types::Vector3;
@@ -9458,8 +9408,8 @@ mod free_text_entry_tests {
 
     /// A test drawing with a 2×2 table and the cell editor active on [0,0],
     /// seeded with `cell_text`.
-    fn app_with_cell_command(cell_text: &str) -> (OpenCADStudio, Handle) {
-        let mut app = OpenCADStudio::new_for_test();
+    fn app_with_cell_command(cell_text: &str) -> (Mac2CAM, Handle) {
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         let mut table = Table::new(Vector3::new(0.0, 0.0, 0.0), 2, 2);
         table.cell_mut(0, 0).unwrap().set_text(cell_text);
@@ -9472,7 +9422,7 @@ mod free_text_entry_tests {
         (app, handle)
     }
 
-    fn cell_text(app: &OpenCADStudio, _handle: Handle) -> String {
+    fn cell_text(app: &Mac2CAM, _handle: Handle) -> String {
         // ReplaceMany commits by erasing the old handle and re-adding the
         // entity under a new one, so look the (single) table up by type.
         app.tabs[0]
@@ -9559,7 +9509,7 @@ mod free_text_entry_tests {
 
     #[test]
     fn normal_commands_still_uppercase_and_submit_on_space() {
-        let mut app = OpenCADStudio::new_for_test();
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         // No free-text command active: entry is uppercased…
         let _ = app.update(Message::CommandInput("lin".into()));

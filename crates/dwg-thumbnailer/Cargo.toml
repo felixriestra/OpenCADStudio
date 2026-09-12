@@ -5,7 +5,7 @@ edition = "2021"
 description = "Extracts the embedded preview image from a DWG file for OS file-manager thumbnails"
 license = "MIT OR Apache-2.0"
 
-# Shared extraction core. Consumers: OpenCADStudio (Linux, via its own
+# Shared extraction core. Consumers: Mac2CAM (Linux, via its own
 # `--dwg-thumbnail` mode), the Windows `IThumbnailProvider` DLL, and the macOS
 # QuickLook extension.
 #   rlib      — OCS and the Windows DLL call `extract` directly.

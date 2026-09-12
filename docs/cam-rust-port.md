@@ -1,7 +1,7 @@
 # CAM Rust port
 
-This branch makes OpenCADStudio the CAD authoring surface and adds CAM as a
-built-in workflow. It does not copy 2DCam's SwiftUI editor: OpenCADStudio's DWG
+This branch makes Mac2CAM the CAD authoring surface and adds CAM as a
+built-in workflow. It does not copy 2DCam's SwiftUI editor: Mac2CAM's DWG
 entities remain the only editable geometry.
 
 ## Data flow
@@ -90,7 +90,7 @@ Run tests and compile the app:
 
 ```text
 cargo test -p ocs_cam_core
-cargo check --bin OpenCADStudio
+cargo check --bin Mac2CAM
 ```
 
 On macOS, `./script/build_and_run.sh --verify` builds a development app bundle,

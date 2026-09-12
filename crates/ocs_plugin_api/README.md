@@ -1,6 +1,6 @@
 # `ocs_plugin_api`
 
-Versioned, out-of-process plugin API for Open CAD Studio. This crate defines the
+Versioned, out-of-process plugin API for Mac2CAM. This crate defines the
 contract between the host CAD application and third-party plugins. It is
 designed to stay small and dependency-free in its default configuration so that
 plugin crates and external tooling can depend on the manifest/ribbon surface
@@ -35,7 +35,7 @@ for worker-thread access. A panic in the callback fails plugin loading.
 ```mermaid
 flowchart LR
     subgraph HostProcess["Host process"]
-        App[OpenCADStudio]
+        App[Mac2CAM]
         PM[PluginManager]
         PP[PluginProcess]
         HA[HostApi impl]

@@ -120,10 +120,10 @@ row) and doesn't fit the current `ConstraintKind` model at all.
   `/Applications`-installed app bundle**, regardless of which binary was
   most recently built. To live-test a code change, build a release binary
   and swap it into a **scratch copy** of the installed bundle (e.g.
-  `/tmp/ocs_livetest/OpenCADStudio.app`), keeping the original small
-  launcher (`CFBundleExecutable = "OpenCADStudio"`) intact, then
+  `/tmp/ocs_livetest/Mac2CAM.app`), keeping the original small
+  launcher (`CFBundleExecutable = "Mac2CAM"`) intact, then
   `codesign --force --deep -s -` to re-sign ad-hoc before `open`-ing it.
-  This reuses the real bundle identity (`io.github.HakanSeven12.OpenCadStudio`)
+  This reuses the real bundle identity (`io.github.HakanSeven12.Mac2CAM`)
   so access requests correctly target it. A standalone bundle with a fresh
   bundle id gets silently `user_denied` — not a viable shortcut. The debug
   binary run bare via `nohup` never presented a controllable window either

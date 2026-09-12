@@ -1,4 +1,4 @@
-//! OpenCADStudio-style OSNAP status menu.
+//! Mac2CAM-style OSNAP status menu.
 
 use iced::widget::{button, checkbox, column, container, row, text};
 use iced::{Background, Element, Fill, Length, Theme};

@@ -1,7 +1,7 @@
 # Native vs. Web (WebAssembly)
 
-Open CAD Studio ships as a native desktop app and as a WebAssembly build that
-runs in the browser (https://hakanseven12.github.io/OpenCADStudio/). Both are
+Mac2CAM ships as a native desktop app and as a WebAssembly build that
+runs in the browser (https://hakanseven12.github.io/Mac2CAM/). Both are
 built from the same source; the web target drops or shims the pieces that a
 browser can't provide. This page lists the differences.
 
@@ -97,7 +97,7 @@ folder and load again on the next desktop launch.
 
 ## Build & deploy
 
-- Native: `cargo build --release --bin OpenCADStudio`.
+- Native: `cargo build --release --bin Mac2CAM`.
 - Web app: `trunk build --release --public-url /app/ --dist dist/app --html-output index.html web-app.html`.
   Run `sh scripts/assemble-site.sh` afterward to add the landing page.
   `.github/workflows/pages.yml` builds and deploys to GitHub Pages on every

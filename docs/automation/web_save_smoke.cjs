@@ -28,7 +28,7 @@ const playwright = require('playwright');
             page.on('console', message => {
                 if (/panicked|Buffer is not mapped/.test(message.text())) errors.push(message.text());
             });
-            await page.addInitScript(format => localStorage.setItem('opencadstudio.settings',
+            await page.addInitScript(format => localStorage.setItem('mac2cam.settings',
                 JSON.stringify({settings: {language: 'en-US', default_save_format: format, savetime_min: 0}})), format);
             await page.goto(url);
             await page.waitForFunction(() => window.wasmBindings?.ocs_control_submit, undefined, {timeout: 120000});

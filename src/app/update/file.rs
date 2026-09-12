@@ -7,7 +7,7 @@ use crate::app::helpers::{
     parse_coord, polar_constrain_near, ucs_rotate_vec, ucs_to_wcs, ucs_z_axis,
     CoordKind,
 };
-use crate::app::{Message, OpenCADStudio, POLY_START_DELAY_MS};
+use crate::app::{Message, Mac2CAM, POLY_START_DELAY_MS};
 use crate::modules::ModuleEvent;
 use crate::scene::pick::grip::{find_hit_grip, find_hit_grip_paper, find_hit_grip_rte, GripEdit};
 use crate::scene::model::object::GripApply;
@@ -283,7 +283,7 @@ fn plot_scene_content(
     (std::sync::Arc::new(wires), hatches, wipeouts, splits)
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Persist exact ACIS bodies and kernel-derived edge caches before saving.
     fn sync_solid_models_for_save(&mut self, i: usize) {
         use acadrust::EntityType;
@@ -1697,17 +1697,6 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
             move |result| Message::StepExportFinished(path, result),)
     }
 
-    pub(super) fn on_obj_import_path_some(&mut self, path: std::path::PathBuf) -> Task<Message> {
-                let tab_id = self.tabs[self.active_tab].id;
-        let worker_path = path.clone();
-        background_task(
-            move || {
-                let src = std::fs::read_to_string(&worker_path).map_err(|e| e.to_string())?; crate::io::obj::parse_obj(&src, [0.7, 0.7, 0.85, 1.0])
-                            .ok_or_else(|| "no usable geometry in file".to_string())
-            },
-            move |result| Message::ObjImportFinished(tab_id, path, result),)
-    }
-
     fn sync_view_state_for_save(&mut self, i: usize) {
         self.sync_vport_display(i);
         if self.tabs[i].active_block_edit.is_none() {
@@ -2264,7 +2253,7 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
                     .map(|name| name.to_string_lossy().into_owned())
                     .unwrap_or_else(|| outcome.path.display().to_string());
                 self.command_line.push_error_once(crate::tf!(
-                    "Save stopped: \"{file_name}\" changed outside Open CAD Studio."
+                    "Save stopped: \"{file_name}\" changed outside Mac2CAM."
                 ).as_ref());
                 self.pending_external_change = Some(crate::app::PendingExternalChange {
                     tab_id: outcome.tab_id,
@@ -2816,7 +2805,7 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
                     .map(|c| if c.is_alphanumeric() { c } else { '_' })
                     .collect();
                 std::env::temp_dir().join(format!(
-                    "OpenCADStudio_{safe}_{}.sv$",
+                    "Mac2CAM_{safe}_{}.sv$",
                     self.tabs[i].id
                 ))
             }

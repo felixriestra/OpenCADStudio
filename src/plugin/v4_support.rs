@@ -46,7 +46,7 @@ pub fn on_tab_closed(tab_id: u64) {
 ///
 /// `HostNotification::SelectionChangedV4` carries the active tab id and the
 /// current selection set. The caller is responsible for only calling this when
-/// the selection actually changed; see `OpenCADStudio::notify_plugins_selection_changed`.
+/// the selection actually changed; see `Mac2CAM::notify_plugins_selection_changed`.
 pub fn publish_selection_changed_v4(tab_id: u64, handles: Vec<acadrust::Handle>) {
     broadcast(HostNotification::SelectionChangedV4 { tab_id, handles });
 }

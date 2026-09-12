@@ -1,9 +1,9 @@
-use super::{FindMatchKey, Message, OpenCADStudio};
+use super::{FindMatchKey, Message, Mac2CAM};
 use crate::entities::traits::EntityTypeOps;
 use acadrust::EntityType;
 use iced::Task;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(super) fn open_find_replace(&mut self) -> Task<Message> {
         self.find_replace.current_match = None;
         self.find_replace.status.clear();

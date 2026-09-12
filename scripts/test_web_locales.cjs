@@ -15,7 +15,7 @@ async function visit(languages, saved, blocked = false) {
   vm.runInNewContext(script, {
     document, navigator: { languages, language: languages[0] }, Intl,
     localStorage: { getItem(key) {
-      assert.equal(key, 'opencadstudio.settings');
+      assert.equal(key, 'mac2cam.settings');
       if (blocked) throw new Error('Storage disabled');
       return saved;
     } },

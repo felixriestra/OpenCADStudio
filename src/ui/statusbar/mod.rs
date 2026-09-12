@@ -276,7 +276,7 @@ impl StatusBar {
         }
         // Design doc §6.4 (stage 11): a bounded v1 of the guided conflict
         // resolver — click removes one flagged constraint at a time. See
-        // `OpenCADStudio::resolve_one_sketch_conflict`'s doc comment for the
+        // `Mac2CAM::resolve_one_sketch_conflict`'s doc comment for the
         // full scope-down rationale versus the design doc's named-candidate,
         // cyclable-preview panel.
         if sketch_conflicts > 0 {

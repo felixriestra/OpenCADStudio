@@ -1,4 +1,4 @@
-//! OpenCAD Studio plugin template v2.
+//! Mac2CAM plugin template v2.
 //!
 //! Demonstrates read/write round-trips between the plugin and the host using
 //! the zero-copy `DocumentReader` API and the validated `HostApi` RPCs.

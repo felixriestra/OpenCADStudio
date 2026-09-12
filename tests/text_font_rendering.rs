@@ -2,9 +2,9 @@ use acadrust::entities::{Insert, MText};
 use acadrust::tables::{BlockRecord, TextStyle};
 use acadrust::types::Vector3;
 use acadrust::{CadDocument, EntityType, Handle};
-use OpenCADStudio::scene::cache::block_cache::{expand_insert, BlockCache};
-use OpenCADStudio::scene::view::render::InheritStyle;
-use OpenCADStudio::scene::WireModel;
+use Mac2CAM::scene::cache::block_cache::{expand_insert, BlockCache};
+use Mac2CAM::scene::view::render::InheritStyle;
+use Mac2CAM::scene::WireModel;
 
 fn drawable_point_count(wires: &[WireModel]) -> usize {
     // SDF text carries glyph quads on `text_verts` (no stroke points/fills), so
@@ -87,7 +87,7 @@ fn expand_block_mtext(
         // Annotation scale: 1.0 = no annotative scaling, matching the
         // `BlockCache::build(&doc, 1.0, ...)` call above.
         1.0,
-        OpenCADStudio::scene::BlockScalePolicy::FromInsert,
+        Mac2CAM::scene::BlockScalePolicy::FromInsert,
         false,
     )
     .expect("block defn is cached")

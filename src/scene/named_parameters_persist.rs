@@ -79,7 +79,7 @@ impl Scene {
     /// XRecord, ready for whatever save call happens next to serialize
     /// `self.document` as-is. Called from the same save entry points as
     /// `materialize_sketch_constraints_for_save`
-    /// (`OpenCADStudio::prepare_native_save`, the wasm save path).
+    /// (`Mac2CAM::prepare_native_save`, the wasm save path).
     ///
     /// An empty table is skipped rather than writing an empty XRecord — an
     /// unconstrained-by-parameters drawing (the common case, at least until
@@ -111,7 +111,7 @@ impl Scene {
     /// `OCS_NAMED_PARAMETERS` XRecord, if any — called right after a
     /// document open installs its `CadDocument` into this `Scene`, the same
     /// call sites `load_sketch_constraints_from_document` already has
-    /// (`OpenCADStudio::on_file_opened`, the automation `"open"`/`"new"`
+    /// (`Mac2CAM::on_file_opened`, the automation `"open"`/`"new"`
     /// ops). Replaces whatever was already in `named_parameters` (a fresh
     /// table for a real open; `"new"`'s blank document has nothing to find
     /// anyway).
@@ -164,7 +164,7 @@ mod tests {
     /// The above test only proves `materialize`/`load` agree with each
     /// other on the same in-memory `CadDocument` — this drives a real
     /// `save_to_bytes`/`load_bytes` round trip (the same primitives
-    /// `OpenCADStudio::on_file_opened`'s native save/open path uses),
+    /// `Mac2CAM::on_file_opened`'s native save/open path uses),
     /// through both supported formats, mirroring
     /// `sketch_persist`'s own real-bytes tests.
     fn full_bytes_roundtrip(ext: &str) -> ParameterTable {

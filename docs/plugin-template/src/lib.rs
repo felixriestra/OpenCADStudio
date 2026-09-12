@@ -1,4 +1,4 @@
-//! Open CAD Studio add-on template.
+//! Mac2CAM add-on template.
 //!
 //! Rename the crate (`Cargo.toml`), the ids/strings below, and `plugin.toml` to
 //! match. Build with `cargo build --release` and ship the resulting cdylib plus

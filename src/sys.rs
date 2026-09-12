@@ -459,7 +459,7 @@ pub mod web_diag {
                 );
                 let _ = body.append_child(&overlay);
                 for (id, label) in [
-                    ("ocs-err-title", crate::t!("OpenCADStudio renderer error — copy this into a bug report:")),
+                    ("ocs-err-title", crate::t!("Mac2CAM renderer error — copy this into a bug report:")),
                     ("ocs-err-copy", crate::t!("Copy")),
                     ("ocs-err-dismiss", crate::t!("Dismiss")),
                 ] {

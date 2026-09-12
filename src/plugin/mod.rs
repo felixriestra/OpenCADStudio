@@ -1,4 +1,4 @@
-// Open CAD Studio plugin runtime. Plugins are external cdylibs loaded from the
+// Mac2CAM plugin runtime. Plugins are external cdylibs loaded from the
 // user plugins folder (see `external`) and installed via the marketplace; the
 // host ships no built-in add-ons. See `docs/plugin-architecture.md`.
 

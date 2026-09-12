@@ -2,7 +2,7 @@ use super::*;
 use acadrust::{CadDocument, EntityType, Handle};
 use ocs_cam_core::{Contour, ContourVertex, ProfileParameters, Units};
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(crate) fn refresh_cam_operation(&mut self, tab_index: usize, operation_index: usize) -> Result<(), String> {
         let operation = self.tabs[tab_index]
             .cam_job

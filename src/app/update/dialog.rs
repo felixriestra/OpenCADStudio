@@ -8,7 +8,7 @@ use crate::app::helpers::{
     parse_coord, polar_constrain_near, ucs_rotate_vec, ucs_to_wcs, ucs_z_axis,
     CoordKind,
 };
-use crate::app::{Message, OpenCADStudio, POLY_START_DELAY_MS};
+use crate::app::{Message, Mac2CAM, POLY_START_DELAY_MS};
 use crate::modules::ModuleEvent;
 use crate::scene::pick::grip::{find_hit_grip, find_hit_grip_paper, find_hit_grip_rte, GripEdit};
 use crate::scene::model::object::GripApply;
@@ -22,7 +22,7 @@ use iced::time::Instant;
 use iced::{mouse, Point, Task};
 
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub(in crate::app) fn open_save_dialog_window(&mut self, tab_idx: usize) -> Task<Message> {
         // Default the format dropdown to the loaded file's own format — its
         // DWG-vs-DXF kind (from the extension) and its version (from the parsed
@@ -773,19 +773,19 @@ pub(super) fn on_ribbon_tool_click(&mut self, tool_id: String, event: ModuleEven
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::app::OpenCADStudio;
+    use crate::app::Mac2CAM;
     use acadrust::entities::Line;
     use acadrust::types::Vector3;
     use acadrust::EntityType;
 
-    fn fresh() -> OpenCADStudio {
-        let mut app = OpenCADStudio::new_for_test();
+    fn fresh() -> Mac2CAM {
+        let mut app = Mac2CAM::new_for_test();
         app.automation_op(r#"{"op":"new"}"#);
         app
     }
 
     /// A foreign document: the fresh scene's document plus one model-space LINE.
-    fn foreign_doc(app: &OpenCADStudio) -> acadrust::CadDocument {
+    fn foreign_doc(app: &Mac2CAM) -> acadrust::CadDocument {
         let mut doc = app.tabs[app.active_tab].scene.document.clone();
         let model_br = doc
             .objects
@@ -859,7 +859,7 @@ mod tests {
     /// definition itself INSERTs a `Door` block — so the imported `Door` is a
     /// *nested dependency*, not a top-level entity. The `Door` in this file is
     /// unrelated to any `Door` in the destination drawing.
-    fn nested_foreign_doc(app: &OpenCADStudio) -> acadrust::CadDocument {
+    fn nested_foreign_doc(app: &Mac2CAM) -> acadrust::CadDocument {
         use acadrust::entities::Insert;
         use acadrust::tables::BlockRecord;
         use acadrust::Handle;
@@ -920,7 +920,7 @@ mod tests {
     /// A foreign document whose model space INSERTs a `Fixture` block whose
     /// definition INSERTs `Door (2)`, whose definition in turn INSERTs `Door`.
     /// The file therefore carries *both* `Door` and `Door (2)` as nested deps.
-    fn doubly_nested_foreign_doc(app: &OpenCADStudio) -> acadrust::CadDocument {
+    fn doubly_nested_foreign_doc(app: &Mac2CAM) -> acadrust::CadDocument {
         use acadrust::entities::Insert;
         use acadrust::tables::BlockRecord;
         use acadrust::Handle;

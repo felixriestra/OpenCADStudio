@@ -1,6 +1,6 @@
 use acadrust::{EntityType, Handle};
 
-impl super::OpenCADStudio {
+impl super::Mac2CAM {
     pub(super) fn open_tolerance_dialog(&mut self, editing: Option<Handle>) {
         let i = self.active_tab;
         if editing.is_some_and(|handle| self.tabs[i].scene.is_layer_locked(handle)) {

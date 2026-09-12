@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the static OpenCAD Studio HTML help system from help/manual.md."""
+"""Build the static Mac2CAM HTML help system from help/manual.md."""
 
 from __future__ import annotations
 
@@ -112,7 +112,7 @@ def overview() -> str:
     )
     return f"""
 <section class="hero">
-  <p class="eyebrow">OpenCAD Studio User Manual</p>
+  <p class="eyebrow">Mac2CAM User Manual</p>
   <h2>Find the workflow, command, or concept you need</h2>
   <p>Learn how to create and edit drawings, exchange DWG and DXF files, prepare layouts, model in 3D, use constraints, automate work, and recover from common problems.</p>
 </section>
@@ -149,8 +149,8 @@ def shell(page: Page | None, title: str, body: str, chapters: dict[str, str]) ->
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="OpenCAD Studio user manual — {html.escape(title)}">
-  <title>{html.escape(title)} — OpenCAD Studio Help</title>
+  <meta name="description" content="Mac2CAM user manual — {html.escape(title)}">
+  <title>{html.escape(title)} — Mac2CAM Help</title>
   <link rel="stylesheet" href="assets/css/core.css">
   <link rel="stylesheet" href="assets/css/opencad.css">
   <script src="search-index.js" defer></script>
@@ -159,7 +159,7 @@ def shell(page: Page | None, title: str, body: str, chapters: dict[str, str]) ->
 <body>
   <header class="topbar">
     <button class="nav-toggle" type="button" aria-controls="help-sidebar" aria-expanded="true" title="Toggle chapter navigation"><span aria-hidden="true">☰</span><span class="sr-only">Toggle chapter navigation</span></button>
-    <a class="brand" href="index.html">OpenCAD Studio Help</a>
+    <a class="brand" href="index.html">Mac2CAM Help</a>
     <div class="search-shell">
       <label class="sr-only" for="help-search">Search help</label>
       <input id="help-search" class="help-search" type="search" role="combobox" placeholder="Search commands and topics" autocomplete="off" aria-autocomplete="list" aria-controls="search-results" aria-expanded="false">
@@ -170,11 +170,11 @@ def shell(page: Page | None, title: str, body: str, chapters: dict[str, str]) ->
   {sidebar(page, chapters)}
   <main id="main-content">
     <div class="content-wrap">
-      <p class="page-kicker">OpenCAD Studio User Manual</p>
+      <p class="page-kicker">Mac2CAM User Manual</p>
       <h1 class="content-title">{html.escape(title)}</h1>
       {body}
       <nav class="page-navigation" aria-label="Previous and next chapter">{previous_link}{next_link}</nav>
-      <p class="date-footer">OpenCAD Studio Help · Generated from <code>help/manual.md</code></p>
+      <p class="date-footer">Mac2CAM Help · Generated from <code>help/manual.md</code></p>
     </div>
   </main>
 </body>

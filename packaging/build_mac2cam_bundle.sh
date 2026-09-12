@@ -15,7 +15,7 @@ BUILD_STAMP="${MAC2CAM_BUILD_STAMP:-$(date +%Y%m%d_%H%M%S)}"
 export MAC2CAM_BUILD_STAMP
 
 echo "==> Building Mac2CAM_$BUILD_STAMP for $TARGET"
-cargo build --release --target "$TARGET" --bin OpenCADStudio --bin ocs_launcher
+cargo build --release --target "$TARGET" --bin Mac2CAM --bin ocs_launcher
 cargo build --release --target "$TARGET" -p dwg-thumbnailer
 
 echo "==> Creating application and document icons"
@@ -63,7 +63,7 @@ swiftc \
     -o "$EXT/Contents/MacOS/DWGThumbnail"
 sed \
     -e "s/__VERSION__/$VERSION/g" \
-    -e 's/io.github.HakanSeven12.OpenCadStudio.DWGThumbnail/com.twodcam.mac2cam.DWGThumbnail/g' \
+    -e 's/io.github.HakanSeven12.Mac2CAM.DWGThumbnail/com.twodcam.mac2cam.DWGThumbnail/g' \
     crates/dwg-thumbnailer/macos/Info.plist > "$EXT/Contents/Info.plist"
 
 echo "==> Assembling $APP"
@@ -71,16 +71,16 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/PlugIns"
 mkdir -p "$APP/Contents/Resources/docs"
 cp "target/$TARGET/release/ocs_launcher" "$APP/Contents/MacOS/Mac2CAM"
-cp "target/$TARGET/release/OpenCADStudio" "$APP/Contents/MacOS/OpenCADStudio-App"
-chmod +x "$APP/Contents/MacOS/Mac2CAM" "$APP/Contents/MacOS/OpenCADStudio-App"
+cp "target/$TARGET/release/Mac2CAM" "$APP/Contents/MacOS/Mac2CAM-App"
+chmod +x "$APP/Contents/MacOS/Mac2CAM" "$APP/Contents/MacOS/Mac2CAM-App"
 cp "$STAGE/AppIcon.icns" "$STAGE/DWG.icns" "$STAGE/DXF.icns" "$APP/Contents/Resources/"
 cp docs/ocs_vs_autocad_commands.md docs/constraint_entity_support.md "$APP/Contents/Resources/docs/"
 cp -R "$EXT" "$APP/Contents/PlugIns/"
 sed \
     -e "s/__VERSION__/$VERSION/g" \
     -e "s/OCS-__BUILD_STAMP__/Mac2CAM_$BUILD_STAMP/g" \
-    -e 's#<string>OpenCADStudio</string>#<string>Mac2CAM</string>#' \
-    -e "s/io.github.HakanSeven12.OpenCadStudio/$APP_ID/g" \
+    -e 's#<string>Mac2CAM</string>#<string>Mac2CAM</string>#' \
+    -e "s/io.github.HakanSeven12.Mac2CAM/$APP_ID/g" \
     packaging/Info.plist > "$APP/Contents/Info.plist"
 
 echo "==> Ad-hoc signing"

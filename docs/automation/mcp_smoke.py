@@ -43,7 +43,7 @@ def legacy(server: Path) -> None:
         "method": "initialize",
         "params": {"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "smoke", "version": "1"}},
     })
-    assert initialized["result"]["serverInfo"]["name"] == "OpenCADStudio"
+    assert initialized["result"]["serverInfo"]["name"] == "Mac2CAM"
     assert "state.command.accepts" in initialized["result"]["instructions"]
     process.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n")
     process.stdin.flush()
@@ -148,7 +148,7 @@ def modern(server: Path) -> None:
 
 
 def main() -> None:
-    server = Path(sys.argv[1] if len(sys.argv) > 1 else "target/debug/OpenCADStudio").resolve()
+    server = Path(sys.argv[1] if len(sys.argv) > 1 else "target/debug/Mac2CAM").resolve()
     legacy(server)
     modern(server)
 

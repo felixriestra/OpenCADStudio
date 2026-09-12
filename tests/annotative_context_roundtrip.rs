@@ -9,7 +9,7 @@
 // Uses the golden reference `~/Downloads/0718-mbmdmc.dwg` (AC1032/R2018). The
 // test skips (does not fail) when that file is absent so it never breaks CI.
 
-use OpenCADStudio::io;
+use Mac2CAM::io;
 use acadrust::objects::ObjectType;
 
 const GOLDEN: &str = "/home/hakanseven/Downloads/0718-mbmdmc.dwg";

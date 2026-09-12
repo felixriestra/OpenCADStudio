@@ -1,7 +1,7 @@
 # PR: Add plugin host (Phase 1)
 
-**Target:** `HakanSeven12/OpenCADStudio`  
-**Branch:** `feature/plugin-host` on `mf4633/OpenCADStudio`  
+**Target:** `HakanSeven12/Mac2CAM`  
+**Branch:** `feature/plugin-host` on `mf4633/Mac2CAM`  
 **Related:** Issue #78 (Storm Sewer interest check / extension architecture)
 
 ## Summary
@@ -40,7 +40,7 @@ External repos: depend on extracted `ocs_plugin_api` (Phase 1b, follow-up PR).
 ## Follow-up (not in this PR)
 
 - `ocs_plugin_api` workspace crate (semver-stable host surface)
-- Dynamic plugin loading (`%APPDATA%/OpenCADStudio/plugins/`)
+- Dynamic plugin loading (`%APPDATA%/Mac2CAM/plugins/`)
 - Python/scripting bindings over host API (#29)
 - Storm Sewer add-on — separate repo/PR: `mf4633` branch `feature/storm-sewer-module`
 

@@ -16,10 +16,10 @@ use std::sync::OnceLock;
 
 use clap::Parser;
 
-/// Open CAD Studio command-line options.
+/// Mac2CAM command-line options.
 #[derive(Parser, Debug, Default)]
 #[command(
-    name = "OpenCADStudio",
+    name = "Mac2CAM",
     version,
     about = "Mac2CAM — 2.5D CAD/CAM for macOS",
     long_about = None,

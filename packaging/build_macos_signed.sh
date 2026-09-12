@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build, sign, notarize and package OpenCADStudio.app + .dmg for macOS arm64.
+# Build, sign, notarize and package Mac2CAM.app + .dmg for macOS arm64.
 #
 # Mirrors the `build-macos` job in .github/workflows/release.yml, then goes
 # further: instead of the CI's ad-hoc signature it produces a Developer ID
@@ -15,7 +15,7 @@
 #   NOTARY_PROFILE  notarytool keychain profile. Unset → skip notarization.
 #   VERSION         Bundle version. Default: version from Cargo.toml.
 #
-# Output: dist/OpenCADStudio.app and dist/OpenCADStudio-v<VERSION>-macos-arm64.dmg
+# Output: dist/Mac2CAM.app and dist/Mac2CAM-v<VERSION>-macos-arm64.dmg
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -23,7 +23,7 @@ TARGET=aarch64-apple-darwin
 DIST=dist
 VERSION="${VERSION:-$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)}"
 # Bundle display name (CFBundleName/CFBundleDisplayName, what Finder/Dock/the
-# menu bar show) is "OCS-<this>" rather than the fixed "Open CAD Studio", so
+# menu bar show) is "OCS-<this>" rather than the fixed "Mac2CAM", so
 # a rebuilt-and-reinstalled dev build is visibly distinct from whatever was
 # running before it — same idea as `OCS_BUILD_STAMP` in build.rs (the window
 # title), computed independently here since this script doesn't invoke cargo
@@ -47,7 +47,7 @@ cargo build --release --target "$TARGET" --bin ocs_launcher
 
 echo "==> icons"
 rm -rf "$DIST" && mkdir -p "$DIST"
-ICONSET="$DIST/OpenCADStudio.iconset"
+ICONSET="$DIST/Mac2CAM.iconset"
 mkdir -p "$ICONSET"
 for SIZE in 16 32 64 128 256 512 1024; do
     rsvg-convert -w $SIZE -h $SIZE assets/logo.svg -o "$ICONSET/icon_${SIZE}x${SIZE}.png"
@@ -88,12 +88,12 @@ swiftc \
 sed "s/__VERSION__/$VERSION/g" crates/dwg-thumbnailer/macos/Info.plist > "$EXT/Contents/Info.plist"
 
 echo "==> assemble .app"
-APP="$DIST/OpenCADStudio.app"
+APP="$DIST/Mac2CAM.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/PlugIns"
-cp "target/$TARGET/release/ocs_launcher" "$APP/Contents/MacOS/OpenCADStudio"
-cp "target/$TARGET/release/OpenCADStudio" "$APP/Contents/MacOS/OpenCADStudio-App"
-chmod +x "$APP/Contents/MacOS/OpenCADStudio" "$APP/Contents/MacOS/OpenCADStudio-App"
+cp "target/$TARGET/release/ocs_launcher" "$APP/Contents/MacOS/Mac2CAM"
+cp "target/$TARGET/release/Mac2CAM" "$APP/Contents/MacOS/Mac2CAM-App"
+chmod +x "$APP/Contents/MacOS/Mac2CAM" "$APP/Contents/MacOS/Mac2CAM-App"
 cp "$DIST/AppIcon.icns" "$DIST/DWG.icns" "$DIST/DXF.icns" "$APP/Contents/Resources/"
 cp -R "$EXT" "$APP/Contents/PlugIns/"
 sed -e "s/__VERSION__/$VERSION/g" -e "s/__BUILD_STAMP__/$BUILD_STAMP/g" packaging/Info.plist > "$APP/Contents/Info.plist"
@@ -107,7 +107,7 @@ else
     # required for the QuickLook extension. Use hardened runtime
     # and a secure timestamp on every layer for notarization.
     codesign --force --timestamp --options runtime \
-        -s "$DEVELOPER_ID" "$APP/Contents/MacOS/OpenCADStudio-App"
+        -s "$DEVELOPER_ID" "$APP/Contents/MacOS/Mac2CAM-App"
     codesign --force --timestamp --options runtime \
         --entitlements crates/dwg-thumbnailer/macos/entitlements.plist \
         -s "$DEVELOPER_ID" "$APP/Contents/PlugIns/DWGThumbnail.appex"
@@ -117,10 +117,10 @@ fi
 codesign --verify --strict --verbose=2 "$APP"
 
 echo "==> dmg"
-DMG="$DIST/OpenCADStudio-v$VERSION-macos-arm64.dmg"
+DMG="$DIST/Mac2CAM-v$VERSION-macos-arm64.dmg"
 rm -f "$DMG"
 for i in 1 2 3 4 5; do
-    if hdiutil create -volname "Open CAD Studio" -srcfolder "$APP" -ov -format UDZO "$DMG"; then
+    if hdiutil create -volname "Mac2CAM" -srcfolder "$APP" -ov -format UDZO "$DMG"; then
         break
     fi
     echo "hdiutil failed (attempt $i), retrying..." >&2

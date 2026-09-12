@@ -1,6 +1,6 @@
 {
-  "name": "Open CAD Studio",
-  "short_name": "Open CAD Studio",
+  "name": "Mac2CAM",
+  "short_name": "Mac2CAM",
   "description": "Open-source 2D drafting and 3D modeling for desktop and web.",
   "start_url": "/",
   "scope": "/",

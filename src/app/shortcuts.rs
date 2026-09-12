@@ -1,6 +1,6 @@
 //! Editable keyboard shortcut table shared by the CUI dialog and key events.
 
-use super::{Message, OpenCADStudio};
+use super::{Message, Mac2CAM};
 use iced::Task;
 use rustc_hash::FxHashMap;
 use std::collections::BTreeMap;
@@ -163,7 +163,7 @@ pub(super) const INPUT_ACTIONS: &[&str] = &[
     "PASTECLIP",
 ];
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Commit the working rows to the live bindings, discarding an
     /// unfinished draft and reporting duplicates. Shared by Apply and
     /// Apply-and-Exit.

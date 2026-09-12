@@ -1,15 +1,15 @@
-# OpenCAD Studio User Manual
+# Mac2CAM User Manual
 
-This manual describes the user-facing workflows of OpenCAD Studio. The initial
+This manual describes the user-facing workflows of Mac2CAM. The initial
 version establishes the help structure and high-level guidance; individual
 commands should be expanded and verified against released behavior before the
 manual is published as complete.
 
 ## Getting Started
 
-### What OpenCAD Studio does
+### What Mac2CAM does
 
-OpenCAD Studio is a desktop and web CAD application for opening, creating,
+Mac2CAM is a desktop and web CAD application for opening, creating,
 editing, visualizing, and saving two- and three-dimensional drawings. It works
 with DWG and DXF drawings and provides command-line, ribbon, automation, and
 plugin-oriented workflows.
@@ -50,7 +50,7 @@ copy.
 
 ### Recovery and backups
 
-OpenCAD Studio recognizes drawing backups and autosave-style files where the
+Mac2CAM recognizes drawing backups and autosave-style files where the
 underlying data is DWG or DXF. If strict loading rejects malformed entities, use
 the recovery workflow and review what was discarded before continuing work.
 
@@ -195,7 +195,7 @@ line types, and viewport scales.
 
 ### Solids and surfaces
 
-OpenCAD Studio can create and display solid primitives and modeled features such
+Mac2CAM can create and display solid primitives and modeled features such
 as extrusions and revolutions. Imported ACIS-backed bodies are tessellated for
 display while exact body data is retained where supported.
 
@@ -227,7 +227,7 @@ status before deleting geometry.
 
 ### Persistence and history limitations
 
-Constraint data is stored as OpenCAD Studio extension data inside DWG and DXF.
+Constraint data is stored as Mac2CAM extension data inside DWG and DXF.
 Other applications may preserve it without interpreting it. Constraint edits
 and geometry changes may currently occupy adjacent history entries; verify the
 result after undo, redo, erase, copy, and reopen operations.
@@ -299,7 +299,7 @@ backup data before overwriting the original drawing.
 
 ### Report a reproducible problem
 
-Include the OpenCAD Studio version, platform, native or web build, exact steps,
+Include the Mac2CAM version, platform, native or web build, exact steps,
 expected and observed results, and a minimal sanitized drawing when possible.
 Do not publish confidential drawings or external-reference paths.
 

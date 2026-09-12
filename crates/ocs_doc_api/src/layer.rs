@@ -1,6 +1,6 @@
 //! Shared layer-name normalization rules.
 //!
-//! Layer names in OpenCADStudio/acadrust are case-insensitive, leading/trailing
+//! Layer names in Mac2CAM/acadrust are case-insensitive, leading/trailing
 //! whitespace is ignored, and empty names are invalid. The host (`normalize_name`
 //! in `acadrust::tables`) implements the canonical rule set; this module re-exports
 //! a compatible, dependency-free function for the wire side and for backends that

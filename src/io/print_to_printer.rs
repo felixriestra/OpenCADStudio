@@ -24,7 +24,7 @@ pub(crate) fn temp_pdf_path(kind: &str) -> std::path::PathBuf {
         .map(|duration| duration.as_nanos())
         .unwrap_or(0);
     std::env::temp_dir().join(format!(
-        "open_cad_studio_{kind}_{}_{stamp}_{id}.pdf",
+        "mac2cam_{kind}_{}_{stamp}_{id}.pdf",
         std::process::id()
     ))
 }

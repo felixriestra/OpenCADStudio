@@ -2,7 +2,7 @@
 name = "ocs_doc_api"
 version = "0.1.0"
 edition = "2021"
-description = "Object-oriented, transport-agnostic CAD entity API for OpenCADStudio plugins and hosts (v2)."
+description = "Object-oriented, transport-agnostic CAD entity API for Mac2CAM plugins and hosts (v2)."
 license = "MIT"
 build = "build.rs"
 

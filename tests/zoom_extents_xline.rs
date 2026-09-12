@@ -3,7 +3,7 @@
 use acadrust::entities::{Line, XLine};
 use acadrust::types::Vector3;
 use acadrust::EntityType;
-use OpenCADStudio::scene::Scene;
+use Mac2CAM::scene::Scene;
 
 fn add_rect(scene: &mut Scene) {
     let corners = [

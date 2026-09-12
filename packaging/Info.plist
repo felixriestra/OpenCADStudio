@@ -7,11 +7,11 @@
     <key>CFBundleDisplayName</key>
     <string>OCS-__BUILD_STAMP__</string>
     <key>CFBundleExecutable</key>
-    <string>OpenCADStudio</string>
+    <string>Mac2CAM</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
-    <string>io.github.HakanSeven12.OpenCadStudio</string>
+    <string>io.github.HakanSeven12.Mac2CAM</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>

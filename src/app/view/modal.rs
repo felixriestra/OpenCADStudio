@@ -1,10 +1,10 @@
-use super::super::{Message, OpenCADStudio};
+use super::super::{Message, Mac2CAM};
 use crate::t;
 use iced::widget::{button, column, container, row, text, Space};
 use iced::{Background, Element, Fill, Fit, Theme};
 use std::borrow::Cow;
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Title shown in the active modal's title bar. Keep in sync with the
     /// [`Self::modal_content`] dispatch.
     pub(super) fn modal_title(&self) -> String {

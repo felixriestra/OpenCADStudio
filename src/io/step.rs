@@ -199,7 +199,7 @@ pub fn build_step(meshes: &[&MeshModel]) -> Option<String> {
     let msb_id = alloc();
     writeln!(
         data,
-        "#{} = MANIFOLD_SOLID_BREP('OpenCADStudio_Solid',#{});",
+        "#{} = MANIFOLD_SOLID_BREP('Mac2CAM_Solid',#{});",
         msb_id, shell_id
     )
     .ok();
@@ -217,7 +217,7 @@ pub fn build_step(meshes: &[&MeshModel]) -> Option<String> {
     writeln!(data, "#{} = GEOMETRIC_REPRESENTATION_CONTEXT(3);", gc_id).ok();
     writeln!(
         data,
-        "#{sr_id} = SHAPE_REPRESENTATION('OpenCADStudio_Shape',(#{}),#{gc_id});",
+        "#{sr_id} = SHAPE_REPRESENTATION('Mac2CAM_Shape',(#{}),#{gc_id});",
         msb_id
     )
     .ok();
@@ -227,7 +227,7 @@ pub fn build_step(meshes: &[&MeshModel]) -> Option<String> {
     let file = format!(
         "ISO-10303-21;\n\
          HEADER;\n\
-         FILE_DESCRIPTION(('Open CAD Studio STEP export'),'2;1');\n\
+         FILE_DESCRIPTION(('Mac2CAM STEP export'),'2;1');\n\
          FILE_NAME('{ts}','','',(''),'',' ',' ');\n\
          FILE_SCHEMA(('CONFIG_CONTROL_DESIGN'));\n\
          ENDSEC;\n\

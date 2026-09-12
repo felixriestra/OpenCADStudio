@@ -1,6 +1,6 @@
 # Draft reply for Issue #78
 
-Paste as a GitHub comment on https://github.com/HakanSeven12/OpenCADStudio/issues/78
+Paste as a GitHub comment on https://github.com/HakanSeven12/Mac2CAM/issues/78
 
 ---
 
@@ -10,9 +10,9 @@ Paste as a GitHub comment on https://github.com/HakanSeven12/OpenCADStudio/issue
 
 I've drafted a **QGIS-style add-on model** on my fork:
 
-- **Spec:** [`docs/plugin-architecture.md`](https://github.com/mf4633/OpenCADStudio/blob/feature/plugin-host/docs/plugin-architecture.md)
-- **Scaffold:** [`docs/plugin-template/`](https://github.com/mf4633/OpenCADStudio/tree/feature/plugin-host/docs/plugin-template)
-- **Framework PR branch:** [`feature/plugin-host`](https://github.com/mf4633/OpenCADStudio/tree/feature/plugin-host) — **host only, no Storm Sewer in core**
+- **Spec:** [`docs/plugin-architecture.md`](https://github.com/mf4633/Mac2CAM/blob/feature/plugin-host/docs/plugin-architecture.md)
+- **Scaffold:** [`docs/plugin-template/`](https://github.com/mf4633/Mac2CAM/tree/feature/plugin-host/docs/plugin-template)
+- **Framework PR branch:** [`feature/plugin-host`](https://github.com/mf4633/Mac2CAM/tree/feature/plugin-host) — **host only, no Storm Sewer in core**
 
 **Three layers:** host core → add-on package (`plugin.toml`, ribbon, commands) → optional headless engine crate. Domain data lives on DWG entities (XDATA), not a proprietary project DB.
 
@@ -22,7 +22,7 @@ I've drafted a **QGIS-style add-on model** on my fork:
 
 ### PR ready for review
 
-I can open a PR against upstream with **only the generic plugin host** — no civil/hydraulics tab in core. Storm Sewer stays on a separate branch/repo as the reference consumer: [`feature/storm-sewer-module`](https://github.com/mf4633/OpenCADStudio/tree/feature/storm-sewer-module).
+I can open a PR against upstream with **only the generic plugin host** — no civil/hydraulics tab in core. Storm Sewer stays on a separate branch/repo as the reference consumer: [`feature/storm-sewer-module`](https://github.com/mf4633/Mac2CAM/tree/feature/storm-sewer-module).
 
 ### Re: script languages (@schoeller, #29)
 

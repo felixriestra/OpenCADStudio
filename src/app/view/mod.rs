@@ -1,7 +1,7 @@
 use super::document::DocumentTab;
 use super::document::DynComponent;
 use super::history::history_dropdown_labels;
-use super::{ArrowKey, Message, OpenCADStudio};
+use super::{ArrowKey, Message, Mac2CAM};
 use crate::scene::pick::grip::{grips_to_screen, grips_to_screen_paper, grips_to_screen_rte};
 use crate::scene::view::viewport_pane::ViewportPane;
 use crate::scene::{VIEWCUBE_PAD, VIEWCUBE_REGION_PX};
@@ -166,7 +166,7 @@ impl std::fmt::Display for RenderModeChoice {
     }
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn view(&self, window_id: window::Id) -> Element<'_, Message> {
         // ── Floating panel windows ─────────────────────────────────────────
@@ -2244,7 +2244,7 @@ bg={bg_ms:.1}ms n={view_count}"
             }
             None => modal_underlay,
         };
-        // Shared CAD colour picker. Indexed ACI colours use OpenCADStudio's own
+        // Shared CAD colour picker. Indexed ACI colours use Mac2CAM's own
         // dialog; True Color keeps the existing iced_aw gradient picker.
         // Which part of the widget tree the frame went into. Reported as a
         // breakdown rather than one number, because a first switch to a paper
@@ -2329,7 +2329,7 @@ bg={bg_ms:.1}ms n={view_count}"
     }
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     pub fn subscription(&self) -> Subscription<Message> {
         use iced::event;
         // Only request per-frame ticks while something on screen is animating

@@ -1,4 +1,4 @@
-//! OpenCADStudio-style object snap (OSNAP) engine.
+//! Mac2CAM-style object snap (OSNAP) engine.
 //!
 //! Implemented modes:
 //!   Endpoint, Midpoint, Center, Node, Quadrant, Intersection,
@@ -23,7 +23,7 @@ pub enum TrackingKind {
     Extension,
     Perpendicular,
 }
-/// Every OSNAP mode — mirrors the OpenCADStudio list.
+/// Every OSNAP mode — mirrors the Mac2CAM list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SnapType {
     Endpoint,

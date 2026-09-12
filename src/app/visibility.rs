@@ -17,7 +17,7 @@ use acadrust::{EntityType, Handle};
 
 use crate::scene::model::object::{GripDef, GripShape};
 
-use super::OpenCADStudio;
+use super::Mac2CAM;
 
 /// Sentinel grip id for the visibility (lookup) grip, distinct from any
 /// entity's own grip ids so the click handler routes it to the dropdown.
@@ -49,7 +49,7 @@ struct StateMapping {
     visible_idx: HashSet<usize>,
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Compute the index sets needed to apply `state` of `param` (governing the
     /// dynamic definition `def_block`) to the anonymous block `anon_name`.
     ///

@@ -18,7 +18,7 @@
 //! stored uppercased. Native builds use `ocad.pgp`; web builds store the same
 //! PGP text in `localStorage`.
 
-use super::OpenCADStudio;
+use super::Mac2CAM;
 use rustc_hash::FxHashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
@@ -68,7 +68,7 @@ fn read_alias_version_web() -> u32 {
 }
 
 #[cfg(target_arch = "wasm32")]
-const WEB_ALIAS_KEY: &str = "opencadstudio.aliases";
+const WEB_ALIAS_KEY: &str = "mac2cam.aliases";
 
 /// Version of the shipped default alias table. Bump this whenever the embedded
 /// defaults add aliases or change a default target, so existing profiles can be
@@ -78,7 +78,7 @@ const WEB_ALIAS_KEY: &str = "opencadstudio.aliases";
 const DEFAULT_ALIASES_VERSION: u32 = 3;
 
 #[cfg(target_arch = "wasm32")]
-const WEB_ALIAS_VERSION_KEY: &str = "opencadstudio.aliases.version";
+const WEB_ALIAS_VERSION_KEY: &str = "mac2cam.aliases.version";
 
 /// The aliases introduced by a given version of the default table (1-indexed).
 /// A profile that last saw version `V` receives each alias in versions `V+1..`
@@ -148,7 +148,7 @@ pub(super) fn to_pgp(map: &FxHashMap<String, String>) -> String {
     let mut rows: Vec<(&String, &String)> = map.iter().collect();
     rows.sort_by(|a, b| a.0.cmp(b.0));
     let mut out = String::from(
-        "; OpenCADStudio command aliases.\n\
+        "; Mac2CAM command aliases.\n\
          ; Format:  ALIAS,*COMMAND   (lines starting with ';' are comments)\n\
          ; Edit here or via the ALIASEDIT command. One alias per line.\n\n",
     );
@@ -278,7 +278,7 @@ pub(super) fn save_map(map: &FxHashMap<String, String>) -> std::io::Result<()> {
     }
 }
 
-impl OpenCADStudio {
+impl Mac2CAM {
     /// Rewrite the leading command token through the alias table, leaving any
     /// arguments after the first whitespace untouched. Returns `None` when the
     /// verb is not an alias, so the caller passes the original string through

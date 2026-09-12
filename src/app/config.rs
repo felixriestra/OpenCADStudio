@@ -1,5 +1,5 @@
 //! Consolidated user configuration. Native builds use one grouped JSON file
-//! (`<config>/OpenCADStudio/settings.json`); web builds keep the same JSON in
+//! (`<config>/Mac2CAM/settings.json`); web builds keep the same JSON in
 //! `localStorage`. It holds every app preference except the command aliases,
 //! which use native `ocad.pgp` or a separate web storage key. Serialized via
 //! serde so the data is structured and grouped, replacing the former scattered
@@ -498,7 +498,7 @@ impl AppConfig {
 }
 
 #[cfg(target_arch = "wasm32")]
-const WEB_CONFIG_KEY: &str = "opencadstudio.settings";
+const WEB_CONFIG_KEY: &str = "mac2cam.settings";
 
 #[cfg(not(target_arch = "wasm32"))]
 fn config_path() -> Option<std::path::PathBuf> {

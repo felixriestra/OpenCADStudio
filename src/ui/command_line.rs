@@ -1,4 +1,4 @@
-//! OpenCADStudio-style command line — bottom panel with input and history
+//! Mac2CAM-style command line — bottom panel with input and history
 
 use iced::time::Instant;
 

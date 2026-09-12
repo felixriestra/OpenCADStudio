@@ -2,9 +2,9 @@
 
 #[cfg(not(target_arch = "wasm32"))]
 const RELEASES_API: &str =
-    "https://api.github.com/repos/HakanSeven12/OpenCADStudio/releases/latest";
+    "https://api.github.com/repos/HakanSeven12/Mac2CAM/releases/latest";
 pub const RELEASES_PAGE: &str =
-    "https://github.com/HakanSeven12/OpenCADStudio/releases/latest";
+    "https://github.com/HakanSeven12/Mac2CAM/releases/latest";
 
 /// Give release assets time to propagate before offering an update.
 #[cfg(not(target_arch = "wasm32"))]
@@ -41,7 +41,7 @@ fn fetch_latest_if_outdated() -> Option<UpdateInfo> {
     let agent = crate::network::agent(std::time::Duration::from_secs(5));
     let body = agent
         .get(RELEASES_API)
-        .header("User-Agent", concat!("OpenCADStudio/", env!("OCS_APP_VERSION")))
+        .header("User-Agent", concat!("Mac2CAM/", env!("OCS_APP_VERSION")))
         .header("Accept", "application/vnd.github+json")
         .call()
         .ok()?

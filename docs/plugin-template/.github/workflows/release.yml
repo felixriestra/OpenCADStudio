@@ -1,7 +1,7 @@
 name: release
 
 # Build the plugin cdylib for each desktop platform and attach the binaries
-# (plus plugin.toml) to a GitHub Release on a v* tag. Open CAD Studio's Plugin
+# (plus plugin.toml) to a GitHub Release on a v* tag. Mac2CAM's Plugin
 # Manager reads the assets, picks the one matching the user's OS/arch, and
 # installs it. Rename the `asset:` files to your plugin id.
 on:

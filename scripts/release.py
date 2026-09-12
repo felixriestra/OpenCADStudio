@@ -127,7 +127,7 @@ def prepare(publish):
     if not existing:
         old = cargo_version()
         updates = {}
-        for path, prefix in ((Path("Cargo.toml"), ""), (Path("Cargo.lock"), 'name = "OpenCADStudio"\n')):
+        for path, prefix in ((Path("Cargo.toml"), ""), (Path("Cargo.lock"), 'name = "Mac2CAM"\n')):
             content = path.read_text(encoding="utf-8")
             before = f'{prefix}version = "{old}"'
             if before not in content:
@@ -155,7 +155,7 @@ def prepare(publish):
 def verify_native(tag):
     release = gh("release", "view", tag, "--json", "assets,body,isDraft")
     expected = {
-        f"OpenCADStudio-{tag}-{suffix}"
+        f"Mac2CAM-{tag}-{suffix}"
         for suffix in ("linux-x86_64.AppImage", "linux-x86_64.snap",
                        "windows-x86_64-portable.exe", "windows-x86_64-installer.msi", "macos-arm64.dmg")
     }

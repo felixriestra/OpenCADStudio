@@ -67,11 +67,11 @@ jobs:
           mkdir -p AppDir/usr/share/applications
           mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
           mkdir -p AppDir/usr/share/metainfo
-          cp target/release/OpenCADStudio AppDir/usr/bin/OpenCADStudio
-          cp packaging/OpenCADStudio.desktop AppDir/usr/share/applications/io.github.HakanSeven12.OpenCadStudio.desktop
-          cp packaging/io.github.HakanSeven12.OpenCadStudio.metainfo.xml AppDir/usr/share/metainfo/
+          cp target/release/Mac2CAM AppDir/usr/bin/Mac2CAM
+          cp packaging/Mac2CAM.desktop AppDir/usr/share/applications/io.github.HakanSeven12.Mac2CAM.desktop
+          cp packaging/io.github.HakanSeven12.Mac2CAM.metainfo.xml AppDir/usr/share/metainfo/
           rsvg-convert -w 256 -h 256 assets/logo.svg \
-            -o AppDir/usr/share/icons/hicolor/256x256/apps/io.github.HakanSeven12.OpenCadStudio.png
+            -o AppDir/usr/share/icons/hicolor/256x256/apps/io.github.HakanSeven12.Mac2CAM.png
 
       - name: Pack shared Linux payload
         run: tar -C AppDir -czf linux-payload.tar.gz usr
@@ -95,18 +95,18 @@ jobs:
         run: |
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
-            --desktop-file AppDir/usr/share/applications/io.github.HakanSeven12.OpenCadStudio.desktop \
-            --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/io.github.HakanSeven12.OpenCadStudio.png \
+            --desktop-file AppDir/usr/share/applications/io.github.HakanSeven12.Mac2CAM.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/io.github.HakanSeven12.Mac2CAM.png \
             --output appimage
-          mv Open*CAD*Studio*.AppImage OpenCADStudio.AppImage
+          mv Open*CAD*Studio*.AppImage Mac2CAM.AppImage
 
       - name: Upload AppImage to release
         if: env.RELEASE_TAG != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ASSET=OpenCADStudio-${{ env.RELEASE_TAG }}-linux-x86_64.AppImage
-          mv OpenCADStudio.AppImage "$ASSET"
+          ASSET=Mac2CAM-${{ env.RELEASE_TAG }}-linux-x86_64.AppImage
+          mv Mac2CAM.AppImage "$ASSET"
           gh release upload ${{ env.RELEASE_TAG }} "$ASSET" --clobber --repo ${{ github.repository }}
 
   build-snap:
@@ -157,7 +157,7 @@ jobs:
           SNAP: ${{ steps.snapcraft.outputs.snap }}
           VERSION: ${{ steps.package.outputs.version }}
         run: |
-          PACKAGE="OpenCADStudio-v${VERSION}-linux-x86_64.snap"
+          PACKAGE="Mac2CAM-v${VERSION}-linux-x86_64.snap"
           mv "$SNAP" "$PACKAGE"
           echo "snap=$PACKAGE" >> "$GITHUB_OUTPUT"
 
@@ -172,7 +172,7 @@ jobs:
         if: env.RELEASE_TAG == ''
         uses: actions/upload-artifact@v4
         with:
-          name: OpenCADStudio-v${{ steps.package.outputs.version }}-linux-x86_64-snap
+          name: Mac2CAM-v${{ steps.package.outputs.version }}-linux-x86_64-snap
           path: ${{ steps.snap_package.outputs.snap }}
           if-no-files-found: error
 
@@ -237,7 +237,7 @@ jobs:
           endpoint: ${{ secrets.AZURE_ENDPOINT }}
           signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
           certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
-          files: ${{ github.workspace }}\target\release\OpenCADStudio.exe
+          files: ${{ github.workspace }}\target\release\Mac2CAM.exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
@@ -248,7 +248,7 @@ jobs:
           $version = "${{ steps.version.outputs.msi }}"
           $candle = Join-Path $env:WIX "bin\candle.exe"
           $light  = Join-Path $env:WIX "bin\light.exe"
-          $exePath  = (Resolve-Path target\release\OpenCADStudio.exe).Path
+          $exePath  = (Resolve-Path target\release\Mac2CAM.exe).Path
           $iconPath = (Resolve-Path packaging\windows\AppIcon.ico).Path
           # GPL-3 license RTF shown on the installer's EULA page.
           $licensePath = (Resolve-Path packaging\windows\License.rtf).Path
@@ -259,7 +259,7 @@ jobs:
           # candle writes one .wixobj per source into this directory (the
           # trailing slash tells it -out is a folder, not a single file).
           $objDir   = Join-Path $PWD "packaging\windows\"
-          $msiPath  = Join-Path $PWD "OpenCADStudio.msi"
+          $msiPath  = Join-Path $PWD "Mac2CAM.msi"
           & $candle -arch x64 `
             "-dVersion=$version" `
             "-dSource=$exePath" `
@@ -284,7 +284,7 @@ jobs:
           endpoint: ${{ secrets.AZURE_ENDPOINT }}
           signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
           certificate-profile-name: ${{ secrets.AZURE_CERTIFICATE_PROFILE_NAME }}
-          files: ${{ github.workspace }}\OpenCADStudio.msi
+          files: ${{ github.workspace }}\Mac2CAM.msi
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
@@ -296,10 +296,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "${{ env.RELEASE_TAG }}"
-          $exe = "OpenCADStudio-$tag-windows-x86_64-portable.exe"
-          $msi = "OpenCADStudio-$tag-windows-x86_64-installer.msi"
-          Move-Item target\release\OpenCADStudio.exe $exe
-          Move-Item OpenCADStudio.msi $msi
+          $exe = "Mac2CAM-$tag-windows-x86_64-portable.exe"
+          $msi = "Mac2CAM-$tag-windows-x86_64-installer.msi"
+          Move-Item target\release\Mac2CAM.exe $exe
+          Move-Item Mac2CAM.msi $msi
           gh release upload $tag `
             $exe $msi `
             --clobber --repo ${{ github.repository }}
@@ -343,17 +343,17 @@ jobs:
 
       - name: Build .icns from SVG
         run: |
-          mkdir -p OpenCADStudio.iconset
+          mkdir -p Mac2CAM.iconset
           # Render all the sizes Apple expects in an .icns.
           for SIZE in 16 32 64 128 256 512 1024; do
-            rsvg-convert -w $SIZE -h $SIZE assets/logo.svg -o OpenCADStudio.iconset/icon_${SIZE}x${SIZE}.png
+            rsvg-convert -w $SIZE -h $SIZE assets/logo.svg -o Mac2CAM.iconset/icon_${SIZE}x${SIZE}.png
           done
           # @2x retina variants (half-size base name)
           for BASE in 16 32 128 256 512; do
             DOUBLE=$((BASE * 2))
-            cp OpenCADStudio.iconset/icon_${DOUBLE}x${DOUBLE}.png OpenCADStudio.iconset/icon_${BASE}x${BASE}@2x.png
+            cp Mac2CAM.iconset/icon_${DOUBLE}x${DOUBLE}.png Mac2CAM.iconset/icon_${BASE}x${BASE}@2x.png
           done
-          iconutil -c icns OpenCADStudio.iconset -o AppIcon.icns
+          iconutil -c icns Mac2CAM.iconset -o AppIcon.icns
 
       - name: Build DWG/DXF document .icns from the same SVG sources
         run: |
@@ -395,13 +395,13 @@ jobs:
 
       - name: Assemble .app bundle
         run: |
-          APP=OpenCADStudio.app
+          APP=Mac2CAM.app
           rm -rf "$APP"
           mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/PlugIns"
           # Finder opens the launcher, which relays files to the sibling GUI.
-          cp target/aarch64-apple-darwin/release/ocs_launcher "$APP/Contents/MacOS/OpenCADStudio"
-          cp target/aarch64-apple-darwin/release/OpenCADStudio "$APP/Contents/MacOS/OpenCADStudio-App"
-          chmod +x "$APP/Contents/MacOS/OpenCADStudio" "$APP/Contents/MacOS/OpenCADStudio-App"
+          cp target/aarch64-apple-darwin/release/ocs_launcher "$APP/Contents/MacOS/Mac2CAM"
+          cp target/aarch64-apple-darwin/release/Mac2CAM "$APP/Contents/MacOS/Mac2CAM-App"
+          chmod +x "$APP/Contents/MacOS/Mac2CAM" "$APP/Contents/MacOS/Mac2CAM-App"
           cp AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
           cp DWG.icns DXF.icns "$APP/Contents/Resources/"
           # QuickLook thumbnail extension.
@@ -412,33 +412,33 @@ jobs:
 
       - name: Ad-hoc code-sign the bundle
         run: |
-          codesign --force --deep --sign - --timestamp=none OpenCADStudio.app
-          codesign --verify --strict --verbose=2 OpenCADStudio.app
+          codesign --force --deep --sign - --timestamp=none Mac2CAM.app
+          codesign --verify --strict --verbose=2 Mac2CAM.app
 
       - name: Create .dmg
         run: |
           set +e
           for attempt in 1 2 3 4 5; do
-            hdiutil detach "/Volumes/Open CAD Studio" >/dev/null 2>&1 || true
-            rm -f OpenCADStudio.dmg
+            hdiutil detach "/Volumes/Mac2CAM" >/dev/null 2>&1 || true
+            rm -f Mac2CAM.dmg
             hdiutil create \
-              -volname "Open CAD Studio" \
-              -srcfolder OpenCADStudio.app \
+              -volname "Mac2CAM" \
+              -srcfolder Mac2CAM.app \
               -ov -format UDZO \
-              OpenCADStudio.dmg && break
+              Mac2CAM.dmg && break
             echo "hdiutil create failed (attempt $attempt) — retrying in 5s"
             sleep 5
           done
           set -e
-          test -f OpenCADStudio.dmg
+          test -f Mac2CAM.dmg
 
       - name: Upload .dmg to release
         if: env.RELEASE_TAG != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ASSET=OpenCADStudio-${{ env.RELEASE_TAG }}-macos-arm64.dmg
-          mv OpenCADStudio.dmg "$ASSET"
+          ASSET=Mac2CAM-${{ env.RELEASE_TAG }}-macos-arm64.dmg
+          mv Mac2CAM.dmg "$ASSET"
           gh release upload ${{ env.RELEASE_TAG }} "$ASSET" --clobber --repo ${{ github.repository }}
 
       - name: Emit Homebrew cask sha256
@@ -446,10 +446,10 @@ jobs:
         run: |
           VERSION="${{ env.RELEASE_TAG }}"
           VERSION="${VERSION#v}"
-          SHA=$(shasum -a 256 OpenCADStudio-${{ env.RELEASE_TAG }}-macos-arm64.dmg | awk '{print $1}')
+          SHA=$(shasum -a 256 Mac2CAM-${{ env.RELEASE_TAG }}-macos-arm64.dmg | awk '{print $1}')
           {
             echo "## Homebrew cask bump"
-            echo "Update \`packaging/homebrew/open-cad-studio.rb\`:"
+            echo "Update \`packaging/homebrew/mac2cam.rb\`:"
             echo '```ruby'
             echo "  version \"$VERSION\""
             echo "  sha256 \"$SHA\""
