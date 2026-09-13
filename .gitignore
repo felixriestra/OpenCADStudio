@@ -42,3 +42,8 @@ __pycache__/
 
 # Local code-indexing tool cache
 .understand-anything/
+
+# Reference source for the AutoCAD/Mac2CAM commands site (kept on disk for
+# building an interactive PDF later); the zip in docs/ is the tracked
+# snapshot, this checkout (incl. node_modules) is not.
+docs/autocad-&-mac2cam-commands/
