@@ -18,12 +18,176 @@ pub enum SetupField {
     MaximumFeed,
     MaximumRpm,
 }
+/// The current CAM operation's own tool-parameter overrides (diameter, feed,
+/// plunge, RPM baked into `operation.parameters`) — distinct from
+/// `LibraryToolField`, which edits a catalog `LibraryTool`'s geometry in the
+/// Tool Database window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ToolField {
     Diameter,
     Feed,
     Plunge,
     Rpm,
+}
+
+/// Geometry fields editable on a catalog `LibraryTool` in the Tool Database
+/// window. No feed/plunge/RPM here — that cutting data lives in presets,
+/// resolved against a material and machine, not stored on the tool itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LibraryToolField {
+    Diameter,
+    FluteCount,
+    FluteLength,
+    ShankDia,
+    OverallLength,
+    CornerRadius,
+    /// Only meaningful for `ToolType::requires_included_angle()` types
+    /// (V-bit, engraver, tapered ball).
+    IncludedAngle,
+    /// Flat diameter at the tip — engraver/chamfer/tapered-ball types.
+    TipDiameter,
+}
+
+/// A fixed-vocabulary field backed by a `CHECK`-constrained TEXT column
+/// (`schema.rs`'s `tool.substrate`/`tool.chip_direction`), rendered as a
+/// `pick_list` instead of free text so it can never drift from the values
+/// the database actually accepts.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum SubstrateOption {
+    #[default]
+    None,
+    SolidCarbide,
+    CarbideTipped,
+    Hss,
+    Diamond,
+    Insert,
+}
+
+impl SubstrateOption {
+    pub const ALL: [SubstrateOption; 6] = [
+        Self::None,
+        Self::SolidCarbide,
+        Self::CarbideTipped,
+        Self::Hss,
+        Self::Diamond,
+        Self::Insert,
+    ];
+
+    pub fn as_db_str(self) -> Option<&'static str> {
+        match self {
+            Self::None => None,
+            Self::SolidCarbide => Some("solid_carbide"),
+            Self::CarbideTipped => Some("carbide_tipped"),
+            Self::Hss => Some("hss"),
+            Self::Diamond => Some("diamond"),
+            Self::Insert => Some("insert"),
+        }
+    }
+
+    pub fn from_db_str(value: Option<&str>) -> Self {
+        match value {
+            Some("solid_carbide") => Self::SolidCarbide,
+            Some("carbide_tipped") => Self::CarbideTipped,
+            Some("hss") => Self::Hss,
+            Some("diamond") => Self::Diamond,
+            Some("insert") => Self::Insert,
+            _ => Self::None,
+        }
+    }
+}
+
+impl std::fmt::Display for SubstrateOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::None => "—",
+            Self::SolidCarbide => "Solid carbide",
+            Self::CarbideTipped => "Carbide tipped",
+            Self::Hss => "HSS",
+            Self::Diamond => "Diamond",
+            Self::Insert => "Insert",
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum ChipDirectionOption {
+    #[default]
+    None,
+    Up,
+    Down,
+    Compression,
+    Straight,
+}
+
+impl ChipDirectionOption {
+    pub const ALL: [ChipDirectionOption; 5] =
+        [Self::None, Self::Up, Self::Down, Self::Compression, Self::Straight];
+
+    pub fn as_db_str(self) -> Option<&'static str> {
+        match self {
+            Self::None => None,
+            Self::Up => Some("up"),
+            Self::Down => Some("down"),
+            Self::Compression => Some("compression"),
+            Self::Straight => Some("straight"),
+        }
+    }
+
+    pub fn from_db_str(value: Option<&str>) -> Self {
+        match value {
+            Some("up") => Self::Up,
+            Some("down") => Self::Down,
+            Some("compression") => Self::Compression,
+            Some("straight") => Self::Straight,
+            _ => Self::None,
+        }
+    }
+}
+
+impl std::fmt::Display for ChipDirectionOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::None => "—",
+            Self::Up => "Upcut",
+            Self::Down => "Downcut",
+            Self::Compression => "Compression",
+            Self::Straight => "Straight",
+        })
+    }
+}
+
+/// Sidebar vendor filter: "All vendors" plus whatever vendor names are
+/// actually present in the catalog (`ToolLibraryStore::vendors()`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VendorOption {
+    All,
+    Named(String),
+}
+
+impl std::fmt::Display for VendorOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::All => f.write_str("All vendors"),
+            Self::Named(name) => f.write_str(name),
+        }
+    }
+}
+
+/// Sidebar type filter: "All types" plus whatever `ToolType`s are actually
+/// present in the catalog (`ToolLibraryStore::tool_types_present()`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeOption {
+    All,
+    Specific(crate::tool_library::model::ToolType),
+}
+
+impl std::fmt::Display for TypeOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::All => f.write_str("All types"),
+            Self::Specific(t) => f.write_str(t.display_name()),
+        }
+    }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OperationField {
@@ -45,6 +209,7 @@ pub enum AdvancedField {
 pub enum NumericField {
     Setup(SetupField),
     Tool(ToolField),
+    LibraryTool(LibraryToolField),
     Operation(OperationField),
     Advanced(AdvancedField),
 }
@@ -63,6 +228,16 @@ pub struct CamEditorState {
     pub tool_name: String,
     pub tool_search: String,
     pub tool_trash: bool,
+    // Identity / Material & finish drafts — same "seeded on Select, diffed
+    // and applied on Update" pattern as `tool_name` above.
+    pub tool_vendor: String,
+    pub tool_part_number: String,
+    pub tool_series: String,
+    pub tool_type: crate::tool_library::model::ToolType,
+    pub tool_substrate: SubstrateOption,
+    pub tool_coating: String,
+    pub tool_chip_direction: ChipDirectionOption,
+    pub tool_notes: String,
 }
 impl CamEditorState {
     pub fn edit(&mut self, field: NumericField, value: String) {
@@ -120,15 +295,30 @@ pub enum CamPanelMsg {
     ToolDelete,
     ToolDuplicate,
     ToolSearch(String),
-    ToolValue(ToolField, String),
+    ToolValue(LibraryToolField, String),
+    ToolVendor(String),
+    ToolPartNumber(String),
+    ToolSeries(String),
+    ToolTypeSelect(crate::tool_library::model::ToolType),
+    ToolSubstrateSelect(SubstrateOption),
+    ToolCoating(String),
+    ToolChipDirectionSelect(ChipDirectionOption),
+    ToolNotes(String),
     ToolToggleTrash,
     ToolRestore(usize),
     ToolPurge(usize),
     ToolImportCsv,
+    ToolExportCsv,
     ToolImportCommit,
     ToolImportCancel,
     ToolApplyResolved,
     ToolSavePreset,
+    MaterialClassSelect(String),
+    DepthOfCutChanged(f64),
+    VendorFilterSelect(VendorOption),
+    TypeFilterSelect(TypeOption),
+    UnitToggle(crate::tool_library::DisplayUnit),
+    IncompleteOnlyToggle(bool),
     EditNumber(NumericField, String),
     ApplySetupTemplate(SetupTemplate),
     ApplyLibraryTool(usize),
@@ -154,9 +344,6 @@ pub fn operations_view<'a>(
     active_gcode_line: Option<usize>,
     playing: bool,
     playback_speed: f64,
-    saved_tools: &'a [ocs_cam_core::ToolDefinition],
-    trashed_tools: &'a [ocs_cam_core::ToolDefinition],
-    selected_tool: Option<usize>,
     width: f32,
     auto_collapse: bool,
 ) -> Element<'a, Message> {
@@ -414,61 +601,7 @@ pub fn operations_view<'a>(
         parameters,
         tool,
         library,
-        row![
-            text("Tool Database").size(14).width(Fill),
-            button(if editor.tool_trash { "Tools" } else { "Trash" })
-                .on_press(Message::CamPanel(CamPanelMsg::ToolToggleTrash)),
-        ],
-        text_input("Search tools", &editor.tool_search)
-            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolSearch(value))),
-        if editor.tool_trash {
-            trashed_tools
-                .iter()
-                .enumerate()
-                .fold(column![].spacing(2), |column, (index, tool)| {
-                    column.push(
-                        row![
-                            text(format!("{}  Ø{:.2}", tool.name, tool.diameter)).width(Fill),
-                            button("Restore")
-                                .on_press(Message::CamPanel(CamPanelMsg::ToolRestore(index))),
-                            button("Delete")
-                                .on_press(Message::CamPanel(CamPanelMsg::ToolPurge(index))),
-                        ]
-                        .spacing(3),
-                    )
-                })
-        } else {
-            saved_tools
-                .iter()
-                .enumerate()
-                .filter(|(_, tool)| {
-                    editor.tool_search.trim().is_empty()
-                        || tool
-                            .name
-                            .to_lowercase()
-                            .contains(&editor.tool_search.trim().to_lowercase())
-                })
-                .fold(column![].spacing(2), |column, (index, tool)| {
-                    column.push(
-                        button(text(if selected_tool == Some(index) {
-                            format!("> {}  Ø{:.2}", tool.name, tool.diameter)
-                        } else {
-                            format!("{}  Ø{:.2}", tool.name, tool.diameter)
-                        }))
-                        .width(Fill)
-                        .on_press(Message::CamPanel(CamPanelMsg::ToolSelect(index))),
-                    )
-                })
-        },
-        text_input("Tool name", &editor.tool_name)
-            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolName(value))),
-        row![
-            button("Create").on_press(Message::CamPanel(CamPanelMsg::ToolCreate)),
-            button("Save edits").on_press(Message::CamPanel(CamPanelMsg::ToolUpdate)),
-            button("Duplicate").on_press(Message::CamPanel(CamPanelMsg::ToolDuplicate)),
-            button("To Trash").on_press(Message::CamPanel(CamPanelMsg::ToolDelete)),
-        ]
-        .spacing(4),
+        text("Manage the shared tool catalog — create, edit, import, trash — from Manage > CAMTOOLS, its own floating window.").size(11),
     ]
     .spacing(10)
     .padding(iced::Padding {
@@ -678,16 +811,92 @@ fn material_rows<'a>(
 
 /// Dedicated application-level tool database window. CAM operations only keep
 /// a copy of the selected cutter; management, search and Trash live here.
+/// Backed by `crate::tool_library` — a real embedded SQLite catalog (ported
+/// from 2DCam's tool database) rather than the earlier flat JSON list.
+fn icon_button<'a>(bytes: &'static [u8], tooltip: &'a str, message: Message) -> Element<'a, Message> {
+    let icon = iced::widget::svg(iced::widget::svg::Handle::from_memory(bytes))
+        .width(18)
+        .height(18);
+    iced::widget::tooltip(
+        button(icon).padding(6).on_press(message),
+        text(tooltip).size(11),
+        iced::widget::tooltip::Position::Bottom,
+    )
+    .into()
+}
+
+fn section_title<'a>(label: impl Into<String>) -> Element<'a, Message> {
+    text(label.into()).size(14).into()
+}
+
+/// A read-only label/value row for the Cutting Data grid.
+fn data_row<'a>(label: &'a str, value: String) -> Element<'a, Message> {
+    row![text(label).width(Length::Fixed(90.0)).size(12), text(value).size(12)]
+        .spacing(8)
+        .into()
+}
+
 pub fn tool_library_view<'a>(
     editor: &'a CamEditorState,
-    tools: &'a [ocs_cam_core::ToolDefinition],
-    trash: &'a [ocs_cam_core::ToolDefinition],
+    library: &'a crate::tool_library::ToolLibraryStore,
     selected: Option<usize>,
-    setup: Option<&'a ocs_cam_core::CamSetup>,
-    resolved: Option<crate::app::cam_library::ResolvedCuttingData>,
-    import_plan: Option<&'a crate::app::cam_library::ToolImportPlan>,
+    resolved: Option<crate::tool_library::resolver::ResolvedCuttingData>,
 ) -> Element<'a, Message> {
+    use crate::tool_library::model::ToolType;
+    use crate::tool_library::DisplayUnit;
+
+    let tools = &library.tools;
+    let trash = &library.trash;
     let query = editor.tool_search.trim().to_lowercase();
+    let unit = library.display_unit;
+
+    // ── Sidebar: search, filters, list ──────────────────────────────────
+    let vendor_options: Vec<VendorOption> =
+        std::iter::once(VendorOption::All).chain(library.vendors().into_iter().map(VendorOption::Named)).collect();
+    let vendor_selected = match &library.vendor_filter {
+        Some(name) => VendorOption::Named(name.clone()),
+        None => VendorOption::All,
+    };
+    let type_options: Vec<TypeOption> =
+        std::iter::once(TypeOption::All).chain(library.tool_types_present().into_iter().map(TypeOption::Specific)).collect();
+    let type_selected = match library.type_filter {
+        Some(t) => TypeOption::Specific(t),
+        None => TypeOption::All,
+    };
+
+    let filters = column![
+        iced::widget::pick_list(Some(vendor_selected), vendor_options, |choice: &VendorOption| choice.to_string())
+            .on_select(|choice| Message::CamPanel(CamPanelMsg::VendorFilterSelect(choice)))
+            .text_size(12)
+            .width(Fill),
+        iced::widget::pick_list(Some(type_selected), type_options, |choice: &TypeOption| choice.to_string())
+            .on_select(|choice| Message::CamPanel(CamPanelMsg::TypeFilterSelect(choice)))
+            .text_size(12)
+            .width(Fill),
+        row![
+            text("Units").size(12).width(Fill),
+            button(text("mm").size(11))
+                .padding([3, 10])
+                .style(if unit == DisplayUnit::Mm { button::primary } else { button::secondary })
+                .on_press(Message::CamPanel(CamPanelMsg::UnitToggle(DisplayUnit::Mm))),
+            button(text("inch").size(11))
+                .padding([3, 10])
+                .style(if unit == DisplayUnit::Inch { button::primary } else { button::secondary })
+                .on_press(Message::CamPanel(CamPanelMsg::UnitToggle(DisplayUnit::Inch))),
+        ]
+        .spacing(4)
+        .align_y(iced::Center),
+        row![
+            iced::widget::checkbox(library.incomplete_only)
+                .size(14)
+                .on_toggle(|value| Message::CamPanel(CamPanelMsg::IncompleteOnlyToggle(value))),
+            text("Incomplete only").size(12),
+        ]
+        .spacing(6)
+        .align_y(iced::Center),
+    ]
+    .spacing(8);
+
     let list: Element<'a, Message> = if editor.tool_trash {
         trash
             .iter()
@@ -696,97 +905,252 @@ pub fn tool_library_view<'a>(
                 column.push(
                     row![
                         text(format!(
-                            "{}   Ø{:.3}   {} rpm",
-                            tool.name, tool.diameter, tool.spindle_rpm
+                            "{}   Ø{:.3} {}   {}",
+                            tool.name,
+                            tool.diameter_mm.map(|d| unit.from_mm(d)).unwrap_or(0.0),
+                            unit.label(),
+                            tool.tool_type.display_name(),
                         ))
+                        .size(12)
                         .width(Fill),
-                        button("Restore")
-                            .on_press(Message::CamPanel(CamPanelMsg::ToolRestore(index))),
-                        button("Delete permanently")
-                            .on_press(Message::CamPanel(CamPanelMsg::ToolPurge(index))),
+                        button(text("Restore").size(11)).on_press(Message::CamPanel(CamPanelMsg::ToolRestore(index))),
+                        button(text("Delete").size(11)).on_press(Message::CamPanel(CamPanelMsg::ToolPurge(index))),
                     ]
                     .spacing(6),
                 )
             })
             .into()
     } else {
-        tools
-            .iter()
-            .enumerate()
-            .filter(|(_, tool)| query.is_empty() || tool.name.to_lowercase().contains(&query))
-            .fold(column![].spacing(5), |column, (index, tool)| {
+        library
+            .filtered_tools(&query)
+            .into_iter()
+            .map(|tool| (tools.iter().position(|t| t.id == tool.id).unwrap_or(0), tool))
+            .fold(column![].spacing(2), |column, (index, tool)| {
+                let subtitle = format!(
+                    "{} · Ø{:.3} {} · {}F{}",
+                    tool.tool_type.display_name(),
+                    tool.diameter_mm.map(|d| unit.from_mm(d)).unwrap_or(0.0),
+                    unit.label(),
+                    tool.flute_count.unwrap_or(0),
+                    if tool.is_machinable() { "" } else { " · incomplete" },
+                );
+                let mut rows = column![
+                    text(tool.name.clone()).size(13),
+                    text(subtitle).size(11),
+                ]
+                .spacing(1);
+                if tool.vendor_name.is_some() || tool.product_id.is_some() {
+                    rows = rows.push(
+                        text(format!(
+                            "{} · {}",
+                            tool.vendor_name.clone().unwrap_or_default(),
+                            tool.product_id.clone().unwrap_or_default()
+                        ))
+                        .size(11),
+                    );
+                }
                 column.push(
-                    button(text(format!(
-                        "{}{}   Ø{:.3}   feed {:.0}   plunge {:.0}   {} rpm",
-                        if selected == Some(index) { "> " } else { "" },
-                        tool.name,
-                        tool.diameter,
-                        tool.feed,
-                        tool.plunge_feed,
-                        tool.spindle_rpm
-                    )))
-                    .width(Fill)
-                    .on_press(Message::CamPanel(CamPanelMsg::ToolSelect(index))),
+                    button(rows)
+                        .width(Fill)
+                        .padding(6)
+                        .style(if selected == Some(index) { button::primary } else { button::secondary })
+                        .on_press(Message::CamPanel(CamPanelMsg::ToolSelect(index))),
                 )
             })
             .into()
     };
-    let cutting_data: Element<'a, Message> = match (setup, resolved) {
-        (Some(setup), Some(data)) => column![
+
+    let sidebar = column![
+        text_input("Search name, vendor, or part number", &editor.tool_search)
+            .size(12)
+            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolSearch(value))),
+        filters,
+        scrollable(list).height(Fill),
+    ]
+    .spacing(10)
+    .width(Length::Fixed(240.0));
+
+    // ── Detail panel ─────────────────────────────────────────────────────
+    let selected_tool = selected.and_then(|i| tools.get(i));
+
+    let toolbar = row![
+        text("Tool Database").size(20).width(Fill),
+        icon_button(include_bytes!("../../../assets/icons/tool_add.svg"), "New tool", Message::CamPanel(CamPanelMsg::ToolCreate)),
+        icon_button(include_bytes!("../../../assets/icons/copy.svg"), "Duplicate", Message::CamPanel(CamPanelMsg::ToolDuplicate)),
+        icon_button(include_bytes!("../../../assets/icons/ui/trash.svg"), "Move to Trash", Message::CamPanel(CamPanelMsg::ToolDelete)),
+        icon_button(include_bytes!("../../../assets/icons/cui_import.svg"), "Import CSV", Message::CamPanel(CamPanelMsg::ToolImportCsv)),
+        icon_button(include_bytes!("../../../assets/icons/cui_export.svg"), "Export CSV", Message::CamPanel(CamPanelMsg::ToolExportCsv)),
+        button(text(if editor.tool_trash { "Back to Tools" } else { "Trash" }).size(12))
+            .on_press(Message::CamPanel(CamPanelMsg::ToolToggleTrash)),
+    ]
+    .spacing(6)
+    .align_y(iced::Center);
+
+    let Some(tool) = selected_tool else {
+        let body = column![toolbar, text("Select a tool from the catalog, or create a new one.").size(13)]
+            .spacing(16)
+            .padding(16);
+        return row![sidebar, container(body).width(Fill).height(Fill)].spacing(16).padding(12).into();
+    };
+
+    let type_options: Vec<ToolType> = ToolType::all().to_vec();
+    let identity = column![
+        section_title("Identity"),
+        library_text("Name", &editor.tool_name, |v| Message::CamPanel(CamPanelMsg::ToolName(v))),
+        row![
+            text("Type").width(Length::Fixed(110.0)).size(12),
+            iced::widget::pick_list(Some(editor.tool_type), type_options, |choice: &ToolType| choice.display_name().to_string())
+                .on_select(|choice| Message::CamPanel(CamPanelMsg::ToolTypeSelect(choice)))
+                .text_size(12)
+                .width(Fill),
+        ]
+        .spacing(8)
+        .align_y(iced::Center),
+        library_text("Vendor", &editor.tool_vendor, |v| Message::CamPanel(CamPanelMsg::ToolVendor(v))),
+        library_text("Part number", &editor.tool_part_number, |v| Message::CamPanel(CamPanelMsg::ToolPartNumber(v))),
+        library_text("Series", &editor.tool_series, |v| Message::CamPanel(CamPanelMsg::ToolSeries(v))),
+    ]
+    .spacing(6);
+
+    let mut geometry = column![
+        section_title(format!("Geometry ({})", unit.label())),
+        row![
+            library_number("Diameter", LibraryToolField::Diameter, tool.diameter_mm.map(|d| unit.from_mm(d)).unwrap_or(6.0), editor),
+            library_number("Flutes", LibraryToolField::FluteCount, tool.flute_count.unwrap_or(2) as f64, editor),
+        ].spacing(8),
+        row![
+            library_number("Cutting length", LibraryToolField::FluteLength, tool.flute_length_mm.map(|d| unit.from_mm(d)).unwrap_or(20.0), editor),
+            library_number("Shank diameter", LibraryToolField::ShankDia, tool.shank_dia_mm.map(|d| unit.from_mm(d)).unwrap_or(6.0), editor),
+        ].spacing(8),
+        row![
+            library_number("Overall length", LibraryToolField::OverallLength, tool.overall_length_mm.map(|d| unit.from_mm(d)).unwrap_or(50.0), editor),
+            library_number("Corner radius", LibraryToolField::CornerRadius, tool.corner_radius_mm.map(|d| unit.from_mm(d)).unwrap_or(0.0), editor),
+        ].spacing(8),
+    ]
+    .spacing(6);
+    if tool.tool_type.requires_included_angle() {
+        geometry = geometry.push(library_number(
+            "Included angle °",
+            LibraryToolField::IncludedAngle,
+            tool.included_angle_deg.unwrap_or(90.0),
+            editor,
+        ));
+    }
+    if matches!(tool.tool_type, ToolType::Engraver | ToolType::Chamfer | ToolType::TaperedBall) {
+        geometry = geometry.push(library_number(
+            "Tip diameter",
+            LibraryToolField::TipDiameter,
+            tool.tip_dia_mm.map(|d| unit.from_mm(d)).unwrap_or(0.0),
+            editor,
+        ));
+    }
+
+    let material_finish = column![
+        section_title("Material and finish"),
+        row![
+            text("Substrate").width(Length::Fixed(110.0)).size(12),
+            iced::widget::pick_list(Some(editor.tool_substrate), SubstrateOption::ALL.to_vec(), |choice: &SubstrateOption| choice.to_string())
+                .on_select(|choice| Message::CamPanel(CamPanelMsg::ToolSubstrateSelect(choice)))
+                .text_size(12)
+                .width(Fill),
+        ]
+        .spacing(8)
+        .align_y(iced::Center),
+        library_text("Coating", &editor.tool_coating, |v| Message::CamPanel(CamPanelMsg::ToolCoating(v))),
+        row![
+            text("Chip direction").width(Length::Fixed(110.0)).size(12),
+            iced::widget::pick_list(Some(editor.tool_chip_direction), ChipDirectionOption::ALL.to_vec(), |choice: &ChipDirectionOption| choice.to_string())
+                .on_select(|choice| Message::CamPanel(CamPanelMsg::ToolChipDirectionSelect(choice)))
+                .text_size(12)
+                .width(Fill),
+        ]
+        .spacing(8)
+        .align_y(iced::Center),
+        library_text("Notes", &editor.tool_notes, |v| Message::CamPanel(CamPanelMsg::ToolNotes(v))),
+    ]
+    .spacing(6);
+
+    let missing = {
+        let m = tool.missing_fields();
+        if m.is_empty() { String::new() } else { format!("Missing before this tool can cut: {}", m.join(", ")) }
+    };
+
+    let material_options: Vec<String> = library.material_classes.iter().map(|c| c.name.clone()).collect();
+    let material_selected = library.material_classes.iter().find(|c| c.id == library.material_class_id).map(|c| c.name.clone());
+    let doc_mm = library.depth_of_cut_mm.or_else(|| tool.recommended_doc_mm()).unwrap_or(6.0);
+
+    let cutting_data: Element<'a, Message> = if let Some(data) = resolved {
+        let source = match &data.source {
+            crate::tool_library::resolver::Source::Preset { name, .. } => format!("Preset: {name}"),
+            crate::tool_library::resolver::Source::FeedCurve { vendor } => {
+                format!("Vendor feed curve{}", vendor.as_ref().map(|v| format!(" ({v})")).unwrap_or_default())
+            }
+            crate::tool_library::resolver::Source::Rule { vendor } => match vendor {
+                Some(v) => format!("Chipload band ({v})"),
+                None => "Generic chipload estimate".to_string(),
+            },
+        };
+        let mut clamped_notes = column![].spacing(2);
+        for note in &data.clamped {
+            clamped_notes = clamped_notes.push(text(format!("↳ {note}")).size(11));
+        }
+        column![
+            data_row("Spindle", format!("{} rpm", data.spindle_rpm)),
+            data_row("Feed", format!("{:.0} mm/min", data.feed_xy_mm_min)),
+            data_row("Plunge", format!("{:.0} mm/min", data.feed_z_mm_min)),
+            data_row("Chipload", format!("{:.3} mm/tooth", data.chipload_mm)),
+            data_row("Stepdown", format!("{:.2} mm", data.stepdown_mm)),
             text(format!(
-                "Cutting data for {} / current machine",
-                setup.material.name
+                "{source}{}",
+                if data.is_estimate() { " — estimate, verify before cutting" } else { " — trusted data" }
             ))
-            .size(15),
-            text(format!(
-                "Feed {:.0} · Plunge {:.0} · {} rpm · Stepdown {:.3} · Stepover {:.3}",
-                data.feed, data.plunge_feed, data.spindle_rpm, data.step_down, data.step_over
-            )),
-            text(format!(
-                "{}{}",
-                data.source,
-                if data.estimated {
-                    " — estimate; verify before cutting"
-                } else {
-                    " — saved preset"
-                }
-            ))
-            .size(12),
+            .size(11),
+            clamped_notes,
             row![
-                button("Apply to operation")
-                    .on_press(Message::CamPanel(CamPanelMsg::ToolApplyResolved)),
-                button("Save preset").on_press(Message::CamPanel(CamPanelMsg::ToolSavePreset)),
+                button(text("Apply to operation").size(12)).on_press(Message::CamPanel(CamPanelMsg::ToolApplyResolved)),
+                button(text("Save as my preset for this material").size(12)).on_press(Message::CamPanel(CamPanelMsg::ToolSavePreset)),
             ]
             .spacing(8),
         ]
-        .spacing(5)
-        .into(),
-        _ => {
-            text("Select a tool to resolve cutting data for the current job material and machine.")
-                .into()
-        }
+        .spacing(4)
+        .into()
+    } else {
+        text("No cutting data yet — pick a material, or add flute count/diameter to this tool.").size(12).into()
     };
-    let import_review: Element<'a, Message> = if let Some(plan) = import_plan {
+
+    let cutting_section = column![
+        section_title("Cutting Data"),
+        row![
+            text("Material").width(Length::Fixed(90.0)).size(12),
+            iced::widget::pick_list(material_selected, material_options, |name: &String| name.clone())
+                .on_select(|name| Message::CamPanel(CamPanelMsg::MaterialClassSelect(name)))
+                .text_size(12)
+                .width(Fill),
+        ]
+        .spacing(8)
+        .align_y(iced::Center),
+        row![
+            text("Depth of cut").width(Length::Fixed(90.0)).size(12),
+            iced::widget::slider(0.5..=tool.diameter_mm.unwrap_or(20.0).max(1.0) * 3.0, doc_mm, |v| {
+                Message::CamPanel(CamPanelMsg::DepthOfCutChanged(v))
+            })
+            .step(0.1),
+            text(format!("{doc_mm:.1} mm")).size(12),
+        ]
+        .spacing(8)
+        .align_y(iced::Center),
+        cutting_data,
+    ]
+    .spacing(8);
+
+    let import_review: Element<'a, Message> = if let Some(plan) = &library.pending_import {
         column![
-            text(format!("Import review — {}", plan.source_name)).size(15),
-            text(format!(
-                "{} valid tools · {} rejected rows",
-                plan.tools.len(),
-                plan.rejected.len()
-            )),
-            text(
-                plan.rejected
-                    .iter()
-                    .take(3)
-                    .cloned()
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            )
-            .size(12),
+            text(format!("Import review — {}", plan.source_file_name)).size(14),
+            text(format!("{} new · {} changed · {} rejected", plan.new_count(), plan.changed_count(), plan.rejected_count())).size(12),
             row![
-                button(text(format!("Import {} tools", plan.tools.len())))
+                button(text(format!("Import {} tools", plan.new_count() + plan.changed_count())).size(12))
                     .on_press(Message::CamPanel(CamPanelMsg::ToolImportCommit)),
-                button("Cancel").on_press(Message::CamPanel(CamPanelMsg::ToolImportCancel)),
+                button(text("Cancel").size(12)).on_press(Message::CamPanel(CamPanelMsg::ToolImportCancel)),
             ]
             .spacing(8),
         ]
@@ -795,49 +1159,35 @@ pub fn tool_library_view<'a>(
     } else {
         text("").into()
     };
-    let body = column![
-        row![
-            text("Tool Database").size(22).width(Fill),
-            button(if editor.tool_trash { "Back to Tools" } else { "Trash" })
-                .on_press(Message::CamPanel(CamPanelMsg::ToolToggleTrash)),
-        ].align_y(iced::Center),
-        text("Reusable cutters are stored at application level. Selecting one copies it into the current CAM operation."),
-        text_input("Search by tool name", &editor.tool_search)
-            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolSearch(value))),
-        scrollable(list).height(Fill),
-        cutting_data,
-        import_review,
-        text_input("Tool name", &editor.tool_name)
-            .on_input(|value| Message::CamPanel(CamPanelMsg::ToolName(value))),
-        row![
-            library_number("Diameter", ToolField::Diameter, selected.and_then(|i| tools.get(i)).map(|t| t.diameter).unwrap_or(6.0), editor),
-            library_number("Feed", ToolField::Feed, selected.and_then(|i| tools.get(i)).map(|t| t.feed).unwrap_or(800.0), editor),
-        ].spacing(8),
-        row![
-            library_number("Plunge", ToolField::Plunge, selected.and_then(|i| tools.get(i)).map(|t| t.plunge_feed).unwrap_or(250.0), editor),
-            library_number("RPM", ToolField::Rpm, selected.and_then(|i| tools.get(i)).map(|t| t.spindle_rpm as f64).unwrap_or(18_000.0), editor),
-        ].spacing(8),
-        row![
-            button("New from operation").on_press(Message::CamPanel(CamPanelMsg::ToolCreate)),
-            button("Save edits").on_press(Message::CamPanel(CamPanelMsg::ToolUpdate)),
-            button("Duplicate").on_press(Message::CamPanel(CamPanelMsg::ToolDuplicate)),
-            button("Move to Trash").on_press(Message::CamPanel(CamPanelMsg::ToolDelete)),
-            button("Import CSV").on_press(Message::CamPanel(CamPanelMsg::ToolImportCsv)),
-        ].spacing(8),
-        text("Storage is updated atomically and the previous database snapshot is retained as a backup.").size(12),
-    ].spacing(12).padding(16);
-    container(body).width(Fill).height(Fill).into()
+
+    let detail = scrollable(
+        column![toolbar, identity, geometry, material_finish, text(missing).size(11), cutting_section, import_review]
+            .spacing(18)
+            .padding(16),
+    );
+
+    row![sidebar, container(detail).width(Fill).height(Fill)].spacing(16).padding(12).into()
+}
+
+fn library_text<'a>(label: &'a str, value: &'a str, on_input: impl Fn(String) -> Message + 'a) -> Element<'a, Message> {
+    row![
+        text(label).width(Length::Fixed(110.0)).size(12),
+        text_input("", value).size(12).on_input(on_input).width(Fill),
+    ]
+    .spacing(8)
+    .align_y(iced::Center)
+    .into()
 }
 
 fn library_number<'a>(
     label: &'static str,
-    field: ToolField,
+    field: LibraryToolField,
     value: f64,
     editor: &'a CamEditorState,
 ) -> Element<'a, Message> {
     row![
-        text(label).width(Length::Fixed(70.0)),
-        text_input("", &editor.value(NumericField::Tool(field), value))
+        text(label).width(Length::Fixed(110.0)),
+        text_input("", &editor.value(NumericField::LibraryTool(field), value))
             .on_input(move |input| Message::CamPanel(CamPanelMsg::ToolValue(field, input)))
             .width(Fill),
     ]

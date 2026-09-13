@@ -325,6 +325,7 @@ impl Mac2CAM {
                         self.tabs[i].scene.document = doc;
                         self.tabs[i].scene.load_sketch_constraints_from_document();
                         self.tabs[i].scene.load_named_parameters_from_document();
+                        self.tabs[i].load_cam_job_from_document();
                         self.tabs[i].scene.material_base_dir = path_buf.parent().map(PathBuf::from);
                         crate::app::style_ops::ensure_standard_styles(
                             &mut self.tabs[i].scene.document,
@@ -1390,6 +1391,75 @@ mod tests {
             true
         );
         drop(app);
+        let sidecar = path.with_file_name(format!(
+            ".{}.ocs.lock",
+            path.file_name().unwrap().to_string_lossy()
+        ));
+        let _ = std::fs::remove_file(sidecar);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// End-to-end proof of the CAM-job-in-DWG feature (`cam_job_persist.rs`):
+    /// draw a closed rectangle, turn it into a real CAM operation via the
+    /// same `CAMPROFILE` command the ribbon uses, save to a real `.dwg` on
+    /// disk (the plain-Save path, not the `.mac2cam` sidecar), then reopen
+    /// that file in a fresh `Mac2CAM` instance and confirm the operation is
+    /// still there — the exact regression this feature exists to prevent.
+    #[test]
+    fn saved_cam_operations_survive_a_real_dwg_save_and_reopen() {
+        let path = std::env::temp_dir().join(format!(
+            "ocs_cam_job_persist_test_{}.dwg",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        let p = path.to_string_lossy().replace('\\', "\\\\");
+
+        let mut app = Mac2CAM::new_for_test();
+        let i = app.active_tab;
+        assert_eq!(app.automation_op(r#"{"op":"new"}"#)["ok"], true);
+
+        // A closed rectangle is the smallest planar loop CAMPROFILE accepts.
+        assert_eq!(
+            app.automation_op(r#"{"op":"run","cmd":"RECTANG 0,0 20,10"}"#)["ok"],
+            true
+        );
+        assert_eq!(
+            app.automation_op(r#"{"op":"select","type":"Polyline"}"#)["selected"],
+            1
+        );
+        assert_eq!(
+            app.automation_op(r#"{"op":"run","cmd":"CAMPROFILE"}"#)["ok"],
+            true
+        );
+        assert_eq!(
+            app.tabs[i].cam_job.operations.len(),
+            1,
+            "CAMPROFILE should have recorded one operation before any save happens"
+        );
+        let operation_name = app.tabs[i].cam_job.operations[0].name.clone();
+
+        assert_eq!(
+            app.automation_op(&format!(r#"{{"op":"save","path":"{p}"}}"#))["ok"],
+            true
+        );
+
+        // A fresh app/session, as a real reopen would be — not the same
+        // in-memory `cam_job` just sitting there unchanged.
+        let mut reopened = Mac2CAM::new_for_test();
+        let j = reopened.active_tab;
+        assert_eq!(
+            reopened.automation_op(&format!(r#"{{"op":"open","path":"{p}"}}"#))["ok"],
+            true
+        );
+        assert_eq!(
+            reopened.tabs[j].cam_job.operations.len(),
+            1,
+            "the CAM operation must survive a plain .dwg save + reopen, not just a .mac2cam save"
+        );
+        assert_eq!(reopened.tabs[j].cam_job.operations[0].name, operation_name);
+
+        drop(app);
+        drop(reopened);
         let sidecar = path.with_file_name(format!(
             ".{}.ocs.lock",
             path.file_name().unwrap().to_string_lossy()

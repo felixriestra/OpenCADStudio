@@ -1509,10 +1509,14 @@ impl Mac2CAM {
             }
             Message::CamGcodeLoaded(None) => Task::none(),
             Message::CamToolCsvLoaded(Some((name, source))) => {
-                self.cam_tool_import_plan = Some(super::cam_library::plan_csv_import(name, &source));
+                self.tool_library.plan_import(&source, &name);
                 Task::none()
             }
             Message::CamToolCsvLoaded(None) => Task::none(),
+            Message::CamToolCsvExported => {
+                self.command_line.push_output("Tool database exported to CSV.");
+                Task::none()
+            }
             Message::CamGcodePasted(Some(source)) => {
                 if source.trim().is_empty() {
                     self.command_line.push_error("CAM paste: the clipboard does not contain text.");
@@ -1541,8 +1545,9 @@ impl Mac2CAM {
 
             Message::CamPanel(action) => {
                 use crate::ui::window::cam_panel::{
-                    AdvancedField, CamPanelMsg as A, NumericField, OperationField, SetupField,
-                    SetupTemplate, ToolField,
+                    AdvancedField, CamPanelMsg as A, ChipDirectionOption, LibraryToolField,
+                    NumericField, OperationField, SetupField, SetupTemplate, SubstrateOption,
+                    ToolField, TypeOption, VendorOption,
                 };
                 let i = self.active_tab;
                 let count = self.tabs[i].cam_job.operations.len();
@@ -1553,7 +1558,7 @@ impl Mac2CAM {
                     A::MaterialName(value) => self.cam_editor.material_name = value,
                     A::ToolName(value) => self.cam_editor.tool_name = value,
                     A::ToolSearch(value) => self.cam_editor.tool_search = value,
-                    A::ToolValue(field, value) => self.cam_editor.edit(NumericField::Tool(field), value),
+                    A::ToolValue(field, value) => self.cam_editor.edit(NumericField::LibraryTool(field), value),
                     A::ToolToggleTrash => {
                         self.cam_editor.tool_trash = !self.cam_editor.tool_trash;
                         self.cam_selected_tool = None;
@@ -1622,58 +1627,126 @@ impl Mac2CAM {
                         }
                     }
                     A::MaterialDelete => { if let Some(index) = self.cam_selected_material.take().filter(|index| *index < self.cam_library.materials.len()) { self.cam_library.materials.remove(index); let _ = super::cam_library::save(&self.cam_library); } }
-                    A::ToolSelect(index) if index < self.cam_library.tools.len() => {
-                        self.cam_selected_tool = Some(index); self.cam_editor.tool_name = self.cam_library.tools[index].name.clone();
-                        let tool = &self.cam_library.tools[index];
-                        self.cam_editor.edit(NumericField::Tool(ToolField::Diameter), tool.diameter.to_string());
-                        self.cam_editor.edit(NumericField::Tool(ToolField::Feed), tool.feed.to_string());
-                        self.cam_editor.edit(NumericField::Tool(ToolField::Plunge), tool.plunge_feed.to_string());
-                        self.cam_editor.edit(NumericField::Tool(ToolField::Rpm), tool.spindle_rpm.to_string());
-                        if let Some(operation) = self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get_mut(op)) { operation.tool = self.cam_library.tools[index].clone(); operation.parameters.tool_diameter = operation.tool.diameter; operation.parameters.feed = operation.tool.feed; operation.parameters.plunge_feed = operation.tool.plunge_feed; operation.parameters.spindle_rpm = operation.tool.spindle_rpm; }
+                    A::ToolSelect(index) if index < self.tool_library.tools.len() => {
+                        self.cam_selected_tool = Some(index);
+                        let tool = self.tool_library.tools[index].clone();
+                        self.cam_editor.tool_name = tool.name.clone();
+                        self.cam_editor.tool_vendor = tool.vendor_name.clone().unwrap_or_default();
+                        self.cam_editor.tool_part_number = tool.product_id.clone().unwrap_or_default();
+                        self.cam_editor.tool_series = tool.series.clone().unwrap_or_default();
+                        self.cam_editor.tool_type = tool.tool_type;
+                        self.cam_editor.tool_substrate = SubstrateOption::from_db_str(tool.substrate.as_deref());
+                        self.cam_editor.tool_coating = tool.coating.clone().unwrap_or_default();
+                        self.cam_editor.tool_chip_direction = ChipDirectionOption::from_db_str(tool.chip_direction.as_deref());
+                        self.cam_editor.tool_notes = tool.notes.clone().unwrap_or_default();
+                        self.cam_editor.edit(NumericField::LibraryTool(LibraryToolField::Diameter), tool.diameter_mm.unwrap_or(6.0).to_string());
+                        self.cam_editor.edit(NumericField::LibraryTool(LibraryToolField::FluteCount), tool.flute_count.unwrap_or(2).to_string());
+                        self.cam_editor.edit(NumericField::LibraryTool(LibraryToolField::FluteLength), tool.flute_length_mm.unwrap_or(20.0).to_string());
+                        self.cam_editor.edit(NumericField::LibraryTool(LibraryToolField::ShankDia), tool.shank_dia_mm.unwrap_or(6.0).to_string());
+                        self.cam_editor.edit(NumericField::LibraryTool(LibraryToolField::OverallLength), tool.overall_length_mm.unwrap_or(50.0).to_string());
+                        self.cam_editor.edit(NumericField::LibraryTool(LibraryToolField::CornerRadius), tool.corner_radius_mm.unwrap_or(0.0).to_string());
+                        self.cam_editor.edit(NumericField::LibraryTool(LibraryToolField::IncludedAngle), tool.included_angle_deg.unwrap_or(90.0).to_string());
+                        self.cam_editor.edit(NumericField::LibraryTool(LibraryToolField::TipDiameter), tool.tip_dia_mm.unwrap_or(0.0).to_string());
+                        if let Some(resolved) = self.tool_library.resolved(&tool) {
+                            if let Some(definition) = tool.to_tool_definition(&resolved) {
+                                if let Some(operation) = self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get_mut(op)) {
+                                    operation.parameters.tool_diameter = definition.diameter;
+                                    operation.parameters.feed = definition.feed;
+                                    operation.parameters.plunge_feed = definition.plunge_feed;
+                                    operation.parameters.spindle_rpm = definition.spindle_rpm;
+                                    operation.tool = definition;
+                                }
+                            }
+                        }
                     }
                     A::ToolCreate => {
-                        let name = self.cam_editor.tool_name.trim();
-                        if !name.is_empty() { let parameters = self.cam_selected_operation.and_then(|op| self.tabs[i].cam_job.operations.get(op)).map(|op| op.parameters).unwrap_or_default(); let mut tool = ocs_cam_core::ToolDefinition::from_parameters(super::cam_library::unique_id("tool"), parameters); tool.name = name.into(); self.cam_library.tools.push(tool); self.cam_selected_tool = Some(self.cam_library.tools.len()-1); let _ = super::cam_library::save(&self.cam_library); }
+                        if let Some(tool) = self.tool_library.create() {
+                            self.cam_selected_tool = self.tool_library.tools.iter().position(|t| t.id == tool.id);
+                        }
+                        if let Some(error) = self.tool_library.error_message.take() { self.command_line.push_error(&error); }
                     }
+                    A::ToolVendor(value) => self.cam_editor.tool_vendor = value,
+                    A::ToolPartNumber(value) => self.cam_editor.tool_part_number = value,
+                    A::ToolSeries(value) => self.cam_editor.tool_series = value,
+                    A::ToolTypeSelect(value) => self.cam_editor.tool_type = value,
+                    A::ToolSubstrateSelect(value) => self.cam_editor.tool_substrate = value,
+                    A::ToolCoating(value) => self.cam_editor.tool_coating = value,
+                    A::ToolChipDirectionSelect(value) => self.cam_editor.tool_chip_direction = value,
+                    A::ToolNotes(value) => self.cam_editor.tool_notes = value,
                     A::ToolUpdate => {
+                        fn set_text(edited: &mut Vec<&'static str>, field: &'static str, draft: &str, target: &mut Option<String>) {
+                            let draft = draft.trim();
+                            let new_value = if draft.is_empty() { None } else { Some(draft.to_string()) };
+                            if new_value != *target {
+                                *target = new_value;
+                                edited.push(field);
+                            }
+                        }
                         if let Some(index) = self.cam_selected_tool {
-                            if let Some(saved) = self.cam_library.tools.get_mut(index) {
-                                if !self.cam_editor.tool_name.trim().is_empty() { saved.name = self.cam_editor.tool_name.trim().into(); }
-                                let value = |field, fallback| self.cam_editor.drafts.get(&NumericField::Tool(field)).and_then(|s| s.parse::<f64>().ok()).unwrap_or(fallback);
-                                saved.diameter = value(ToolField::Diameter, saved.diameter).max(0.001);
-                                saved.feed = value(ToolField::Feed, saved.feed).max(0.001);
-                                saved.plunge_feed = value(ToolField::Plunge, saved.plunge_feed).max(0.001);
-                                saved.spindle_rpm = value(ToolField::Rpm, saved.spindle_rpm as f64).max(1.0) as u32;
-                                let _ = super::cam_library::save(&self.cam_library);
+                            if let Some(mut tool) = self.tool_library.tools.get(index).cloned() {
+                                let mut edited = Vec::new();
+                                if !self.cam_editor.tool_name.trim().is_empty() && self.cam_editor.tool_name.trim() != tool.name {
+                                    tool.name = self.cam_editor.tool_name.trim().into();
+                                    edited.push("name");
+                                }
+                                set_text(&mut edited, "vendor_name", &self.cam_editor.tool_vendor.clone(), &mut tool.vendor_name);
+                                set_text(&mut edited, "product_id", &self.cam_editor.tool_part_number.clone(), &mut tool.product_id);
+                                set_text(&mut edited, "series", &self.cam_editor.tool_series.clone(), &mut tool.series);
+                                set_text(&mut edited, "coating", &self.cam_editor.tool_coating.clone(), &mut tool.coating);
+                                set_text(&mut edited, "notes", &self.cam_editor.tool_notes.clone(), &mut tool.notes);
+                                if tool.tool_type != self.cam_editor.tool_type {
+                                    tool.tool_type = self.cam_editor.tool_type;
+                                    edited.push("tool_type");
+                                }
+                                let substrate_db = SubstrateOption::as_db_str(self.cam_editor.tool_substrate).map(str::to_string);
+                                if tool.substrate != substrate_db {
+                                    tool.substrate = substrate_db;
+                                    edited.push("substrate");
+                                }
+                                let chip_db = ChipDirectionOption::as_db_str(self.cam_editor.tool_chip_direction).map(str::to_string);
+                                if tool.chip_direction != chip_db {
+                                    tool.chip_direction = chip_db;
+                                    edited.push("chip_direction");
+                                }
+                                let value = |field: LibraryToolField| self.cam_editor.drafts.get(&NumericField::LibraryTool(field)).and_then(|s| s.parse::<f64>().ok());
+                                if let Some(v) = value(LibraryToolField::Diameter) { tool.diameter_mm = Some(v.max(0.001)); edited.push("diameter_mm"); }
+                                if let Some(v) = value(LibraryToolField::FluteCount) { tool.flute_count = Some(v.max(1.0) as i64); edited.push("flute_count"); }
+                                if let Some(v) = value(LibraryToolField::FluteLength) { tool.flute_length_mm = Some(v.max(0.001)); edited.push("flute_length_mm"); }
+                                if let Some(v) = value(LibraryToolField::ShankDia) { tool.shank_dia_mm = Some(v.max(0.001)); edited.push("shank_dia_mm"); }
+                                if let Some(v) = value(LibraryToolField::OverallLength) { tool.overall_length_mm = Some(v.max(0.001)); edited.push("overall_length_mm"); }
+                                if let Some(v) = value(LibraryToolField::CornerRadius) { tool.corner_radius_mm = Some(v.max(0.0)); edited.push("corner_radius_mm"); }
+                                if tool.tool_type.requires_included_angle() {
+                                    if let Some(v) = value(LibraryToolField::IncludedAngle) { tool.included_angle_deg = Some(v.max(1.0)); edited.push("included_angle_deg"); }
+                                }
+                                if let Some(v) = value(LibraryToolField::TipDiameter) { tool.tip_dia_mm = Some(v.max(0.0)); edited.push("tip_dia_mm"); }
+                                let edited_refs: Vec<&str> = edited.iter().copied().collect();
+                                self.tool_library.save(&tool, &edited_refs);
+                                if let Some(error) = self.tool_library.error_message.take() { self.command_line.push_error(&error); }
                             }
                         }
                     }
                     A::ToolDuplicate => {
-                        if let Some(index) = self.cam_selected_tool.filter(|index| *index < self.cam_library.tools.len()) {
-                            let mut copy = self.cam_library.tools[index].clone();
-                            copy.id = super::cam_library::unique_id("tool");
-                            copy.name = format!("{} copy", copy.name);
-                            self.cam_library.tools.insert(index + 1, copy);
-                            self.cam_selected_tool = Some(index + 1);
-                            let _ = super::cam_library::save(&self.cam_library);
+                        if let Some(index) = self.cam_selected_tool.filter(|index| *index < self.tool_library.tools.len()) {
+                            let id = self.tool_library.tools[index].id.clone();
+                            if let Some(copy) = self.tool_library.duplicate(&id) {
+                                self.cam_selected_tool = self.tool_library.tools.iter().position(|t| t.id == copy.id);
+                            }
                         }
                     }
                     A::ToolDelete => {
-                        if let Some(index) = self.cam_selected_tool.take().filter(|index| *index < self.cam_library.tools.len()) {
-                            let removed = self.cam_library.tools.remove(index);
-                            self.cam_library.trashed_tools.push(removed);
-                            let _ = super::cam_library::save(&self.cam_library);
+                        if let Some(index) = self.cam_selected_tool.take().filter(|index| *index < self.tool_library.tools.len()) {
+                            let id = self.tool_library.tools[index].id.clone();
+                            self.tool_library.delete(&id);
                             self.command_line.push_output("Tool moved to Trash. It can be restored.");
                         }
                     }
-                    A::ToolRestore(index) if index < self.cam_library.trashed_tools.len() => {
-                        let restored = self.cam_library.trashed_tools.remove(index);
-                        self.cam_library.tools.push(restored);
-                        let _ = super::cam_library::save(&self.cam_library);
+                    A::ToolRestore(index) if index < self.tool_library.trash.len() => {
+                        let id = self.tool_library.trash[index].id.clone();
+                        self.tool_library.restore(&id);
                     }
-                    A::ToolPurge(index) if index < self.cam_library.trashed_tools.len() => {
-                        self.cam_library.trashed_tools.remove(index);
-                        let _ = super::cam_library::save(&self.cam_library);
+                    A::ToolPurge(index) if index < self.tool_library.trash.len() => {
+                        let id = self.tool_library.trash[index].id.clone();
+                        self.tool_library.purge(&id);
                     }
                     A::ToolImportCsv => {
                         return Task::perform(async {
@@ -1686,63 +1759,112 @@ impl Mac2CAM {
                         }, Message::CamToolCsvLoaded);
                     }
                     A::ToolImportCommit => {
-                        if let Some(plan) = self.cam_tool_import_plan.take() {
-                            let count = plan.tools.len();
-                            self.cam_library.tools.extend(plan.tools);
-                            let _ = super::cam_library::save(&self.cam_library);
-                            self.command_line.push_output(&format!("Tool database: imported {count} tools; {} rows rejected.", plan.rejected.len()));
-                        }
+                        self.tool_library.commit_import();
+                        if let Some(status) = self.tool_library.status_message.take() { self.command_line.push_output(&status); }
+                        if let Some(error) = self.tool_library.error_message.take() { self.command_line.push_error(&error); }
                     }
-                    A::ToolImportCancel => self.cam_tool_import_plan = None,
+                    A::ToolImportCancel => self.tool_library.cancel_import(),
                     A::ToolApplyResolved => {
-                        if let (Some(tool_index), Some(operation_index), Some(setup)) = (
-                            self.cam_selected_tool,
-                            self.cam_selected_operation,
-                            self.tabs[i].cam_job.setups.first(),
-                        ) {
-                            if let Some(tool) = self.cam_library.tools.get(tool_index).cloned() {
-                                let data = self.cam_library.resolve(&tool, &setup.material, &setup.machine);
-                                if let Some(operation) = self.tabs[i].cam_job.operations.get_mut(operation_index) {
-                                    operation.tool = tool;
-                                    operation.tool.feed = data.feed;
-                                    operation.tool.plunge_feed = data.plunge_feed;
-                                    operation.tool.spindle_rpm = data.spindle_rpm;
-                                    operation.parameters.tool_diameter = operation.tool.diameter;
-                                    operation.parameters.feed = data.feed;
-                                    operation.parameters.plunge_feed = data.plunge_feed;
-                                    operation.parameters.spindle_rpm = data.spindle_rpm;
-                                    operation.parameters.step_down = data.step_down;
-                                    operation.advanced.step_over = data.step_over;
-                                    let _ = crate::app::commands::regenerate_cam_operation(operation);
-                                    self.tabs[i].dirty = true;
+                        if let (Some(tool_index), Some(operation_index)) = (self.cam_selected_tool, self.cam_selected_operation) {
+                            if let Some(tool) = self.tool_library.tools.get(tool_index).cloned() {
+                                if let Some(resolved) = self.tool_library.resolved(&tool) {
+                                    if let Some(definition) = tool.to_tool_definition(&resolved) {
+                                        if let Some(operation) = self.tabs[i].cam_job.operations.get_mut(operation_index) {
+                                            operation.parameters.tool_diameter = definition.diameter;
+                                            operation.parameters.feed = definition.feed;
+                                            operation.parameters.plunge_feed = definition.plunge_feed;
+                                            operation.parameters.spindle_rpm = definition.spindle_rpm;
+                                            operation.parameters.step_down = resolved.stepdown_mm;
+                                            operation.advanced.step_over = resolved.stepover_mm;
+                                            operation.tool = definition;
+                                            let _ = crate::app::commands::regenerate_cam_operation(operation);
+                                            self.tabs[i].dirty = true;
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                     A::ToolSavePreset => {
-                        if let (Some(tool_index), Some(setup)) = (
-                            self.cam_selected_tool,
-                            self.tabs[i].cam_job.setups.first(),
-                        ) {
-                            if let Some(tool) = self.cam_library.tools.get(tool_index).cloned() {
-                                let data = self.cam_library.resolve(&tool, &setup.material, &setup.machine);
-                                self.cam_library.cutting_presets.retain(|preset| {
-                                    preset.tool_id != tool.id || !preset.material.eq_ignore_ascii_case(&setup.material.name)
-                                });
-                                self.cam_library.cutting_presets.push(super::cam_library::CuttingPreset {
-                                    id: super::cam_library::unique_id("cutting-preset"),
-                                    tool_id: tool.id,
-                                    material: setup.material.name.clone(),
-                                    name: format!("{} / {}", tool.name, setup.material.name),
-                                    feed: data.feed,
-                                    plunge_feed: data.plunge_feed,
-                                    spindle_rpm: data.spindle_rpm,
-                                    step_down: data.step_down,
-                                    step_over: data.step_over,
-                                });
-                                let _ = super::cam_library::save(&self.cam_library);
-                                self.command_line.push_output("Saved cutting preset for the selected tool and material.");
+                        if let Some(tool_index) = self.cam_selected_tool {
+                            if let Some(tool) = self.tool_library.tools.get(tool_index).cloned() {
+                                if let Some(resolved) = self.tool_library.resolved(&tool) {
+                                    let material_name = self.tool_library.material_classes.iter()
+                                        .find(|c| c.id == self.tool_library.material_class_id)
+                                        .map(|c| c.name.clone())
+                                        .unwrap_or_default();
+                                    let preset = crate::tool_library::model::CuttingPreset {
+                                        id: crate::tool_library::new_id(),
+                                        tool_id: tool.id.clone(),
+                                        material_id: None,
+                                        material_class_id: Some(self.tool_library.material_class_id.clone()),
+                                        machine_id: None,
+                                        name: format!("{} / {}", tool.name, material_name),
+                                        origin: crate::tool_library::model::PresetOrigin::User,
+                                        derivation: crate::tool_library::model::PresetDerivation::Explicit,
+                                        confidence: 5,
+                                        chipload_mm: Some(resolved.chipload_mm),
+                                        vc_m_per_min: None,
+                                        spindle_rpm: Some(resolved.spindle_rpm),
+                                        feed_xy_mm_min: Some(resolved.feed_xy_mm_min),
+                                        feed_z_mm_min: Some(resolved.feed_z_mm_min),
+                                        ramp_feed_mm_min: None,
+                                        stepdown_mm: Some(resolved.stepdown_mm),
+                                        stepover_mm: Some(resolved.stepover_mm),
+                                        clearance_stepover_mm: None,
+                                        cut_direction: None,
+                                        air_blast: false,
+                                        notes: None,
+                                    };
+                                    self.tool_library.save_preset(&preset);
+                                    self.command_line.push_output("Saved cutting preset for the selected tool and material.");
+                                }
                             }
+                        }
+                    }
+                    A::MaterialClassSelect(name) => {
+                        if let Some(class) = self.tool_library.material_classes.iter().find(|c| c.name == name) {
+                            self.tool_library.material_class_id = class.id.clone();
+                        }
+                    }
+                    A::DepthOfCutChanged(value) => self.tool_library.depth_of_cut_mm = Some(value.max(0.01)),
+                    A::VendorFilterSelect(choice) => {
+                        self.tool_library.vendor_filter = match choice {
+                            VendorOption::All => None,
+                            VendorOption::Named(name) => Some(name),
+                        };
+                    }
+                    A::TypeFilterSelect(choice) => {
+                        self.tool_library.type_filter = match choice {
+                            TypeOption::All => None,
+                            TypeOption::Specific(t) => Some(t),
+                        };
+                    }
+                    A::UnitToggle(unit) => self.tool_library.display_unit = unit,
+                    A::IncompleteOnlyToggle(value) => self.tool_library.incomplete_only = value,
+                    A::ToolExportCsv => {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            let tools: Vec<_> = self.tool_library.tools.iter().collect();
+                            let csv = crate::tool_library::csv_import::to_csv(&tools);
+                            return Task::perform(
+                                async move {
+                                    let handle = rfd::AsyncFileDialog::new()
+                                        .set_file_name("tool_library.csv")
+                                        .save_file()
+                                        .await?;
+                                    handle.write(csv.as_bytes()).await.ok()?;
+                                    Some(())
+                                },
+                                |result| match result {
+                                    Some(()) => Message::CamToolCsvExported,
+                                    None => Message::Noop,
+                                },
+                            );
+                        }
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            self.command_line.push_error("CSV export isn't available in the browser build.");
                         }
                     }
                     A::ImportGcode => {
@@ -1811,6 +1933,7 @@ impl Mac2CAM {
                                     }
                                     if let Some(stock) = stock_boundary { self.tabs[i].dirty = true; self.tabs[i].scene.set_cam_stock_boundary(&stock); }
                                 }
+                                NumericField::LibraryTool(_) => {}
                                 NumericField::Tool(_) | NumericField::Operation(_) | NumericField::Advanced(_) => {
                                     if let Some(operation) = self.cam_selected_operation.and_then(|index| self.tabs[i].cam_job.operations.get_mut(index)) {
                                         match field {
@@ -1832,7 +1955,7 @@ impl Mac2CAM {
                                             NumericField::Advanced(AdvancedField::LeadOut) => operation.advanced.lead_out = value.max(0.0),
                                             NumericField::Advanced(AdvancedField::RampLength) => operation.advanced.ramp_length = value.max(0.0),
                                             NumericField::Advanced(AdvancedField::FinishAllowance) => operation.advanced.finish_allowance = value.max(0.0),
-                                            NumericField::Setup(_) => unreachable!(),
+                                            NumericField::Setup(_) | NumericField::LibraryTool(_) => unreachable!(),
                                         }
                                         match crate::app::commands::regenerate_cam_operation(operation) {
                                             Ok(()) => self.tabs[i].dirty = true,

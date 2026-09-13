@@ -20,4 +20,5 @@ pub mod plugin;
 pub mod scene;
 pub mod snap;
 pub mod sys;
+pub mod tool_library;
 pub mod ui;

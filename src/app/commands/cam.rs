@@ -27,11 +27,22 @@ impl Mac2CAM {
             if let Some(id) = self.cam_tool_library_window {
                 return Some(iced::window::gain_focus(id));
             }
-            let (id, task) = iced::window::open(iced::window::Settings {
+            #[allow(unused_mut)]
+            let mut settings = iced::window::Settings {
                 size: iced::Size::new(760.0, 620.0),
                 exit_on_close_request: false,
                 ..Default::default()
-            });
+            };
+            // Give this window its own macOS tabbing group so the system's
+            // "Prefer tabs when opening documents" setting can't merge it
+            // into a tab of the main window — it should always float as a
+            // genuinely separate window. See vendor/iced/PATCHES.md.
+            #[cfg(target_os = "macos")]
+            {
+                settings.platform_specific.tabbing_identifier =
+                    Some("mac2cam.cam-tool-library".to_string());
+            }
+            let (id, task) = iced::window::open(settings);
             self.cam_tool_library_window = Some(id);
             return Some(task.map(|_| Message::Noop));
         }

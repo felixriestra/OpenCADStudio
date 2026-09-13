@@ -178,19 +178,15 @@ impl Mac2CAM {
             );
         }
         if self.cam_tool_library_window == Some(window_id) {
-            let setup = self.tabs[self.active_tab].cam_job.setups.first();
-            let resolved = self.cam_selected_tool
-                .and_then(|index| self.cam_library.tools.get(index))
-                .zip(setup)
-                .map(|(tool, setup)| self.cam_library.resolve(tool, &setup.material, &setup.machine));
+            let resolved = self
+                .cam_selected_tool
+                .and_then(|index| self.tool_library.tools.get(index))
+                .and_then(|tool| self.tool_library.resolved(tool));
             return crate::ui::window::cam_panel::tool_library_view(
                 &self.cam_editor,
-                &self.cam_library.tools,
-                &self.cam_library.trashed_tools,
+                &self.tool_library,
                 self.cam_selected_tool,
-                setup,
                 resolved,
-                self.cam_tool_import_plan.as_ref(),
             );
         }
         // ── Floating panel windows ─────────────────────────────────────────
@@ -2805,9 +2801,6 @@ impl Mac2CAM {
                     .copied(),
                 self.cam_playing,
                 self.cam_playback_speed,
-                    &self.cam_library.tools,
-                    &self.cam_library.trashed_tools,
-                    self.cam_selected_tool,
                 width,
                 auto_collapse,
             ),

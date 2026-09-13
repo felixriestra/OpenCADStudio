@@ -805,9 +805,12 @@ impl Mac2CAM {
                 }
             }
             "capture" => {
-                let window = self
-                    .main_window
-                    .ok_or_else(|| failure("gui_required", "Capture requires a GUI window"))?;
+                let window = match req["window"].as_str().unwrap_or("main") {
+                    "cam_preview" => self.cam_preview_window,
+                    "cam_tool_library" => self.cam_tool_library_window,
+                    _ => self.main_window,
+                }
+                .ok_or_else(|| failure("gui_required", "That window is not open"))?;
                 let path = string(req, "path")?.to_owned();
                 iced::window::screenshot(window)
                     .map(move |s| Message::ControlScreenshot(path.clone(), Some(s)))

@@ -1445,6 +1445,10 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
                 self.tabs[i].scene.material_base_dir =
                     path.parent().map(std::path::Path::to_path_buf);
                 self.tabs[i].scene.document = doc;
+                // Read back a plain-DWG/DXF-embedded CAM job before the
+                // `.mac2cam` branch below, so it can still overwrite with
+                // the sidecar's own (authoritative for that format) copy.
+                self.tabs[i].load_cam_job_from_document();
                 if path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("mac2cam")) {
                     match crate::io::mac2cam_project::read_project(&path) {
                         Ok(project) => {
@@ -1720,6 +1724,10 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
         // named_parameters_design.md stage 2: same save-time hook, for the
         // document-wide parameter table.
         self.tabs[i].scene.materialize_named_parameters_for_save();
+        // Embed the CAM job (operations/setups/tool library) into the
+        // drawing itself, so a plain Save on an ordinary .dwg/.dxf keeps it
+        // too, not just an explicit .mac2cam project save.
+        self.tabs[i].materialize_cam_job_for_save();
         // docs/dwg_constraint_compatibility_design.md: additive DWG/DXF-
         // native constraint graph, alongside (not instead of) the XRecord
         // above — same save-time hook.
@@ -2686,6 +2694,7 @@ pub(super) fn on_open_file(&mut self) -> Task<Message> {
                     self.sync_solid_models_for_save(i);
                     self.tabs[i].scene.materialize_sketch_constraints_for_save();
                     self.tabs[i].scene.materialize_named_parameters_for_save();
+                    self.tabs[i].materialize_cam_job_for_save();
                     self.tabs[i].scene.materialize_dwg_native_constraints_for_save(self.write_dwg_native_constraints);
                     let tab_id = self.tabs[i].id;
                     let bounds = crate::ui::wrap_bar::dropdown_bounds(

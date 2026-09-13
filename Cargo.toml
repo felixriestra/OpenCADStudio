@@ -16,6 +16,7 @@ members = [
     "crates/ocs_gcs",
     "crates/ocs_import",
 ]
+exclude = ["vendor/iced"]
 
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"
@@ -28,9 +29,12 @@ serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 base64 = "0.22"
 semver = "1"
-iced = { git = "https://github.com/iced-rs/iced.git", rev = "23604ff22ab0aad9e00b9327cb7b8546ed84db39", features = ["image", "svg", "advanced", "canvas", "smol", "markdown"] }
-iced_runtime = { git = "https://github.com/iced-rs/iced.git", rev = "23604ff22ab0aad9e00b9327cb7b8546ed84db39" }
-iced_core = { git = "https://github.com/iced-rs/iced.git", rev = "23604ff22ab0aad9e00b9327cb7b8546ed84db39" }
+# Vendored locally at vendor/iced (pinned to the same rev as before) so the
+# macOS PlatformSpecific.tabbing_identifier patch (CAM Tools floating window
+# fix) is available — see vendor/iced/PATCHES.md.
+iced = { path = "vendor/iced", features = ["image", "svg", "advanced", "canvas", "smol", "markdown"] }
+iced_runtime = { path = "vendor/iced/runtime" }
+iced_core = { path = "vendor/iced/core" }
 iced_aw = { git = "https://github.com/HakanSeven12/iced_aw.git", branch = "agent/fix-iced-fonts", features = ["menu", "context_menu", "color_picker", "drop_down"] }
 bytemuck = { version = "1.25", features = ["derive"] }
 glam = { version = "0.33", features = ["bytemuck"] }
@@ -77,11 +81,14 @@ objc2-app-kit = { version = "0.2", features = ["NSApplication", "NSResponder", "
 objc2-foundation = { version = "0.2", features = ["NSArray", "NSURL", "NSString", "NSObject", "NSNotification", "NSThread", "NSEnumerator"] }
 
 [patch.crates-io]
-iced_core = { git = "https://github.com/iced-rs/iced.git", rev = "23604ff22ab0aad9e00b9327cb7b8546ed84db39" }
-iced_widget = { git = "https://github.com/iced-rs/iced.git", rev = "23604ff22ab0aad9e00b9327cb7b8546ed84db39" }
+iced_core = { path = "vendor/iced/core" }
+iced_widget = { path = "vendor/iced/widget" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 getrandom = "0.3"
+# Tool database (src/tool_library/): bundled statically links SQLite so no
+# system library is required on any of the desktop targets.
+rusqlite = { version = "0.32", features = ["bundled"] }
 ocs_plugin_api = { path = "crates/ocs_plugin_api", features = ["host"] }
 ocs_doc_api = { path = "crates/ocs_doc_api", features = ["host", "ipc"] }
 bincode = "1.3"
@@ -139,7 +146,7 @@ web-sys = { version = "=0.3.85", features = [
     "CanvasRenderingContext2d",
     "ImageData",
 ] }
-iced = { git = "https://github.com/iced-rs/iced.git", rev = "23604ff22ab0aad9e00b9327cb7b8546ed84db39", features = ["webgl", "fira-sans"] }
+iced = { path = "vendor/iced", features = ["webgl", "fira-sans"] }
 
 [profile.release]
 strip = true
