@@ -7056,6 +7056,7 @@ impl Mac2CAM {
                 Task::none()
             }
 
+
             Message::CrosshairColorChanged(value) => {
                 self.crosshair_color_input = value.clone();
                 if value.trim().is_empty() {

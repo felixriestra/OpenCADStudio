@@ -760,6 +760,30 @@ pub fn view_window<'a>(
                 .width(sizing.width),
         )
         .push(Space::new().height(24))
+        .push(text(crate::t!("UI Scale")).size(15))
+        .push(Space::new().height(10))
+        .push(
+            row![
+                text(crate::t!("Overall size")).size(12).width(140),
+                slider(50..=200, ui_scale.clamp(50, 200), Message::UiScaleChanged)
+                    .step(5)
+                    .width(Fill),
+                text(format!("{}%", ui_scale.clamp(50, 200)))
+                    .size(11)
+                    .width(44),
+            ]
+            .spacing(10)
+            .align_y(iced::Center),
+        )
+        .push(Space::new().height(6))
+        .push(
+            text(crate::t!(
+                "Scales the whole interface at once — every panel, dialog, the ribbon, and their text — rather than one widget's font size. Takes effect immediately."
+            ))
+            .size(11)
+            .width(sizing.width),
+        )
+        .push(Space::new().height(24))
         .push(text(crate::t!("Lineweight")).size(15))
         .push(Space::new().height(10))
         .push(
